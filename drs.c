@@ -38,25 +38,28 @@ struct timeval tv = { 0, POLLDELAY };
 
 const unsigned int freqREG[]= {480, 240, 160, 120, 100};
 
+
+parameter_t * g_ini = NULL;
+
 /**
  * @brief drs_init
  * @param prm
  */
-void drs_init(parameter_t *prm)
+void drs_init(parameter_t *a_params)
 {
     write_reg(0x4, 1);//select frequency (0 - external, 1 - internal
     write_reg(30, freqREG[current_freq]);//select ref frequency
 
-    write_reg(6, prm->fastadc.CLK_PHASE);//clk_phase
-    printf("initialization\tprm->fastadc.OFS1=%u\tprm->fastadc.ROFS1=%u\n",prm->fastadc.OFS1,prm->fastadc.ROFS1);
-    printf("              \tprm->fastadc.OFS2=%u\tprm->fastadc.ROFS2=%u\n",prm->fastadc.OFS2,prm->fastadc.ROFS2);
-    printf("              \tprm->fastadc.CLK_PHASE=%u\n", prm->fastadc.CLK_PHASE);
+    write_reg(6, a_params->fastadc.CLK_PHASE);//clk_phase
+    printf("initialization\tprm->fastadc.OFS1=%u\tprm->fastadc.ROFS1=%u\n",a_params->fastadc.OFS1,a_params->fastadc.ROFS1);
+    printf("              \tprm->fastadc.OFS2=%u\tprm->fastadc.ROFS2=%u\n",a_params->fastadc.OFS2,a_params->fastadc.ROFS2);
+    printf("              \tprm->fastadc.CLK_PHASE=%u\n", a_params->fastadc.CLK_PHASE);
     usleep(3);
-    write_reg(10,((prm->fastadc.OFS1<<16)&0xffff0000)|prm->fastadc.ROFS1);// OFS&ROFS
+    write_reg(10,((a_params->fastadc.OFS1<<16)&0xffff0000)|a_params->fastadc.ROFS1);// OFS&ROFS
     usleep(3);
     write_reg(11,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
     usleep(3);
-    write_reg(12,((prm->fastadc.OFS2<<16)&0xffff0000)|prm->fastadc.ROFS2);// OFS&ROFS
+    write_reg(12,((a_params->fastadc.OFS2<<16)&0xffff0000)|a_params->fastadc.ROFS2);// OFS&ROFS
     usleep(3);
     write_reg(13,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
     usleep(3);

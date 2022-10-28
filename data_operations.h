@@ -4,9 +4,7 @@
  *  Created on: 20 дек. 2019 г.
  *      Author: Denis
  */
-
-#ifndef DATA_OPERATIONS_H_
-#define DATA_OPERATIONS_H_
+#pragma once
 void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *k);
 void arrayOperation(double *array,int length,void (*operation)(double *num));
 void pageModeStart(unsigned int num);
@@ -20,4 +18,3 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
 void readNPage(unsigned short *buffer,unsigned int shift,unsigned int numPage, unsigned int drsnum);
 void writeNPage(unsigned short *buffer,unsigned int numPage, unsigned int drsnum);
 void readNPages(unsigned short *buffer,unsigned int *shift,unsigned int pageCount, unsigned int step, unsigned int drsnum);
-#endif /* DATA_OPERATIONS_H_ */

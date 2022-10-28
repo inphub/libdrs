@@ -4,10 +4,11 @@
  *  Created on: 24 дек. 2014 г.
  *      Author: Zubarev
  */
+#pragma once
+
 #include <sys/stat.h>
 #include <stdint.h>
-#ifndef MEMTEST_H_
-#define MEMTEST_H_
+#include "drs.h"
 
 
 #define SDRAM_BASE_DRS1 0x20000000 //536870912
@@ -25,4 +26,3 @@ void write_reg(unsigned int reg_adr, unsigned int reg_data);
 unsigned int read_reg(unsigned int reg_adr);
 void deinit_mem();
 
-#endif /* MEMTEST_H_ */
