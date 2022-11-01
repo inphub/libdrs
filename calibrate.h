@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <pthread.h>
 #include "drs.h"
 
 
@@ -15,7 +16,7 @@
 #define maxPeriodsCount 28//26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
 //#define freqDRS 4915200.0/1000000000.0
 //extern const double freqDRS[];
-extern int current_freq;
+extern int g_current_freq;
 
 typedef struct
 {
@@ -31,22 +32,20 @@ typedef struct
 	unsigned int splash[4];
 } coefficients;
 
-void getXArray(double*x, unsigned int *shift,coefficients *coef,unsigned int key);
-void xToReal(double*x);
-void findSplash(double*Y,unsigned int *shift,coefficients *coef,unsigned int lvl);
-void removeSplash(double*Y,unsigned int *shift,coefficients *coef);
-void applyGlobalTimeCalibration(double *x,double *xMas, unsigned int *shift, coefficients *coef);
-unsigned int globalTimeCalibration(unsigned int numCycle, coefficients *coef,parameter_t *prm);
-void globalTimeCalibr(double *x, double *y,unsigned int shift,double *sumDeltaRef, double *stat);
-void applyTimeCalibration(double *bufferX, coefficients *coef,unsigned int * shift);
-unsigned int timeCalibration(unsigned int minN, coefficients *coef,parameter_t *prm);
-double getMinDeltas(double*buffer,double *sumDeltaRef,double *stat,unsigned int *shift);
-void doColibrateCurgr(unsigned short *buffer,double *dBuf,unsigned int *shift,coefficients *coef,unsigned int chanalLength,unsigned int chanalCount,unsigned int key,parameter_t *prm);
-unsigned int calibrateAmplitude(coefficients *coef,double *calibLvl,unsigned int N, double *shiftDAC,parameter_t *prm, unsigned int count);
-unsigned int calibrate_fin(double*calibLvl,unsigned int N,float *DAC_gain,float *DAC_offset,coefficients *coef,unsigned int count);
-void getCoefficients(double *acc,coefficients *coef,double* calibLvl,int count,double *average);
-unsigned int chanalsCalibration(double*calibLvl,float *DAC_gain,float *DAC_offset,coefficients *coef, unsigned int count,parameter_t *prm);
-void collectStatisticsB(double *acc,unsigned short *buff,unsigned int *shift,unsigned int *stat);
-void calcCoeffB(double *acc,unsigned int *statistic,double *average);
 
+typedef struct{
+    int progress; // Progress between 0 and 100
+    pthread_rwlock_t rwlock;
+} calibrate_state_t;
 
+void calibrate_get_array_x(double*x, unsigned int *shift,coefficients *coef,unsigned int key);
+unsigned int calibrate_time_global(unsigned int numCycle, coefficients *coef,parameter_t *prm);
+unsigned int calibrate_time(unsigned int minN, coefficients *coef,parameter_t *prm);
+
+void calibrate_do_curgr(unsigned short *buffer,double *dBuf,unsigned int *shift,coefficients *coef,unsigned int chanalLength,unsigned int chanalCount,unsigned int key,parameter_t *prm);
+
+unsigned int calibrate_amplitude(coefficients *coef,double *calibLvl,unsigned int N, double *shiftDAC,parameter_t *prm, unsigned int count);
+
+int calibrate_run(int a_drs_num);
+calibrate_state_t *calibrate_get_state(int a_drs_num);
+void calibrate_abort(int a_drs_num);

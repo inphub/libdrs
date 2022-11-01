@@ -368,7 +368,7 @@ INI_REAL ini_getf(const TCHAR *Section, const TCHAR *Key, INI_REAL DefValue, con
  */
 int ini_getbool(const TCHAR *Section, const TCHAR *Key, int DefValue, const TCHAR *Filename)
 {
-  TCHAR LocalBuffer[2];
+    TCHAR LocalBuffer[2]={};
   int ret;
 
   ini_gets(Section, Key, __T(""), LocalBuffer, sizearray(LocalBuffer), Filename);

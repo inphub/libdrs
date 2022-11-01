@@ -22,8 +22,9 @@
  */
 void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *k)
 {
+    // length может быть 0, тогда массивы yArr и xArr будут NULL
 	double x=0,x2=0,xy=0,y=0;
-	int i=0;
+    unsigned int i=0;
 	for(i=0;i<length;i++)
 	{
 		x+=xArr[i];
@@ -221,13 +222,13 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
   * unsigned int *shift			сдвиг;
   * unsigned int pageCount		номер страницы;
   */
- void readNPage(unsigned short *buffer,unsigned int shift,unsigned int numPage, unsigned int drsnum)
+ void readNPage(unsigned short *buffer,unsigned int* shift,unsigned int numPage, unsigned int drsnum)
  {
     if (drsnum==0)
   	 memcpy(buffer, &(((unsigned short *)data_map_drs1)[numPage*16384]), 0x8000);
   	else
   	 memcpy(buffer, &(((unsigned short *)data_map_drs2)[numPage*16384]), 0x8000);
- 	shift=getShiftIndex(drsnum);
+    *shift=getShiftIndex(drsnum);
  }
 
  /**

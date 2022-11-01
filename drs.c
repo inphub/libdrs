@@ -48,7 +48,7 @@ parameter_t * g_ini = NULL;
 void drs_init(parameter_t *a_params)
 {
     write_reg(0x4, 1);//select frequency (0 - external, 1 - internal
-    write_reg(30, freqREG[current_freq]);//select ref frequency
+    write_reg(30, freqREG[g_current_freq]);//select ref frequency
 
     write_reg(6, a_params->fastadc.CLK_PHASE);//clk_phase
     printf("initialization\tprm->fastadc.OFS1=%u\tprm->fastadc.ROFS1=%u\n",a_params->fastadc.OFS1,a_params->fastadc.ROFS1);
