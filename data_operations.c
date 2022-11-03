@@ -55,8 +55,7 @@ void pageModeStart(unsigned int num)
 		readExternalStatus(0x3d);
 		flag=readEnWrite()>>31;
 	}
-	flagEndRead(1);
-	pageMode(0);
+    drs_set_flag_end_read(-1, true);
 	readExternalStatus(0x3d);
 }
 

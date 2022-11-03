@@ -5,6 +5,9 @@
  *      Author: Denis
  */
 #pragma once
+
+#include "drs.h"
+
 void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *k);
 void arrayOperation(double *array,int length,void (*operation)(double *num));
 void pageModeStart(unsigned int num);

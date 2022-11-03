@@ -19,7 +19,7 @@ volatile unsigned int *control_mem;
 void *control_map;
 void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2;
 
-
+#define LOG_TAG "mem_ops"
 
 #define MAP_SIZE           (4096)
 #define MAP_MASK           (MAP_SIZE-1)
@@ -116,7 +116,7 @@ void write_reg(unsigned int reg_adr, unsigned int reg_data)
 {
     /* get the delay_ctrl peripheral's base address */
     control_mem = (unsigned int *) (control_map + reg_adr*4);
-//    printf("write: adr=0x%08x, val=0x%08x\n\r", reg_adr, reg_data), fflush(stdout);
+    log_it(L_DEBUG, "write: adr=0x%08x, val=0x%08x", reg_adr, reg_data);
 
     /* write the value */
     *control_mem = reg_data;

@@ -15,6 +15,7 @@
 #include "calibrate.h"
 #include "commands.h"
 #include "data_operations.h"
+#include "mem_ops.h"
 
 #define inipath "/media/card/config.ini"
 #define DEBUG
@@ -23,29 +24,74 @@
 #define MAX_SLOWBLOCK_SIZE 1024*1024
 #define SIZE_BUF_IN 128
 #define MAX_PAGE_COUNT 1000
-#define SIZE_FAST MAX_PAGE_COUNT*1024*8*4*4
 #define SIZE_NET_PACKAGE 1024//0x100000 // 0x8000 = 32k
 #define POLLDELAY 1000 //ns
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
-unsigned short mas[0x4000];
-unsigned short tmas[MAX_SLOW_ADC_SIZE_IN_BYTE+8192*2];// + shift size
+
 unsigned short tmasFast[SIZE_FAST];
-unsigned char buf_in[SIZE_BUF_IN];
-unsigned int *cmd_data=(uint32_t *)&buf_in[0];//(unsigned int *)
-struct sockaddr_in name, cname;
-struct timeval tv = { 0, POLLDELAY };
 
 const unsigned int freqREG[]= {480, 240, 160, 120, 100};
 
 
 parameter_t * g_ini = NULL;
 
+drs_t g_drs[DRS_COUNT]={
+    [0]={
+        .id = 0
+    },
+    [1]={
+        .id = 1
+    }
+};
+
 /**
  * @brief drs_init
+ * @param a_params
+ */
+int drs_init(parameter_t *a_params)
+{
+    write_reg(0x00000001, 0x0000001);
+    set_dma_addr_drs1(0x08000000);  		//    write_reg(0x00000017, 0x8000000);// DRS1
+    set_size_dma_drs1(0x00004000);  		//    write_reg(0x00000019, 0x4000);
+    set_dma_addr_drs2(0x0c000000);  		//    write_reg(0x00000018, 0xC000000);// DRS2
+    set_size_dma_drs2(0x00004000);  		//    write_reg(0x0000001a, 0x4000);
+    set_shift_addr_drs1(0x0bf40000);		//    write_reg(0x0000001c, 0xBF40000);
+    set_shift_addr_drs2(0x0ff40000);		//    write_reg(0x0000001d, 0xFF40000);
+
+    clk_select(INTERNAL_CLK);				//    write_reg(0x00000004, 0x00000001);//select_freq
+    clk_select_internal_value(480);			//    write_reg(0x0000001e, 0x00000064);//freqREG[curfreq]);
+    clk_phase(40);							//    write_reg(0x00000006, 0x00000028);
+    clk_start(1);							//    write_reg(0x00000005, 0x00000001);
+    set_dac_offs_drs1(30000, 30000);		//    write_reg(0x00000008, 0x83e683e6);
+    set_dac_offs_drs2(30000, 30000);		//    write_reg(0x00000009, 0x83e683e6);
+    start_dac(1);							//    write_reg(0x00000007, 0x00000001);
+    set_dac_rofs_O_ofs_drs1(35000, 30000);	//    write_reg(0x0000000a, 0x7d009e98);
+    set_dac_speed_bias_drs1(0, 16350);		//    write_reg(0x0000000b, 0x3fde0000);
+    set_dac_rofs_O_ofs_drs2(35000, 30000);	//    write_reg(0x0000000c, 0x7d009e98);
+    set_dac_speed_bias_drs2(0, 16350);		//    write_reg(0x0000000d, 0x3fde0000);
+    set_dac_9ch_ofs(30000);					//    write_reg(0x0000001f, 0x00007530);
+    start_dac(1);							//    write_reg(0x00000007, 0x00000001);
+/*
+    set_gains_drss(32, 32, 32, 32);
+    start_amplifier(1);
+    set_starts_number_drs1(1);
+    set_zap_delay_drs1(0);
+    set_starts_number_drs2(1);
+    set_zap_delay_drs2(0);
+*/
+    set_mode_drss(MODE_SOFT_START);			//    write_reg(0x00000010, 0x00000000);
+    init_drs1();							//    write_reg(0x0000000e, 0x00000001);
+    init_drs2();							//    write_reg(0x0000000f, 0x00000001);
+
+    return 0;
+}
+
+/**
+ * @brief drs_init_old
  * @param prm
  */
-void drs_init(parameter_t *a_params)
+void drs_init_old(parameter_t *a_params)
 {
     write_reg(0x4, 1);//select frequency (0 - external, 1 - internal
     write_reg(30, freqREG[g_current_freq]);//select ref frequency
@@ -157,3 +203,5 @@ void drs_ini_save(const char *inifile, parameter_t *prm)
      ini_putf("FASTADC_SETTINGS", sADC_gain, prm->fastadc.adc_gains[t], inifile);
     }
 }
+
+

@@ -1,0 +1,94 @@
+/*
+ * drs_proto_cmd.h
+ *
+ *  Created on: 1 November 2022
+ *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
+ */
+
+#include <unistd.h>
+#include <assert.h>
+#include <dap_common.h>
+
+#include "commands.h"
+#include "drs_data.h"
+#include "drs_ops.h"
+
+#define LOG_TAG "drs_data"
+
+static unsigned int s_get_shift(unsigned int a_drs_num);
+
+/**
+ * @brief drs_data_get
+ * @param a_drs                  Указатель на объект DRS
+ * @param a_buffer               буфер данных, минимум DRS_PAGE_READ_SIZE размера
+ * @param a_buffer_size          максимальный размер данных для буфера (его размер)
+ * @param a_flags                Флаги операции
+ * @return Флаги операций чтения, склееные вместе
+ */
+unsigned int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
+{
+    assert(a_drs);
+    assert(a_buffer);
+    unsigned int l_ret=0,i=0;
+
+    if(a_flags & DRS_OP_FLAG_EXT_START){
+        log_it(L_INFO, "start ext DRS");
+        drs_cmd(a_drs->id, ENABLE_EXT_PULSE);
+    } else {
+        drs_cmd(a_drs->id, START_DRS);
+    }
+    usleep(100);
+    l_ret=drs_get_flag_write_ready(a_drs->id)&1;
+
+    bool l_loop = true;
+    while(l_ret==0 && l_loop) {
+        l_ret=drs_get_flag_write_ready(a_drs->id)&1;
+        i++;
+        if( a_flags & DRS_OP_FLAG_EXT_START){
+            if(i>100){
+                l_loop = false;
+            }
+        }else{
+            //if(ext_start==0){end=1;)
+        }
+        //readExternalStatus(0xc); //Peter fix
+    }
+    if(l_ret == 1){
+        drs_read_page(a_drs, 0, a_buffer);
+    }
+
+    drs_set_flag_end_read(a_drs->id,1);
+    return l_ret;
+}
+
+/**
+ * @brief drs_read_page
+ * @param a_drs           Объект DRS
+ * @param a_page_num      номер страницы
+ * @param a_buffer        указатель на буфер, не менее DRS_PAGE_READ_SIZE размера
+ */
+void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer)
+{
+    assert(a_drs);
+    assert(a_buffer);
+    if ( a_drs->id ==0 )
+        memcpy(a_buffer, &(((unsigned short *)data_map_drs1)[a_page_num*16384]), 0x8000);
+    else
+        memcpy(a_buffer, &(((unsigned short *)data_map_drs2)[a_page_num*16384]), 0x8000);
+    a_drs->shift =s_get_shift( a_drs->id);
+}
+
+
+/**
+ * unsigned int drsnum		номер drs для вычитывания сдвига
+ * return 					индекс сдвига;
+ */
+static unsigned int s_get_shift(unsigned int a_drs_num)//npage
+{
+    unsigned short tmpshift;
+    if (a_drs_num==0)
+     tmpshift=((unsigned long *)data_map_shift_drs1)[0]&1023;
+    else
+     tmpshift=((unsigned long *)data_map_shift_drs2)[0]&1023;
+    return tmpshift;
+}
