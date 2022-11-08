@@ -16,4 +16,4 @@ void drs_cmd(unsigned int a_drs_num, unsigned int a_cmd);
 
 void drs_set_num_pages(drs_t * a_drs, unsigned int a_num);
 
-unsigned int drs_get_flag_write_ready(int l_drs_num );
+bool drs_get_flag_write_ready(int l_drs_num );

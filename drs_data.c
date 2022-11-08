@@ -23,9 +23,9 @@ static unsigned int s_get_shift(unsigned int a_drs_num);
  * @param a_buffer               буфер данных, минимум DRS_PAGE_READ_SIZE размера
  * @param a_buffer_size          максимальный размер данных для буфера (его размер)
  * @param a_flags                Флаги операции
- * @return Флаги операций чтения, склееные вместе
+ * @return 0 если всё хорошо было, -1 если нет
  */
-unsigned int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
+int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
 {
     assert(a_drs);
     assert(a_buffer);
@@ -38,11 +38,14 @@ unsigned int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags 
         drs_cmd(a_drs->id, START_DRS);
     }
     usleep(100);
-    l_ret=drs_get_flag_write_ready(a_drs->id)&1;
 
+    bool l_is_ready = false;
     bool l_loop = true;
-    while(l_ret==0 && l_loop) {
-        l_ret=drs_get_flag_write_ready(a_drs->id)&1;
+    while( l_loop ) {
+        l_is_ready = drs_get_flag_write_ready(a_drs->id);
+        if( l_is_ready)
+            break;
+
         i++;
         if( a_flags & DRS_OP_FLAG_EXT_START){
             if(i>100){
@@ -51,13 +54,15 @@ unsigned int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags 
         }else{
             //if(ext_start==0){end=1;)
         }
+        sleep(1);
         //readExternalStatus(0xc); //Peter fix
     }
-    if(l_ret == 1){
-        drs_read_page(a_drs, 0, a_buffer);
+    log_it(L_DEBUG, "drs_data_get stopped on cell #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+    if(l_is_ready ){
+        drs_read_page(a_drs, a_drs->id, &a_buffer[a_drs->id * DRS_PAGE_SIZE]);
     }
 
-    drs_set_flag_end_read(a_drs->id,1);
+    drs_set_flag_end_read(a_drs->id, true);
     return l_ret;
 }
 

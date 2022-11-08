@@ -79,14 +79,13 @@ void drs_set_flag_end_read(int a_drs_num, bool a_enable)
  * @param l_drs_num
  * @return
  */
-unsigned int drs_get_flag_write_ready(int l_drs_num )
+bool drs_get_flag_write_ready(int l_drs_num )
 {
     usleep(100);
-//    printf("read: adr=0x%08x, val=0x%08x\n", DRS_MODE_REG, mode), fflush(stdout);
+    log_it(L_DEBUG, "get flag write ready for DRS %d", l_drs_num);
     switch(l_drs_num){
-        case -1: return read_reg(49) & read_reg(50) ;
-        case 0 : return read_reg(49);
-        case 1 : return read_reg(50);
+        case 0 : return read_reg(49)&1;
+        case 1 : return read_reg(50)&1;
         default:
             log_it(L_ERROR, "Wrong DRS number, could be 0, 1 or -1 for both");
             return 0;

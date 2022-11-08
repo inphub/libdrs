@@ -16,5 +16,5 @@
 
 #define DRS_PAGE_READ_SIZE        0x8000
 
-unsigned int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags );
+int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags );
 void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer);
