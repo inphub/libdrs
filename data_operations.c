@@ -11,6 +11,7 @@
 #include "data_operations.h"
 #include "commands.h"
 #include "mem_ops.h"
+#include "drs_ops.h"
 
 /**
  * ÌÍÊ
@@ -163,7 +164,7 @@ unsigned int getShiftIndex(unsigned int drsnum)//npage
  */
 void getAverage(double *average,double *data,unsigned int chanalLength,unsigned int chanalCount)
 {
-	int i,j;
+    unsigned int i,j;
 	for(i=0;i<chanalCount;i++)
 	{
 		average[i]=0;
@@ -184,7 +185,7 @@ void getAverage(double *average,double *data,unsigned int chanalLength,unsigned 
  */
 void getAverageInt(double *average,unsigned short *data,unsigned int chanalLength,unsigned int chanalCount)
 {
-	int i,j;
+    unsigned int i,j;
 	for(i=0;i<chanalCount;i++)
 	{
 		average[i]=0;
@@ -209,7 +210,7 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
 
  void fillArray(unsigned char *array,unsigned char *value,unsigned int arrayLength,unsigned int sizeOfValue)
  {
-	 int i;
+     unsigned int i;
 	 for(i=0;i<arrayLength;i++)
 	 {
 		 memcpy(&array[i*sizeOfValue],value,sizeOfValue);
@@ -249,7 +250,7 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
  */
 void readNPages(unsigned short *buffer,unsigned int *shift,unsigned int pageCount, unsigned int step, unsigned int drsnum)
 {
-	 int t;
+     unsigned int t;
 	 for (t=0; t<pageCount;t++)
 	 {
          readNPage(&buffer[t*step],&shift[t],t, drsnum);
