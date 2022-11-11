@@ -5,6 +5,7 @@
  *      Author: Denis
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -29,60 +30,28 @@
 static const double c_freq_DRS[]= {1.024, 2.048, 3.072, 4.096, 4.915200};
 int g_current_freq;
 
-// —осто€ни€ калибровки (текущие )
-calibrate_state_t * s_state[DRS_COUNT] = {};
-pthread_rwlock_t s_state_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+static void           s_x_to_real         (   double* x                                                                  );
+static void           s_find_splash       (   double* Y,             unsigned int* shift,       coefficients_t* coef,
+                                              unsigned int lvl                                                           );
+static void           s_remove_splash     (   double* Y,             unsigned int* shift,       coefficients_t* coef     );
 
+static void           s_time_global_apply (   double *x,             double* xMas,              unsigned int *shift,
+                                              coefficients_t *coef                                                       );
+static void           s_time_global       (   double *x,             double *y,                 unsigned int shift,
+                                              double *sumDeltaRef,   double *stat);
+static void           s_time_apply        (   double *bufferX,       coefficients_t *coef,      unsigned int * shift     );
 
-static void s_x_to_real         (double* x);
-static void s_find_splash       (double* Y, unsigned int* shift, coefficients_t* coef, unsigned int lvl);
-static void s_remove_splash     (double* Y, unsigned int* shift, coefficients_t* coef);
-
-static void s_time_global_apply (double *x, double* xMas, unsigned int *shift, coefficients_t *coef);
-static void s_time_global       (double *x, double *y, unsigned int shift, double *sumDeltaRef, double *stat);
-static void s_time_apply        (double *bufferX, coefficients_t *coef, unsigned int * shift);
-
-static double         s_get_deltas_min(       double* buffer,     double *sumDeltaRef,     double *stat,
+static double         s_get_deltas_min(       double* buffer,        double *sumDeltaRef,       double *stat,
                                               unsigned int *shift);
-static unsigned int   s_fin_collect(          double* calibLvl,   unsigned int N     ,     float *DAC_gain,
-                                              float *DAC_offset,  coefficients_t *coef,      unsigned int count );
-static void           s_get_coefficients(     double* acc,        coefficients_t *coef,      double* calibLvl,    int count,
+static unsigned int   s_fin_collect(          double* calibLvl,      unsigned int N     ,       float *DAC_gain,
+                                              float *DAC_offset,     coefficients_t *coef,      unsigned int count );
+static void           s_get_coefficients(     double* acc,           coefficients_t *coef,      double* calibLvl,    int count,
                                               double *average );
-static unsigned int   s_channels_calibration( double* calibLvl,   float *DAC_gain,         float *DAC_offset,
-                                              coefficients_t *coef, unsigned int count,      parameter_t *prm);
+static unsigned int   s_channels_calibration( double* calibLvl,      float *DAC_gain,           float *DAC_offset,
+                                              coefficients_t *coef,  unsigned int count,        parameter_t *prm);
 
-static void           s_collect_statistics_b( double *acc,        unsigned short *buff,    unsigned int *shift,
-                                              unsigned int *stat);
-static void           s_calc_coeff_b(         double *acc,        unsigned int *statistic, double *average);
+static void           s_calc_coeff_b(         double *acc,           unsigned int *statistic,   double *average);
 
-
-/**
- * @brief calibrate_run
- * @param a_drs_num
- */
-int calibrate_run(int a_drs_num)
-{
-    return 0;
-}
-
-/**
- * @brief calibrate_check
- * @param a_drs_num
- * @return
- */
-calibrate_state_t* calibrate_get_state(int a_drs_num)
-{
-    return NULL;
-}
-
-/**
- * @brief calibrate_abort
- * @param a_drs_num
- */
-void calibrate_abort(int a_drs_num)
-{
-
-}
 
 /**
  * @brief calibrate_get_array_x
@@ -111,12 +80,23 @@ void calibrate_get_array_x(double*x, unsigned int *shift,coefficients_t *coef,un
 
 }
 
-void s_x_to_real(double*x)
+/**
+ * @brief s_x_to_real
+ * @param x
+ */
+static void s_x_to_real(double*x)
 {
     *x=(*x)/(c_freq_DRS[g_current_freq]);
 }
 
-void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsigned int lvl)
+/**
+ * @brief s_find_splash
+ * @param Y
+ * @param shift
+ * @param coef
+ * @param lvl
+ */
+static void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsigned int lvl)
 {
 	unsigned int i = 0, j = 0;
 	for(j=0;j<4;j++)
@@ -144,7 +124,13 @@ void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsigned in
 	}
 }
 
-void s_remove_splash(double*Y,unsigned int *shift,coefficients_t *coef)
+/**
+ * @brief s_remove_splash
+ * @param Y
+ * @param shift
+ * @param coef
+ */
+static void s_remove_splash(double*Y,unsigned int *shift,coefficients_t *coef)
 {
 	unsigned int i=0,j=0;
 	for(j=0;j<4;j++)
@@ -170,7 +156,7 @@ void s_remove_splash(double*Y,unsigned int *shift,coefficients_t *coef)
  * unsigned int shift		сдвиг в данных;
  * coefficients *coef		структура с коэффициентами;
  */
-void s_time_global_apply(double *x,double *xMas, unsigned int *shift, coefficients_t *coef)
+static void s_time_global_apply(double *x,double *xMas, unsigned int *shift, coefficients_t *coef)
 {
 	unsigned int i,j,pz;
 	double tmpX;
@@ -241,7 +227,7 @@ unsigned int calibrate_time_global(unsigned int numCycle, coefficients_t *coef,p
 	return 1;
 }
 
-void s_time_global(double *x, double *y,unsigned int shift,double *sumDeltaRef, double *statistic)
+static void s_time_global(double *x, double *y,unsigned int shift,double *sumDeltaRef, double *statistic)
 {
 	double average[4],lastX,lastY,period[maxPeriodsCount],periodDelt[maxPeriodsCount],deltX;
 	unsigned int i,j,pz,indexs[maxPeriodsCount],count=0,l;
@@ -285,7 +271,13 @@ void s_time_global(double *x, double *y,unsigned int shift,double *sumDeltaRef, 
 
 }
 
-void s_time_apply( double*x, coefficients_t *coef,unsigned int *shift)
+/**
+ * @brief s_time_apply
+ * @param x
+ * @param coef
+ * @param shift
+ */
+static void s_time_apply( double*x, coefficients_t *coef,unsigned int *shift)
 {
 	unsigned int k,t,pz;
 	double average[4],tmpX;
@@ -361,7 +353,7 @@ unsigned int calibrate_time(unsigned int minN, coefficients_t *coef,parameter_t 
  * double *statistic			массив статистики по дельтам;
  * unsigned int shift			двиг в данных;
  */
-double s_get_deltas_min(double*buffer,double *sumDeltaRef,double *statistic,unsigned int *shift)
+static double s_get_deltas_min(double*buffer,double *sumDeltaRef,double *statistic,unsigned int *shift)
 {
 	unsigned int i,j, pz, pz1;
 	double average[4];
@@ -515,7 +507,7 @@ unsigned int s_fin_collect(double*calibLvl,unsigned int N,float *DAC_gain,float 
 				   return 0;
 			    }
 			}
-            s_collect_statistics_b(&acc[i*32768],loadData,shift,statistic);
+            calibrate_collect_statistics_b(&acc[i*32768],loadData,shift,statistic);
 		}
         s_calc_coeff_b(&acc[i*32768],statistic,&average[i*4]);
 	}
@@ -560,6 +552,16 @@ void s_get_coefficients(double *acc,coefficients_t *coef,double* calibLvl,int co
 	}
 }
 
+/**
+ * @brief s_channels_calibration
+ * @param calibLvl
+ * @param DAC_gain
+ * @param DAC_offset
+ * @param coef
+ * @param count
+ * @param prm
+ * @return
+ */
 unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_offset,coefficients_t *coef, unsigned int count,parameter_t *prm)
 {
 	double dh,dn,shiftDACValues[4],lvl,average[4*count],dBuf[16384], xArr[count],yArr[count];
@@ -611,7 +613,7 @@ unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_o
  * unsigned int shift			индекс разварота данных;
  * unsigned int *statistic		статистика дл€ €чеек;
  */
-void s_collect_statistics_b(double *acc,unsigned short *buff,unsigned *shift,unsigned int *statistic)
+void calibrate_collect_statistics_b(double *acc,unsigned short *buff,unsigned *shift,unsigned int *statistic)
 {
 	unsigned int j,k,rotateIndex;
 		for(j=0;j<4;j++)

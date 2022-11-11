@@ -72,14 +72,17 @@ int drs_init(parameter_t *a_params)
     set_dac_speed_bias_drs2(0, 16350);		//    write_reg(0x0000000d, 0x3fde0000);
     set_dac_9ch_ofs(30000);					//    write_reg(0x0000001f, 0x00007530);
     start_dac(1);							//    write_reg(0x00000007, 0x00000001);
-/*
+
+
+
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
+
     set_starts_number_drs1(1);
     set_zap_delay_drs1(0);
     set_starts_number_drs2(1);
     set_zap_delay_drs2(0);
-*/
+
     set_mode_drss(MODE_SOFT_START);			//    write_reg(0x00000010, 0x00000000);
     init_drs1();							//    write_reg(0x0000000e, 0x00000001);
     init_drs2();							//    write_reg(0x0000000f, 0x00000001);

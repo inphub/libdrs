@@ -50,14 +50,14 @@ int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
         if( a_flags & DRS_OP_FLAG_EXT_START){
             if(i>100){
                 l_loop = false;
+                l_ret = -1;
             }
         }else{
             //if(ext_start==0){end=1;)
         }
-        sleep(1);
         //readExternalStatus(0xc); //Peter fix
     }
-    log_it(L_DEBUG, "drs_data_get stopped on cell #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+    log_it(L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
     if(l_is_ready ){
         drs_read_page(a_drs, a_drs->id, &a_buffer[a_drs->id * DRS_PAGE_SIZE]);
     }
