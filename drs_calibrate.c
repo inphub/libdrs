@@ -60,7 +60,7 @@ static void * s_thread_routine(void * a_arg)
 
     log_it( L_NOTICE, "Start calibration for DRS #%u", l_drs->id);
     log_it(L_DEBUG, "Amplitude  : repeats_count=%u levels_count=%u begin=%f end=%f",
-           l_args->param.ampl.repeats_count, l_args->param.ampl.levels_count, l_args->param.ampl.begin, l_args->param.ampl.end);
+           l_args->param.ampl.repeats, l_args->param.ampl.N, l_args->param.ampl.begin, l_args->param.ampl.end);
     log_it(L_DEBUG, "Time local : min_N=%u", l_args->param.time_local.min_N);
     log_it(L_DEBUG, "Time global: num_cycle=%u", l_args->param.time_global.num_cycle);
 
@@ -84,8 +84,9 @@ static void * s_thread_routine(void * a_arg)
     //setSizeSamples(1024);//Peter fix
     if(l_args->keys.do_amplitude){
         log_it(L_DEBUG, "start amplitude calibrate\n");
-        l_value=calibrate_amplitude(&l_drs->coeffs,l_args->param.ampl.levels , l_args->param.ampl.repeats_count,
-                                    l_args->param.ampl.shifts,g_ini,l_args->param.ampl.levels_count )&1;
+        double * l_shifts = l_args->param.ampl.shifts;
+        l_value=calibrate_amplitude(&l_drs->coeffs,l_args->param.ampl.levels , l_args->param.ampl.repeats,
+                                    l_shifts, g_ini,l_args->param.ampl.N )&1;
         if(l_value==1){
             log_it(L_DEBUG, "end amplitude calibrate");
         }else{
