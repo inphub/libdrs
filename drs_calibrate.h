@@ -6,16 +6,19 @@
  */
 #pragma once
 
+#include <stdatomic.h>
 #include <dap_common.h>
 #include "drs.h"
 typedef struct{
-    pthread_rwlock_t rwlock; // Защищает параметры калибровки
+    pthread_rwlock_t rwlock;
 
     bool is_running; // Запущен ли прямо сейчас
-    unsigned progress; // Progress between 0 and 100
+
+    atomic_uint_fast32_t progress; // Progress between 0 and 100
 
     pthread_t thread_id; // Айди потока
     drs_t * drs; // Объект DRS
+
 
     // Сигнализирует завершение калибровки
     pthread_cond_t  finished_cond;
@@ -35,14 +38,7 @@ typedef struct{
                                // при нуле будут выполняться два прохода для уровней BegServ и EndServ(о них ниже),
                                // при не нулевом значении, между  BegServ и EndServ будут включены count дополнительных уровней
                                // цапов для амплитудной калибровки
-        union{
-            double levels[DCA_COUNT+2];
-            struct{
-                double begin;
-                double end;
-                double shifts[DCA_COUNT]; // сдвиги цапов
-            } DAP_ALIGN_PACKED;
-        };
+        double levels[DCA_COUNT+2];
     } ampl;
 
     // Временная локальная

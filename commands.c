@@ -6,10 +6,14 @@
  */
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
+#include <dap_common.h>
 
 #include "mem_ops.h"
 #include "drs_ops.h"
 #include "commands.h"
+
+#define LOG_TAG "commands"
 
 /**
  * double *shiftDAC		сдвиги с фронтпанели;
@@ -20,10 +24,13 @@ void setShiftAllDac(double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
 {
 	int i;
 	unsigned short shiftDACValues[4];
+    assert(shiftDAC);
+    assert(DAC_gain);
+    assert(DAC_offset);
 	for(i=0;i<4;i++)
 	{
 		shiftDACValues[i]=(shiftDAC[i]*DAC_gain[i]+DAC_offset[i]);
-		//printf("shiftDAC[%d]=%f\tshiftDACValues[%d]=%d\n",i,shiftDAC[i],i,shiftDACValues[i]);
+        log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
 	}
 	setAllDAC(shiftDACValues);
 	setDAC(1);

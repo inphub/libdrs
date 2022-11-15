@@ -45,12 +45,22 @@ drs_t g_drs[DRS_COUNT]={
     }
 };
 
+int drs_init()
+{
+    // Инициализация DRS
+    init_mem();
+
+    g_ini = DAP_NEW_Z(parameter_t);
+    drs_ini_load("/media/card/config.ini", g_ini );
+    return 0;
+}
 /**
  * @brief drs_init
  * @param a_params
  */
-int drs_init(parameter_t *a_params)
+int drs_cmd_init(parameter_t *a_params)
 {
+
     write_reg(0x00000001, 0x0000001);
     set_dma_addr_drs1(0x08000000);  		//    write_reg(0x00000017, 0x8000000);// DRS1
     set_size_dma_drs1(0x00004000);  		//    write_reg(0x00000019, 0x4000);
@@ -88,6 +98,15 @@ int drs_init(parameter_t *a_params)
     init_drs2();							//    write_reg(0x0000000f, 0x00000001);
 
     return 0;
+}
+
+/**
+ * @brief drs_deinit
+ */
+void drs_deinit()
+{
+   DAP_DELETE(g_ini);
+   g_ini = NULL;
 }
 
 /**

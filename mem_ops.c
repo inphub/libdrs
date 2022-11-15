@@ -14,10 +14,11 @@
 #define SHIFT_DRS1	0x2FD00000
 #define SHIFT_DRS2	0x3FD00000
 
+
 int fd;
 volatile unsigned int *control_mem;
 void *control_map;
-void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2;
+void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
 
 #define LOG_TAG "mem_ops"
 
@@ -68,6 +69,7 @@ int init_mem(void)
     off_t data_base_drs2 = SDRAM_BASE_DRS2;
     off_t data_shift_drs1 = SHIFT_DRS1;
     off_t data_shift_drs2 = SHIFT_DRS2;
+    off_t data_base_map_offset = MEMORY_BASE;
 
     /* open the memory device file */
     fd = open("/dev/mem", O_RDWR|O_SYNC);
@@ -85,6 +87,12 @@ int init_mem(void)
 
     data_map_drs1 = mmap(NULL, SDRAM_SPAN_DRS1, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_base_drs1);
     if (data_map_drs1 == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+
+    data_map = mmap(NULL, MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_base_map_offset);
+    if (data_map == MAP_FAILED) {
         perror("mmap");
         goto cleanup;
     }
@@ -138,6 +146,12 @@ void deinit_mem(void)
         perror("munmap");
         goto cleanup;
     }
+    if (munmap(data_map, MEMORY_SIZE) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+
     if (munmap(data_map_drs1, SDRAM_SPAN_DRS1) < 0)
     {
         perror("munmap");

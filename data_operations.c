@@ -225,10 +225,10 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
  void readNPage(unsigned short *buffer,unsigned int* shift,unsigned int numPage, unsigned int drsnum)
  {
     if (drsnum==0)
-  	 memcpy(buffer, &(((unsigned short *)data_map_drs1)[numPage*16384]), 0x8000);
+        memcpy(buffer, &(((unsigned short *)data_map_drs1)[numPage*DRS_PAGE_ALL_COUNT*DRS_CHANNELS_COUNT]), DRS_PAGE_ALL_SIZE  );
   	else
-  	 memcpy(buffer, &(((unsigned short *)data_map_drs2)[numPage*16384]), 0x8000);
-    *shift=getShiftIndex(drsnum);
+        memcpy(buffer, &(((unsigned short *)data_map_drs2)[numPage*DRS_PAGE_ALL_COUNT*DRS_CHANNELS_COUNT]), DRS_PAGE_ALL_SIZE);
+        *shift=getShiftIndex(drsnum);
  }
 
  /**

@@ -47,14 +47,15 @@ int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
             break;
 
         i++;
-        if( a_flags & DRS_OP_FLAG_EXT_START){
+//        if( a_flags & DRS_OP_FLAG_EXT_START){
             if(i>100){
+                log_it(L_ERROR, "Was waiting for write_ready flag but without success");
                 l_loop = false;
                 l_ret = -1;
             }
-        }else{
+//        }else{
             //if(ext_start==0){end=1;)
-        }
+//        }
         //readExternalStatus(0xc); //Peter fix
     }
     log_it(L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
@@ -77,9 +78,9 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
     assert(a_drs);
     assert(a_buffer);
     if ( a_drs->id ==0 )
-        memcpy(a_buffer, &(((unsigned short *)data_map_drs1)[a_page_num*16384]), 0x8000);
+        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE ) ;
     else
-        memcpy(a_buffer, &(((unsigned short *)data_map_drs2)[a_page_num*16384]), 0x8000);
+       memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE ) ;
     a_drs->shift =s_get_shift( a_drs->id);
 }
 

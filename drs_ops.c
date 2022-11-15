@@ -82,7 +82,7 @@ void drs_set_flag_end_read(int a_drs_num, bool a_enable)
 bool drs_get_flag_write_ready(int l_drs_num )
 {
     usleep(100);
-    log_it(L_DEBUG, "get flag write ready for DRS %d", l_drs_num);
+    //log_it(L_DEBUG, "get flag write ready for DRS %d", l_drs_num);
     switch(l_drs_num){
         case 0 : return read_reg(49)&1;
         case 1 : return read_reg(50)&1;

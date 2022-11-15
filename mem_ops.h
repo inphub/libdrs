@@ -17,7 +17,10 @@
 #define SDRAM_BASE_DRS2 0x30000000 //805306368
 #define SDRAM_SPAN_DRS2 0x0FCFFFFF //253 page = 265289727
 
-extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2;
+#define MEMORY_BASE  	0x20000000
+#define MEMORY_SIZE  	0x20000000
+
+extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
 
 void memw(off_t byte_addr, uint32_t data);
 uint32_t memr(off_t byte_addr);

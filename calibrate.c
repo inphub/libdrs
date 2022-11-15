@@ -17,6 +17,9 @@
 #include "calibrate.h"
 #include "commands.h"
 #include "data_operations.h"
+#include "drs_calibrate.h"
+#include "drs_ops.h"
+#include "drs_data.h"
 
 
 #define LOG_TAG "calibrate"
@@ -114,12 +117,12 @@ static void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsi
 		if(absf(Y[1*4+j]-Y[j])>lvl && absf(Y[1023*4+j]-Y[j])>lvl)
 		{
 			coef->splash[j] = 0;
-            log_it(L_DEBUG,"find splash for %u channel in %u cell\n",j+1,shift[j>>1]);
+            log_it(L_DEBUG,"find splash for %u channel in %u cell",j+1,shift[j>>1]);
 		}
 //		if(absf(Y[1023*8+j]-Y[1022*8+j])>lvl && absf(Y[1023*8+j]-Y[j])>lvl)
 //		{
 //			coef->splash[j] = 1023;
-//			printf("find splash for %d chanal in %d cell\n",j+1,shift-1);
+//			log_it(L_DEBUG,"find splash for %d chanal in %d cell",j+1,shift-1);
 //		}
 	}
 }
@@ -187,7 +190,7 @@ unsigned int calibrate_time_global(unsigned int numCycle, coefficients_t *coef,p
 	fillArray((unsigned char*)(x),(unsigned char*)&dn,32768,sizeof(dn));
 	if((coef->indicator&3)!=3)
 	{
-		printf("before global timer calibration you need to do the timer calibration and amplitude calibration\n");
+        log_it(L_WARNING,"before global timer calibration you need to do the timer calibration and amplitude calibration");
 		return 0;
 	}
     drs_set_mode(4);
@@ -196,13 +199,13 @@ unsigned int calibrate_time_global(unsigned int numCycle, coefficients_t *coef,p
 		ind++;
 		if(onceGet1024(&pageBuffer[0],&shift[0],1,0,0)==0)
 		{
-			printf("data not read\n");
+            log_it(L_ERROR,"data not read");
             drs_set_mode(0);
 			return 0;
 		}
 		if(onceGet1024(&pageBuffer[1024],&shift[1],1,0,1)==0)
 		{
-			printf("data not read\n");
+            log_it(L_ERROR, "data not read");
             drs_set_mode(0);
 			return 0;
 		}
@@ -314,7 +317,7 @@ unsigned int calibrate_time(unsigned int minN, coefficients_t *coef,parameter_t 
 	fillArray((unsigned char*)(statistic),(unsigned char*)&dn,8192,sizeof(dn));
 	fillArray((unsigned char*)(sumDeltaRef),(unsigned char*)&dn,8192,sizeof(dn));
 	if((coef->indicator&1)!=1){
-			printf("before timer calibration you need to do the amplitude calibration\n");
+            log_it(L_WARNING, "before timer calibration you need to do the amplitude calibration");
 			return 0;
 	}
 
@@ -324,9 +327,9 @@ unsigned int calibrate_time(unsigned int minN, coefficients_t *coef,parameter_t 
 	{
 		k++;
 		n++;
-		//printf("min=%u\tminValue=%f\n",minN,minValue);
+        //log_it(L_DEBUG,"min=%u\tminValue=%f\n",minN,minValue);
         if(onceGet(pageBuffer,shift,1,0,0)==0){
-			printf("data not read\n");
+            log_it(L_ERROR,"data not read\n");
             setMode(0);
             return 0;
 		}
@@ -437,28 +440,34 @@ void calibrate_do_curgr(unsigned short *buffer,double *dBuf,unsigned int *shift,
 
 /*	Высчитывает коэффициенты для амплитудной калибровки;
  * coefficients *coef 			структура с кэффициентами;
- * double *calibLvl 			массив [Beg,Mid,End] с фронт панели;
+ * double *calibLvl 			массив [Beg,Mid,End] с фронт панели плюс массив shiftDAC с фронт панели;
  * unsigned int N 				N с фронт панели;
- * double *shiftDAC				массив shiftDAC с фронт панели;
  * parameter_t *prm				ini структура;
  * unsigned int count			количество уровней между
  */
-unsigned int calibrate_amplitude(coefficients_t *coef,double *calibLvl,unsigned int N, double *shiftDAC,parameter_t *prm, unsigned int count)
+unsigned int calibrate_amplitude(coefficients_t *coef,double *calibLvl,unsigned int N, parameter_t *prm, unsigned int count, atomic_uint_fast32_t * a_progress)
 {
-	printf("count=%d\n",count);
+    double * l_shifts = calibLvl +2;
+    log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, shifts=%p",count, calibLvl[0], calibLvl[1], l_shifts);
     if(s_fin_collect(calibLvl,N,prm->fastadc.dac_gains, prm->fastadc.dac_offsets,coef,count)==0)
 	{
-		return 0;
+        log_it(L_INFO, "No success with fin collect");
+        if (a_progress) *a_progress +=10;
+        return 0;
 	}else{
-		printf("calibrate_fin end\n");
+        log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",count, calibLvl[0], calibLvl[1], l_shifts);
         if(s_channels_calibration(calibLvl,prm->fastadc.dac_gains, prm->fastadc.dac_offsets,coef,count,prm)==0)
 		{
-			return 0;
+            log_it(L_INFO, "No success with channels calibration");
+            return 0;
 		}
-		setShiftAllDac(shiftDAC,prm->fastadc.dac_gains, prm->fastadc.dac_offsets);
+        if (a_progress) *a_progress +=10;
+        log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p",count, calibLvl[0], calibLvl[1], l_shifts);
+        setShiftAllDac(l_shifts,prm->fastadc.dac_gains, prm->fastadc.dac_offsets);
 		setDAC(1);
 		coef->indicator|=1;
-		return 1;
+        if (a_progress) *a_progress +=10;
+        return 1;
 	}
 }
 
@@ -472,48 +481,70 @@ unsigned int calibrate_amplitude(coefficients_t *coef,double *calibLvl,unsigned 
  */
 unsigned int s_fin_collect(double*calibLvl,unsigned int N,float *DAC_gain,float *DAC_offset,coefficients_t *coef, unsigned int count)
 {
+    int l_ret = 0;
     unsigned int i,k;
-	double shiftDACValues[4],acc[count*32768],dn=0, average[4*count],dh=0,lvl=0;
-	unsigned short loadData[32768];
-	unsigned int shift[2],statistic[32768],intn=0;
-	fillArray((unsigned char*)(&coef->b),(unsigned char*)&dn,32768,sizeof(dn));
-	fillArray((unsigned char*)(&coef->k),(unsigned char*)&dn,32768,sizeof(dn));
+    double shiftDACValues[DCA_COUNT];
+    double dh=0,lvl=0;
+
+    unsigned short shift[DRS_COUNT];
+
+    double * l_average = DAP_NEW_SIZE(double, DCA_COUNT*count* sizeof(double) );
+    unsigned short *l_load_data = DAP_NEW_Z_SIZE(unsigned short, DRS_PAGE_ALL_SIZE * DRS_CHANNELS_COUNT);
+    unsigned int *l_stats = DAP_NEW_SIZE(unsigned int, DRS_PAGE_ALL_SIZE * sizeof (*l_stats) );
+    double *l_acc = DAP_NEW_Z_SIZE(double, count *DRS_PAGE_ALL_SIZE * sizeof (double));
+
+    memset(&coef->b,0 , sizeof (coef->b));
+    memset(&coef->k,0 , sizeof (coef->k));
+
+
+
+
     setMode(1);
 	dh=(calibLvl[1]-calibLvl[0])/(count-1);
+
+    log_it(L_NOTICE,"--Collecting coeficients in %u iterations", count);
+
 	for(i=0;i<count;i++)
 	{
 		lvl=calibLvl[0]+dh*i;
-		fillArray((unsigned char*)(statistic),(unsigned char*)&intn,32768,sizeof(intn));
-		fillArray((unsigned char*)(&acc[i*32768]),(unsigned char*)&dn,32768,sizeof(dn));
-		fillArray((unsigned char*)(shiftDACValues),(unsigned char*)&lvl,4,sizeof(dn));
+        memset(l_stats,0,DRS_PAGE_ALL_COUNT * sizeof (*l_stats) );
+        fillArray((unsigned char*)(shiftDACValues),(unsigned char*)&lvl,4,sizeof(lvl));
+
 		setShiftAllDac(shiftDACValues,DAC_gain,DAC_offset);
 		setDAC(1);
 
 		for(k=0;k<N;k++)
 		{
-			if(onceGet(&loadData[0],&shift[0],1,0,0)==0){
-				printf("data not read\n");
-                setMode(0);
-				return 0;
-			}
-			if(onceGet(&loadData[32768],&shift[1],1,0,1)==0){
-				printf("data not read\n");
-                setMode(0);
-				return 0;
-            } else {
+            for (unsigned d = 0; d < DRS_COUNT; d++){
+                if(drs_data_get(&g_drs[d],&l_load_data[DRS_PAGE_ALL_SIZE*d],0)==0){
+                    log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
+                    setMode(0);
+                    goto lb_exit;
+                }
                 if((shift[0]>1023)||(shift[1]>1023))
                 {
-			 	   printf("shift index went beyond\n");
-				   return 0;
-			    }
-			}
-            calibrate_collect_statistics_b(&acc[i*32768],loadData,shift,statistic);
+                   log_it(L_ERROR, "shift index went beyond on %u::%u iteration", i,k);
+
+                   goto lb_exit;
+                }
+            }
+            calibrate_collect_statistics_b(&l_acc[i*DRS_PAGE_ALL_SIZE],l_load_data,shift,l_stats);
 		}
-        s_calc_coeff_b(&acc[i*32768],statistic,&average[i*4]);
+        s_calc_coeff_b(&l_acc[i*DRS_PAGE_ALL_SIZE],l_stats,&l_average[i*4]);
 	}
     setMode(0);
-    s_get_coefficients(acc,coef,calibLvl,count,average);
-	return 1;
+    s_get_coefficients(l_acc,coef,calibLvl,count,l_average);
+
+    log_it(L_NOTICE,"Collected coeficients in %u::%u iterations",i,k);
+
+    l_ret = 1;
+lb_exit:
+    DAP_DELETE(l_stats);
+    DAP_DELETE(l_load_data);
+    DAP_DELETE(l_acc);
+    DAP_DELETE(l_average);
+
+    return l_ret;
 }
 
 
@@ -568,7 +599,7 @@ unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_o
 	unsigned short loadData[16384];
 	unsigned int t=0,shift[2],i;
 	dh=(calibLvl[1]-calibLvl[0])/(count-1);
-	printf("\ncalib cahnal\n");
+    log_it(L_INFO,"--Channel calibration--");
 	for(t=0;t<count;t++)
 	{
 		lvl=calibLvl[0]+dh*t;
@@ -577,14 +608,16 @@ unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_o
 		usleep(200);
 		setDAC(1);
 		usleep(200);
-		if(onceGet(loadData,shift,1,0,0)==0)
-		{
-			printf("data not read\n");
-            setMode(0);
-			return 0;
-		}else if(shift[0]>1023){
-			printf("shift index went beyond\n");
-			return 0;
+        for(unsigned d = 0; d < DRS_COUNT; d++ ){
+            if (drs_data_get(&g_drs[d],&loadData[DRS_PAGE_ALL_COUNT*d],0) == 0){
+                log_it(L_ERROR,"data not read on iteration %u on DRS #%u", t, d);
+                setMode(0);
+                return 0;
+            }
+            if(shift[0]>1023){
+                log_it(L_ERROR,"shift index went beyond on iteration %u", t);
+                return 0;
+            }
 		}
         calibrate_do_curgr(loadData,dBuf,shift,coef,1024,4,1,prm);
 		getAverage(&average[t*4],dBuf,1000,4);
@@ -613,7 +646,7 @@ unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_o
  * unsigned int shift			индекс разварота данных;
  * unsigned int *statistic		статистика для ячеек;
  */
-void calibrate_collect_statistics_b(double *acc,unsigned short *buff,unsigned *shift,unsigned int *statistic)
+void calibrate_collect_statistics_b(double *acc,unsigned short *buff,unsigned short *shift,unsigned int *statistic)
 {
 	unsigned int j,k,rotateIndex;
 		for(j=0;j<4;j++)

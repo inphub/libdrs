@@ -16,6 +16,7 @@
 #include "mem_ops.h"
 
 #define DRS_COUNT 2
+#define DRS_CHANNELS_COUNT 2
 
 #define DRS_DATA_MAP_SIZE   0x4000
 #define DRS_PAGE_SIZE       8192
@@ -31,6 +32,8 @@
 #define DRS1_NUM_PAGE			19
 #define DRS2_NUM_PAGE			20
 
+#define DRS_PAGE_ALL_COUNT      (DRS_COUNT * DRS_PAGE_SIZE )
+#define DRS_PAGE_ALL_SIZE       (DRS_PAGE_ALL_COUNT * sizeof(short))
 
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
@@ -89,7 +92,9 @@ extern drs_t g_drs[DRS_COUNT];
 extern unsigned short tmasFast[SIZE_FAST];
 
 
-int drs_init(parameter_t *prm);
+int drs_init();
+int drs_cmd_init(parameter_t *prm);
+void drs_deinit();
 void drs_ini_save(const char *inifile, parameter_t *prm);
 void drs_ini_load(const char *inifile, parameter_t *prm);
 

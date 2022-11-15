@@ -40,7 +40,6 @@ drs_calibrate_t s_state[DRS_COUNT] = {};
 // Поток калибровки
 static void * s_thread_routine(void * a_arg);
 static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
-static inline void s_set_progress(drs_calibrate_t * l_cal, int a_progress);
 
 /**
  * @brief s_thread_routine
@@ -56,11 +55,11 @@ static void * s_thread_routine(void * a_arg)
     drs_t * l_drs = l_cal->drs;
     assert(l_drs);
 
-    s_set_progress(l_cal, 5);
+    l_cal->progress = 5;
 
     log_it( L_NOTICE, "Start calibration for DRS #%u", l_drs->id);
     log_it(L_DEBUG, "Amplitude  : repeats_count=%u levels_count=%u begin=%f end=%f",
-           l_args->param.ampl.repeats, l_args->param.ampl.N, l_args->param.ampl.begin, l_args->param.ampl.end);
+           l_args->param.ampl.repeats, l_args->param.ampl.N, l_args->param.ampl.levels[0], l_args->param.ampl.levels[1]);
     log_it(L_DEBUG, "Time local : min_N=%u", l_args->param.time_local.min_N);
     log_it(L_DEBUG, "Time global: num_cycle=%u", l_args->param.time_global.num_cycle);
 
@@ -69,31 +68,30 @@ static void * s_thread_routine(void * a_arg)
     size_t t;
 
     for(t=0;t<DCA_COUNT;t++){
-        dap_string_append_printf(l_dca_shifts_str, "[%zd]=%f%s", t, l_args->param.ampl.shifts[t],
+        dap_string_append_printf(l_dca_shifts_str, "[%zd]=%f%s", t, l_args->param.ampl.levels[t+2],
                                  t<DCA_COUNT-1 ? "," : "");
     }
     dap_string_append(l_dca_shifts_str, "}");
     log_it(L_DEBUG, "DAC shifts: %s", l_dca_shifts_str->str);
     dap_string_free(l_dca_shifts_str, true);
 
-    s_set_progress(l_cal, 10);
+    l_cal->progress = 10;
 
     setNumPages(1);
-    s_set_progress(l_cal, 15);
+    l_cal->progress = 15;
     unsigned int l_value;
     //setSizeSamples(1024);//Peter fix
     if(l_args->keys.do_amplitude){
-        log_it(L_DEBUG, "start amplitude calibrate\n");
-        double * l_shifts = l_args->param.ampl.shifts;
-        l_value=calibrate_amplitude(&l_drs->coeffs,l_args->param.ampl.levels , l_args->param.ampl.repeats,
-                                    l_shifts, g_ini,l_args->param.ampl.N )&1;
+        log_it(L_DEBUG, "start amplitude calibrate. Levels %p, shifts %p\n",
+               l_args->param.ampl.levels, l_args->param.ampl.levels+2 );
+        l_value=calibrate_amplitude(&l_drs->coeffs,l_args->param.ampl.levels ,l_args->param.ampl.N ,g_ini, l_args->param.ampl.repeats,
+                                     &l_cal->progress)&1;
         if(l_value==1){
             log_it(L_DEBUG, "end amplitude calibrate");
         }else{
             log_it(L_DEBUG, "amplitude calibrate error");
         }
     }
-    s_set_progress(l_cal, 40);
     if( l_args->keys.do_time_local ){
         log_it(L_DEBUG, "start time calibrate");
         l_value|=(calibrate_time( l_args->param.time_local.min_N,&l_drs->coeffs,g_ini)<<1)&2;
@@ -103,7 +101,8 @@ static void * s_thread_routine(void * a_arg)
             log_it(L_DEBUG, "time calibrate error");
         }
     }
-    s_set_progress(l_cal, 70);
+
+    l_cal->progress = 70;
     if( l_args->keys.do_time_global ){
         log_it(L_DEBUG, "start global time calibrate");
         l_value|=(calibrate_time_global(l_args->param.time_global.num_cycle ,&l_drs->coeffs,g_ini)<<2)&4;
@@ -113,22 +112,16 @@ static void * s_thread_routine(void * a_arg)
             log_it(L_DEBUG, "global time calibrate error");
         }
     }
-    s_set_progress(l_cal, 100);
+
+    l_cal->progress = 100;
+
+    pthread_rwlock_wrlock( &l_cal->rwlock);
+    l_cal->is_running = false;
+    pthread_rwlock_unlock( &l_cal->rwlock);
+
     DAP_DELETE(l_args);
     pthread_cond_broadcast(&l_cal->finished_cond);
     return NULL;
-}
-
-/**
- * @brief s_set_progress
- * @param l_cal
- * @param a_progress
- */
-static inline void s_set_progress(drs_calibrate_t * l_cal, int a_progress)
-{
-    pthread_rwlock_wrlock(&l_cal->rwlock);
-    l_cal->progress = a_progress;
-    pthread_rwlock_unlock(&l_cal->rwlock);
 }
 
 
