@@ -58,6 +58,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
         drs_cmd(a_drs->id, ENABLE_EXT_PULSE);
     } else {
         drs_cmd(a_drs->id, START_DRS);
+        //drs_cmd(a_drs->id, 1);
     }
     usleep(100);
 
@@ -82,10 +83,10 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     }
     if(l_is_ready ){
         log_it(L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
-        drs_read_page(a_drs, a_drs->id, a_buffer, a_buffer_size);
     }else
         log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
 
+    drs_read_page(a_drs, a_drs->id, a_buffer, a_buffer_size);
 
     drs_set_flag_end_read(a_drs->id, true);
     return l_ret;

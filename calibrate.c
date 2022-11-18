@@ -102,7 +102,7 @@ static void s_x_to_real(double*x)
 static void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsigned int lvl)
 {
 	unsigned int i = 0, j = 0;
-	for(j=0;j<4;j++)
+    for(j=0;j<2;j++)
 	{
 		coef->splash[j] = 1024;
 		for(i=1;i<1000;i++)
@@ -136,7 +136,7 @@ static void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsi
 static void s_remove_splash(double*Y,unsigned int *shift,coefficients_t *coef)
 {
 	unsigned int i=0,j=0;
-	for(j=0;j<4;j++)
+    for(j=0;j<2;j++)
 	{
 		i = (coef->splash[j] - shift[j>>1] + 1023) & 1023;
 		if((i > 0) && (i < 1023))
@@ -480,7 +480,7 @@ unsigned int calibrate_amplitude(coefficients_t *coef,double *calibLvl,unsigned 
 unsigned int s_fin_collect(double*calibLvl,unsigned int N,float *DAC_gain,float *DAC_offset,coefficients_t *coef, unsigned int count)
 {
     int l_ret = 0;
-    unsigned int i,k;
+    unsigned int i=0,k=0;
     double shiftDACValues[DCA_COUNT];
     double dh=0,lvl=0;
 

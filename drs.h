@@ -64,16 +64,16 @@ typedef struct
 
 typedef struct
 {
+    double b[2*4096];
+    double k[2*4096];
     double b9[2*1024];
     double k9[2*1024];
-    double b[4*4096];
-    double k[4*4096];
     double kTime[2*1024];
-    double chanB[4];
-    double chanK[4];
+    double chanB[2];
+    double chanK[2];
     double deltaTimeRef[2*1024];
     unsigned int indicator;
-    unsigned int splash[4];
+    unsigned int splash[2];
 } DAP_ALIGN_PACKED coefficients_t;
 
 
