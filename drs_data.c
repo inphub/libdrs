@@ -10,6 +10,7 @@
 #include <dap_common.h>
 
 #include "commands.h"
+#include "drs.h"
 #include "drs_data.h"
 #include "drs_ops.h"
 
@@ -17,15 +18,36 @@
 
 static unsigned int s_get_shift(unsigned int a_drs_num);
 
+
+/**
+ * @brief drs_data_get_all
+ * @param a_drs    Если NULL то он копирует для всех DRS
+ * @param a_flags
+ * @param a_buffer
+ * @return
+ */
+int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
+{
+    if (a_drs){
+        return drs_data_get(a_drs, a_flags, a_buffer, DRS_PAGE_READ_SIZE);
+    }else for (size_t d=0; d < DRS_COUNT; d++){
+        int l_ret = drs_data_get(&g_drs[d],0,(unsigned short *) (((byte_t *) a_buffer) + DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE  );
+        if (l_ret!= 0){
+            log_it(L_ERROR,"data not read on DRS #%u", d);
+            return l_ret;
+        }
+    }
+    return 0;
+};
+
 /**
  * @brief drs_data_get
  * @param a_drs                  Указатель на объект DRS
+ * @param a_flags                Флаги операции
  * @param a_buffer               буфер данных, минимум DRS_PAGE_READ_SIZE размера
  * @param a_buffer_size          максимальный размер данных для буфера (его размер)
- * @param a_flags                Флаги операции
- * @return 0 если всё хорошо было, -1 если нет
  */
-int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
+int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a_buffer_size )
 {
     assert(a_drs);
     assert(a_buffer);
@@ -58,29 +80,33 @@ int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags )
 //        }
         //readExternalStatus(0xc); //Peter fix
     }
-    log_it(L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
     if(l_is_ready ){
-        drs_read_page(a_drs, a_drs->id, &a_buffer[a_drs->id * DRS_PAGE_SIZE]);
-    }
+        log_it(L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+        drs_read_page(a_drs, a_drs->id, a_buffer, a_buffer_size);
+    }else
+        log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+
 
     drs_set_flag_end_read(a_drs->id, true);
     return l_ret;
 }
 
+
 /**
  * @brief drs_read_page
- * @param a_drs           Объект DRS
- * @param a_page_num      номер страницы
- * @param a_buffer        указатель на буфер, не менее DRS_PAGE_READ_SIZE размера
+ * @param a_drs
+ * @param a_page_num
+ * @param a_buffer
+ * @param a_buffer_size
  */
-void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer)
+void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size)
 {
     assert(a_drs);
     assert(a_buffer);
     if ( a_drs->id ==0 )
-        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE ) ;
+        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
     else
-       memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE ) ;
+       memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
     a_drs->shift =s_get_shift( a_drs->id);
 }
 

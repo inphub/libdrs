@@ -74,7 +74,7 @@ typedef struct
     double deltaTimeRef[2*1024];
     unsigned int indicator;
     unsigned int splash[4];
-} coefficients_t;
+} DAP_ALIGN_PACKED coefficients_t;
 
 
 typedef struct{

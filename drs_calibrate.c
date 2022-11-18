@@ -117,6 +117,7 @@ static void * s_thread_routine(void * a_arg)
 
     pthread_rwlock_wrlock( &l_cal->rwlock);
     l_cal->is_running = false;
+    l_cal->ts_end = dap_nanotime_now();
     pthread_rwlock_unlock( &l_cal->rwlock);
 
     DAP_DELETE(l_args);
@@ -169,11 +170,14 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
 
     // Запускаем поток с калибровкой
     pthread_rwlock_wrlock(&l_cal->rwlock);
+
     struct args * l_args  = DAP_NEW_Z(struct args);
     l_args->cal = l_cal;
     l_args->keys.raw = a_cal_flags;
     memcpy(&l_args->param, a_params, sizeof(*a_params) );
+
     l_cal->is_running = true;
+    l_cal->ts_start = dap_nanotime_now();
     pthread_create(&l_cal->thread_id, NULL, s_thread_routine, l_args);
     pthread_rwlock_unlock(&l_cal->rwlock);
 
@@ -257,12 +261,8 @@ int drs_calibrate_progress(int a_drs_num)
     drs_calibrate_t * l_cal = drs_calibrate_get_state(a_drs_num);
     if (l_cal == NULL)
         return -2;
-
-    int l_ret = -1;
     pthread_rwlock_rdlock(&l_cal->rwlock);
-    if (l_cal->is_running){
-        l_ret = (int) l_cal->progress;
-    }
+    int l_ret = (int) l_cal->progress;
     pthread_rwlock_unlock(&l_cal->rwlock);
     return l_ret;
 }

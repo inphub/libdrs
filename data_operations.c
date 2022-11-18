@@ -102,47 +102,6 @@ unsigned int onceGet(unsigned short *buffer,unsigned int *shift,unsigned int cal
 }
 
 /**
- * unsigned short *buffer		буфер данных;
- * unsigned int *shift			указатель на  unsigned int в который положится сдвиг;
- * unsigned short extStart		индикатор внешнего запуска;
- */
-unsigned int onceGet1024(unsigned short *buffer,unsigned int *shift,unsigned int calibrate,unsigned int extStart,unsigned int drsnum)
-{
-	unsigned int flag=0,i=0,end=0;
-	if(extStart==0)
-	{
-		setWorkDRS(1);
-		usleep(100);
-		if(calibrate==0)
-		{
-			softStartRecorder(1);
-		}
-	}
-	flag=readEnWrite()>>31;
-	while(flag==0 && end==0)
-	{
-		flag=readEnWrite()>>31;
-		i++;
-		if(extStart==0)
-		{
-			if(i>100)
-			{
-				end=1;
-			}
-		}else{
-			//if(ext_start==0){end=1;)
-		}
-		//readExternalStatus(0xc); //Peter fix
-	}
-	if(flag==1){
-        readNPage(&buffer[0],&shift[0],0,drsnum);
-//		readNPage(&buffer[8192],&shift[1024],0,1,drsnum);
-	}
-	flagEndRead(1);
-	return flag;
-}
-
-/**
  * unsigned int drsnum		номер drs для вычитывания сдвига
  * return 					индекс сдвига;
  */

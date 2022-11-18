@@ -31,7 +31,7 @@
  * unsigned int key - ключ применения калибровок 4 бит-локальная временная, 5 бит-глобальная временная, 6 бит-приведение к физическим величинам
  */
 static const double c_freq_DRS[]= {1.024, 2.048, 3.072, 4.096, 4.915200};
-int g_current_freq;
+int g_current_freq=0;
 
 static void           s_x_to_real         (   double* x                                                                  );
 static void           s_find_splash       (   double* Y,             unsigned int* shift,       coefficients_t* coef,
@@ -181,6 +181,7 @@ static void s_time_global_apply(double *x,double *xMas, unsigned int *shift, coe
  */
 unsigned int calibrate_time_global(unsigned int numCycle, coefficients_t *coef,parameter_t *prm)
 {
+    const unsigned c_calibr_count = 1024;
 	double sumDeltaRef[2048], statistic[32768],x[32768],dBuf[32768],dn=0;
     unsigned short pageBuffer[2048],ind = 0;
 	unsigned int shift[2],k,t;
@@ -197,18 +198,13 @@ unsigned int calibrate_time_global(unsigned int numCycle, coefficients_t *coef,p
 	while(ind<numCycle)
 	{
 		ind++;
-		if(onceGet1024(&pageBuffer[0],&shift[0],1,0,0)==0)
-		{
-            log_it(L_ERROR,"data not read");
-            drs_set_mode(0);
-			return 0;
-		}
-		if(onceGet1024(&pageBuffer[1024],&shift[1],1,0,1)==0)
-		{
-            log_it(L_ERROR, "data not read");
-            drs_set_mode(0);
-			return 0;
-		}
+        for(unsigned d = 0; d < DRS_COUNT; d++ ){
+            int l_ret = drs_data_get(&g_drs[d],0, &pageBuffer[c_calibr_count*d],c_calibr_count );
+            if ( l_ret != 0){
+                log_it(L_ERROR,"data get 1024 returned with error, code %d", l_ret);
+                drs_set_mode(0);
+            }
+        }
 
         calibrate_do_curgr(pageBuffer,dBuf,shift,coef,1024,4,3,prm);
         s_time_apply(x,coef,shift);
@@ -312,7 +308,8 @@ static void s_time_apply( double*x, coefficients_t *coef,unsigned int *shift)
 unsigned int calibrate_time(unsigned int minN, coefficients_t *coef,parameter_t *prm)
 {
 	double minValue=0,sumDeltaRef[8192], statistic[8192],dBuf[8192],dn=0;
-	unsigned short pageBuffer[8192];
+    unsigned short *pageBuffer = DAP_NEW_Z_SIZE(unsigned short, sizeof(unsigned short)*DRS_PAGE_READ_SIZE);
+
 	unsigned int shift[2],k=0,t,n=0;
 	fillArray((unsigned char*)(statistic),(unsigned char*)&dn,8192,sizeof(dn));
 	fillArray((unsigned char*)(sumDeltaRef),(unsigned char*)&dn,8192,sizeof(dn));
@@ -327,12 +324,13 @@ unsigned int calibrate_time(unsigned int minN, coefficients_t *coef,parameter_t 
 	{
 		k++;
 		n++;
-        //log_it(L_DEBUG,"min=%u\tminValue=%f\n",minN,minValue);
-        if(onceGet(pageBuffer,shift,1,0,0)==0){
-            log_it(L_ERROR,"data not read\n");
+        log_it(L_DEBUG,"min=%u\tminValue=%f\n",minN,minValue);
+        int l_ret = drs_data_get_all(NULL,0, pageBuffer);
+        if(l_ret!=0){
+            log_it(L_ERROR,"data_get_all not read\n");
             setMode(0);
             return 0;
-		}
+        }
         calibrate_do_curgr(pageBuffer,dBuf,shift,coef,1024,4,3,prm);
         minValue=s_get_deltas_min(dBuf,sumDeltaRef,statistic,shift);
 
@@ -515,18 +513,16 @@ unsigned int s_fin_collect(double*calibLvl,unsigned int N,float *DAC_gain,float 
 
 		for(k=0;k<N;k++)
 		{
-            for (unsigned d = 0; d < DRS_COUNT; d++){
-                if(drs_data_get(&g_drs[d],&l_load_data[DRS_PAGE_ALL_SIZE*d],0)==0){
-                    log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
-                    setMode(0);
-                    goto lb_exit;
-                }
-                if((shift[0]>1023)||(shift[1]>1023))
-                {
-                   log_it(L_ERROR, "shift index went beyond on %u::%u iteration", i,k);
+            if(drs_data_get_all(NULL,0, l_load_data)!=0){
+                log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
+                setMode(0);
+                goto lb_exit;
+            }
+            if((shift[0]>1023)||(shift[1]>1023))
+            {
+               log_it(L_ERROR, "shift index went beyond on %u::%u iteration", i,k);
 
-                   goto lb_exit;
-                }
+               goto lb_exit;
             }
             calibrate_collect_statistics_b(&l_acc[i*DRS_PAGE_ALL_SIZE],l_load_data,shift,l_stats);
 		}
@@ -608,13 +604,13 @@ unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_o
 		usleep(200);
 		setDAC(1);
 		usleep(200);
+        if (drs_data_get_all(NULL,0, loadData ) != 0){
+            log_it(L_ERROR,"data not read on iteration %u", t);
+            setMode(0);
+            return 0;
+        }
         for(unsigned d = 0; d < DRS_COUNT; d++ ){
-            if (drs_data_get(&g_drs[d],&loadData[DRS_PAGE_ALL_COUNT*d],0) == 0){
-                log_it(L_ERROR,"data not read on iteration %u on DRS #%u", t, d);
-                setMode(0);
-                return 0;
-            }
-            if(shift[0]>1023){
+            if(shift[d]>1023){
                 log_it(L_ERROR,"shift index went beyond on iteration %u", t);
                 return 0;
             }

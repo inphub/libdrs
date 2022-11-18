@@ -16,5 +16,12 @@
 
 #define DRS_PAGE_READ_SIZE        0x8000
 
-int drs_data_get(drs_t * a_drs, unsigned short * a_buffer, int a_flags );
-void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer);
+
+int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size);
+int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
+
+void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size);
+static inline void drs_read_page_all(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer)
+{
+    return drs_read_page(a_drs, a_page_num, a_buffer, DRS_PAGE_READ_SIZE);
+}

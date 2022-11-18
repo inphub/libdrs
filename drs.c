@@ -61,7 +61,6 @@ int drs_init()
 int drs_cmd_init(parameter_t *a_params)
 {
 
-    write_reg(0x00000001, 0x0000001);
     set_dma_addr_drs1(0x08000000);  		//    write_reg(0x00000017, 0x8000000);// DRS1
     set_size_dma_drs1(0x00004000);  		//    write_reg(0x00000019, 0x4000);
     set_dma_addr_drs2(0x0c000000);  		//    write_reg(0x00000018, 0xC000000);// DRS2
@@ -76,9 +75,15 @@ int drs_cmd_init(parameter_t *a_params)
     set_dac_offs_drs1(30000, 30000);		//    write_reg(0x00000008, 0x83e683e6);
     set_dac_offs_drs2(30000, 30000);		//    write_reg(0x00000009, 0x83e683e6);
     start_dac(1);							//    write_reg(0x00000007, 0x00000001);
-    set_dac_rofs_O_ofs_drs1(35000, 30000);	//    write_reg(0x0000000a, 0x7d009e98);
+
+    //set_dac_rofs_O_ofs_drs1(35000, 30000);
+    write_reg(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
+
     set_dac_speed_bias_drs1(0, 16350);		//    write_reg(0x0000000b, 0x3fde0000);
-    set_dac_rofs_O_ofs_drs2(35000, 30000);	//    write_reg(0x0000000c, 0x7d009e98);
+
+    //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    write_reg(0x0000000c, 0x7d009e98);
+    write_reg(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
+
     set_dac_speed_bias_drs2(0, 16350);		//    write_reg(0x0000000d, 0x3fde0000);
     set_dac_9ch_ofs(30000);					//    write_reg(0x0000001f, 0x00007530);
     start_dac(1);							//    write_reg(0x00000007, 0x00000001);
@@ -96,6 +101,9 @@ int drs_cmd_init(parameter_t *a_params)
     set_mode_drss(MODE_SOFT_START);			//    write_reg(0x00000010, 0x00000000);
     init_drs1();							//    write_reg(0x0000000e, 0x00000001);
     init_drs2();							//    write_reg(0x0000000f, 0x00000001);
+
+    // Start all
+    write_reg(0x00000001, 0x0000001);
 
     return 0;
 }

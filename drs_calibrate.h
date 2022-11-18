@@ -8,6 +8,7 @@
 
 #include <stdatomic.h>
 #include <dap_common.h>
+#include <dap_time.h>
 #include "drs.h"
 typedef struct{
     pthread_rwlock_t rwlock;
@@ -19,6 +20,8 @@ typedef struct{
     pthread_t thread_id; // Айди потока
     drs_t * drs; // Объект DRS
 
+    dap_nanotime_t ts_start;
+    dap_nanotime_t ts_end;
 
     // Сигнализирует завершение калибровки
     pthread_cond_t  finished_cond;

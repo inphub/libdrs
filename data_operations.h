@@ -12,7 +12,6 @@ void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *
 void arrayOperation(double *array,int length,void (*operation)(double *num));
 void pageModeStart(unsigned int num);
 unsigned int onceGet(unsigned short *buffer,unsigned int *shift,unsigned int calibrate,unsigned int extStart,unsigned int drsnum);
-unsigned int onceGet1024(unsigned short *buffer,unsigned int *shift,unsigned int calibrate,unsigned int extStart,unsigned int drsnum);
 unsigned int getShiftIndex(unsigned int drsnum);
 double absf(double value);
 void fillArray(unsigned char *array,unsigned char *value,unsigned int arrayLength,unsigned int sizeOfValue);
