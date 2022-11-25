@@ -4,13 +4,21 @@
  *  Created on: 21 October
  *      Author: Dmitry Gerasimov
  */
+#include <assert.h>
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
 
+#include <dap_common.h>
+#include <dap_config.h>
+
+#define LOG_TAG          "drs"
 
 #include "drs.h"
+#include "drs_ops.h"
+#include "drs_cal.h"
+
 #include "minIni.h"
 #include "calibrate.h"
 #include "commands.h"
@@ -30,7 +38,6 @@
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
 
 unsigned short tmasFast[SIZE_FAST];
-
 const unsigned int freqREG[]= {480, 240, 160, 120, 100};
 
 
@@ -44,6 +51,8 @@ drs_t g_drs[DRS_COUNT]={
         .id = 1
     }
 };
+
+
 
 int drs_init()
 {
@@ -139,54 +148,61 @@ void drs_init_old(parameter_t *a_params)
     usleep(3);
     write_reg(13,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
     usleep(3);
-    setDAC(1);
+    drs_dac_set(1);
 //	write_reg(0x0,1<<3|0<<2|0<<1|0);//Start_DRS Reset_DRS Stop_DRS Soft reset
 
 }
 
 /**
  * @brief Загружает даные из ini файла и сохраняет в параметры
- * @param inifile
- * @param prm
+ * @param a_ini_path
+ * @param a_prm
  */
-void drs_ini_load(const char *inifile, parameter_t *prm)
+int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
 {
     char sDAC_gain[]="DAC_gain_X";
     char sADC_offset[]="ADC_offset_X";
     char sADC_gain[]="ADC_gain_X";
     char sDAC_offset[]="DAC_offset_X";
     unsigned char t;
+    dap_config_t * l_cfg = dap_config_load(a_ini_path);
+    if ( l_cfg == NULL){
+        log_it(L_CRITICAL, "Can't load ini file from path %s", a_ini_path);
+        return -1 ;
+    }
   //  char IP[16];
   //  long n;
     /* string reading */
   //  n = ini_gets("COMMON", "host", "dummy", IP, sizearray(IP), inifile);
   //  printf("Host = %s\n", IP);
   //  n = ini_gets("COMMON", "firmware", "dummy", prm->firmware_path, sizearray(prm->firmware_path), inifile);
-    prm->fastadc.ROFS1 			= ini_getl("FASTADC_SETTINGS", "ROFS1", 35000, inifile);
-    prm->fastadc.OFS1				= ini_getl("FASTADC_SETTINGS", "OFS1", 30000, inifile);
-    prm->fastadc.ROFS2 			= ini_getl("FASTADC_SETTINGS", "ROFS2", 35000, inifile);
-    prm->fastadc.OFS2				= ini_getl("FASTADC_SETTINGS", "OFS2", 30000, inifile);
-    prm->fastadc.CLK_PHASE		= ini_getl("FASTADC_SETTINGS", "CLK_PHASE", 40, inifile);
+    a_prm->fastadc.ROFS1 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS1", 35000 );
+    a_prm->fastadc.OFS1				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS1", 30000 );
+    a_prm->fastadc.ROFS2 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS2", 35000 );
+    a_prm->fastadc.OFS2				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS2", 30000 );
+    a_prm->fastadc.CLK_PHASE		= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "CLK_PHASE", 40 );
     for (t=0;t<4;t++)
     {
      sDAC_offset[strlen(sDAC_offset)-1]=t+49;
-     prm->fastadc.dac_offsets[t] = ini_getf("FASTADC_SETTINGS", sDAC_offset, 0.0, inifile);
+     a_prm->fastadc.dac_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, 0.0);
     }
     for (t=0;t<4;t++)
     {
      sDAC_gain[strlen(sDAC_gain)-1]=t+49;
-     prm->fastadc.dac_gains[t] = ini_getf("FASTADC_SETTINGS", sDAC_gain, 1.0, inifile);
+     a_prm->fastadc.dac_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, 1.0);
     }
     for (t=0;t<4;t++)
     {
      sADC_offset[strlen(sADC_offset)-1]=t+49;
-     prm->fastadc.adc_offsets[t] = ini_getf("FASTADC_SETTINGS", sADC_offset, 0.0, inifile);
+     a_prm->fastadc.adc_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_offset, 0.0);
     }
     for (t=0;t<4;t++)
     {
      sADC_gain[strlen(sADC_gain)-1]=t+49;
-     prm->fastadc.adc_gains[t] = ini_getf("FASTADC_SETTINGS", sADC_gain, 1.0, inifile);
+     a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_gain, 1.0);
     }
+    dap_config_close( l_cfg );
+    return 0;
 }
 
 /**
@@ -194,7 +210,7 @@ void drs_ini_load(const char *inifile, parameter_t *prm)
  * @param inifile
  * @param prm
  */
-void drs_ini_save(const char *inifile, parameter_t *prm)
+int drs_ini_save(const char *inifile, parameter_t *prm)
 {
     char sDAC_offset[]="DAC_offset_X";
     char sDAC_gain[]="DAC_gain_X";
@@ -232,6 +248,72 @@ void drs_ini_save(const char *inifile, parameter_t *prm)
      sADC_gain[strlen(sADC_gain)-1]=t+49;
      ini_putf("FASTADC_SETTINGS", sADC_gain, prm->fastadc.adc_gains[t], inifile);
     }
+    return 0;
 }
 
+/**
+ * @brief drs_set_mode
+ * @param mode
+ */
+void drs_mode_set(unsigned int mode)
+{
+    write_reg(DRS_MODE_REG, mode);
+    usleep(100);
+    drs_cmd(-1, INIT_DRS);
+}
+
+/**
+ * @brief drs_set_dac_input_shift
+ * @param addrShift
+ * @param value
+ */
+void drs_dac_shift_input_set(unsigned int addrShift,unsigned int value)//fix
+{
+    write_reg(0x8+addrShift,value);
+    usleep(100);
+}
+
+/**
+ * @brief setDAC
+ * @param onAH
+ */
+void drs_dac_set(unsigned int onAH)//fix
+{
+    //unsigned int onAH=1,dacSelect=2;
+    write_reg(0x07,(onAH&1));
+    usleep(200);
+}
+
+/**
+ * unsigned short *shiftValue 		масиив сдивгов для ЦАП
+ */
+void drs_dac_shift_input_set_all(unsigned short *shiftValue)//fix
+{
+    int j;
+    for(j=0;j<2;j++)
+    {
+        drs_dac_shift_input_set(j,((shiftValue[j*2]<<16)&0xFFFF0000)|shiftValue[j*2+1]);
+    }
+}
+
+/**
+ * double *shiftDAC		сдвиги с фронтпанели;
+ * float *DAC_gain		массив из ini
+ * float *DAC_offset	массив из ini
+ */
+void drs_dac_shift_set_all(double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
+{
+    int i;
+    unsigned short shiftDACValues[4];
+    assert(shiftDAC);
+    assert(DAC_gain);
+    assert(DAC_offset);
+    for(i=0;i<4;i++)
+    {
+        shiftDACValues[i]=(shiftDAC[i]*DAC_gain[i]+DAC_offset[i]);
+        log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
+    }
+    drs_dac_shift_input_set_all(shiftDACValues);
+    drs_dac_set(1);
+}
 

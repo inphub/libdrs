@@ -37,7 +37,7 @@ void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *
 	*b=(y-*k*x)/length;
 	//printf("k=%f\tb=%f\n",*k,*b);
 }
-void arrayOperation(double *array,int length,void (*operation)(double *num)){
+void do_on_array(double *array,int length,void (*operation)(double *num)){
 	int i;
 	for(i=0;i<length;i++){
 		(*operation)(&array[i]);
@@ -167,15 +167,6 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
 	 }
  }
 
- void fillArray(unsigned char *array,unsigned char *value,unsigned int arrayLength,unsigned int sizeOfValue)
- {
-     unsigned int i;
-	 for(i=0;i<arrayLength;i++)
-	 {
-		 memcpy(&array[i*sizeOfValue],value,sizeOfValue);
-	 }
- }
-
  /**
   * unsigned short *buffer		массив данных
   * unsigned int *shift			сдвиг;
@@ -184,9 +175,9 @@ void getAverageInt(double *average,unsigned short *data,unsigned int chanalLengt
  void readNPage(unsigned short *buffer,unsigned int* shift,unsigned int numPage, unsigned int drsnum)
  {
     if (drsnum==0)
-        memcpy(buffer, &(((unsigned short *)data_map_drs1)[numPage*DRS_PAGE_ALL_COUNT*DRS_CHANNELS_COUNT]), DRS_PAGE_ALL_SIZE  );
+        memcpy(buffer, &(((unsigned short *)data_map_drs1)[numPage*DRS_CELLS_COUNT_ALL*DRS_CHANNELS_COUNT]), DRS_PAGE_ALL_SIZE  );
   	else
-        memcpy(buffer, &(((unsigned short *)data_map_drs2)[numPage*DRS_PAGE_ALL_COUNT*DRS_CHANNELS_COUNT]), DRS_PAGE_ALL_SIZE);
+        memcpy(buffer, &(((unsigned short *)data_map_drs2)[numPage*DRS_CELLS_COUNT_ALL*DRS_CHANNELS_COUNT]), DRS_PAGE_ALL_SIZE);
         *shift=getShiftIndex(drsnum);
  }
 

@@ -15,38 +15,7 @@
 
 #define LOG_TAG "commands"
 
-/**
- * double *shiftDAC		сдвиги с фронтпанели;
- * float *DAC_gain		массив из ini
- * float *DAC_offset	массив из ini
- */
-void setShiftAllDac(double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
-{
-	int i;
-	unsigned short shiftDACValues[4];
-    assert(shiftDAC);
-    assert(DAC_gain);
-    assert(DAC_offset);
-	for(i=0;i<4;i++)
-	{
-		shiftDACValues[i]=(shiftDAC[i]*DAC_gain[i]+DAC_offset[i]);
-        log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
-	}
-	setAllDAC(shiftDACValues);
-	setDAC(1);
-}
 
-/**
- * unsigned short *shiftValue 		масиив сдивгов для ЦАП
- */
-void setAllDAC(unsigned short *shiftValue)//fix
-{
-	int j;
-	for(j=0;j<2;j++)
-	{
-		setDACInputShift(j,((shiftValue[j*2]<<16)&0xFFFF0000)|shiftValue[j*2+1]);
-	}
-}
 
 void setNumPages(unsigned int num)
 {
@@ -61,25 +30,7 @@ void setSizeSamples(unsigned int num)
 	usleep(100);
 }
 
-void drs_set_mode(unsigned int mode)
-{
-	write_reg(DRS_MODE_REG, mode);
-	usleep(100);
-    drs_cmd(-1, INIT_DRS);
-}
 
-void setDACInputShift(unsigned int addrShift,unsigned int value)//fix
-{
-	write_reg(0x8+addrShift,value);
-	usleep(100);
-}
-
-void setDAC(unsigned int onAH)//fix
-{
-	//unsigned int onAH=1,dacSelect=2;
-	write_reg(0x07,(onAH&1));
-	usleep(200);
-}
 
 unsigned int readEnWrite(unsigned int drsmask)
 {

@@ -24,15 +24,9 @@
 #define MODE_TIM_CALIBR	4
 #define MODE_CHN_CALIBR	5
 
-void setShiftAllDac(double *shiftDAC,float *DAC_gain,float *DAC_offset);
-void setAllDAC(unsigned short *shiftValue);
 void setNumPages( unsigned int num);
 void setSizeSamples(unsigned int num);
 
-void drs_set_mode( unsigned int mode);
-
-void setDACInputShift(unsigned int addrShift,unsigned int value);
-void setDAC(unsigned int onAH);
 unsigned int readEnWrite ();
 unsigned int readExternalStatus (unsigned int stat);
 

@@ -1,5 +1,5 @@
 /*
- * drs_calibrate.c
+ * drs_cal.c
  *
  *  Created on: 8 November 2022
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
@@ -11,35 +11,40 @@
 #include <dap_string.h>
 
 #include "drs.h"
-#include "drs_calibrate.h"
+#include "drs_cal.h"
+#include "drs_cal_amp.h"
+#include "drs_cal_time_global.h"
+#include "drs_cal_time_local.h"
 
 #include "calibrate.h"
 #include "commands.h"
+#include "data_operations.h"
+
+#define LOG_TAG "drs_cal"
 
 
-#define LOG_TAG "drs_calibrate"
+#define GeneratorFrequency 50 //MHz
+#define periodLength 38.912 //4.9152/2.4*19 || periodLength-длинна в отсчетах одного периода 4.9152 ГГц-частота ацп, 2400/19-МГц частота синуса
+#define maxPeriodsCount 28//26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
+//#define freqDRS 4915200.0/1000000000.0
+//extern const double freqDRS[];
 
-
-// Аргументы калибровки
-struct args{
-    union{
-        struct{
-            bool do_amplitude:1;
-            bool do_time_local:1;
-            bool do_time_global:1;
-            unsigned padding:29;
-        } DAP_ALIGN_PACKED;
-        uint32_t raw; //  ключи калибровки, 1 бит амплитудная,2 локальная временная,3 глобальная временная
-    } keys;
-    drs_calibrate_params_t param;
-    drs_calibrate_t * cal;
-};
+/**
+ * double*x -массив под знчаения X
+ * unsigned int shift - сдвиг ячеек
+ * coefficients *coef - струтурка с коэффициентами
+ * unsigned int key - ключ применения калибровок 4 бит-локальная временная, 5 бит-глобальная временная, 6 бит-приведение к физическим величинам
+ */
+static const double c_freq_DRS[]= {1.024, 2.048, 3.072, 4.096, 4.915200};
+int g_current_freq=0;
 
 // Состояния калибровки (текущие )
 drs_calibrate_t s_state[DRS_COUNT] = {};
 // Поток калибровки
 static void * s_thread_routine(void * a_arg);
 static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
+
+static void           s_x_to_real         (   double* x                                                                  );
 
 /**
  * @brief s_thread_routine
@@ -49,7 +54,7 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
 static void * s_thread_routine(void * a_arg)
 {
     assert(a_arg);
-    struct args * l_args = (struct args*) a_arg;
+    drs_cal_args_t * l_args = (drs_cal_args_t*) a_arg;
     drs_calibrate_t * l_cal = l_args->cal;
     assert(l_cal);
     drs_t * l_drs = l_cal->drs;
@@ -67,9 +72,9 @@ static void * s_thread_routine(void * a_arg)
     dap_string_t * l_dca_shifts_str = dap_string_new("{");
     size_t t;
 
-    for(t=0;t<DCA_COUNT;t++){
+    for(t=0;t<DRS_DCA_COUNT_ALL;t++){
         dap_string_append_printf(l_dca_shifts_str, "[%zd]=%f%s", t, l_args->param.ampl.levels[t+2],
-                                 t<DCA_COUNT-1 ? "," : "");
+                                 t<DRS_DCA_COUNT_ALL-1 ? "," : "");
     }
     dap_string_append(l_dca_shifts_str, "}");
     log_it(L_DEBUG, "DAC shifts: %s", l_dca_shifts_str->str);
@@ -79,37 +84,35 @@ static void * s_thread_routine(void * a_arg)
 
     setNumPages(1);
     l_cal->progress = 15;
-    unsigned int l_value;
     //setSizeSamples(1024);//Peter fix
     if(l_args->keys.do_amplitude){
-        log_it(L_DEBUG, "start amplitude calibrate. Levels %p, shifts %p\n",
+        log_it(L_NOTICE, "start amplitude calibrate. Levels %p, shifts %p\n",
                l_args->param.ampl.levels, l_args->param.ampl.levels+2 );
-        l_value=calibrate_amplitude(&l_drs->coeffs,l_args->param.ampl.levels ,l_args->param.ampl.N ,g_ini, l_args->param.ampl.repeats,
-                                     &l_cal->progress)&1;
-        if(l_value==1){
-            log_it(L_DEBUG, "end amplitude calibrate");
+        int l_ret = drs_cal_amp( l_cal->drs->id, l_args, &l_cal->progress);
+        if(l_ret == 0){
+            log_it(L_INFO, "end amplitude calibrate");
         }else{
-            log_it(L_DEBUG, "amplitude calibrate error");
+            log_it(L_ERROR, "amplitude calibrate error, code %d", l_ret);
         }
     }
     if( l_args->keys.do_time_local ){
-        log_it(L_DEBUG, "start time calibrate");
-        l_value|=(calibrate_time( l_args->param.time_local.min_N,&l_drs->coeffs,g_ini)<<1)&2;
-        if((l_value&2)==2){
-            log_it(L_DEBUG, "end time calibrate");
+        log_it(L_NOTICE, "start time local calibrate");
+        int l_ret = drs_cal_time_local(l_cal->drs->id, l_args, &l_cal->progress);
+        if(l_ret == 0){
+            log_it(L_INFO, "end time local calibrate");
         }else{
-            log_it(L_DEBUG, "time calibrate error");
+            log_it(L_ERROR, "time local calibrate error, code %d", l_ret);
         }
     }
 
     l_cal->progress = 70;
     if( l_args->keys.do_time_global ){
-        log_it(L_DEBUG, "start global time calibrate");
-        l_value|=(calibrate_time_global(l_args->param.time_global.num_cycle ,&l_drs->coeffs,g_ini)<<2)&4;
-        if((l_value&4)==4){
-            log_it(L_DEBUG, "end global time calibrate");
+        log_it(L_NOTICE, "start time global calibrate");
+        int l_ret = drs_cal_time_global(l_cal->drs->id, l_args, &l_cal->progress);
+        if(l_ret == 0){
+            log_it(L_INFO, "end time global calibrate");
         }else{
-            log_it(L_DEBUG, "global time calibrate error");
+            log_it(L_ERROR, "time global calibrate error, code %d", l_ret);
         }
     }
 
@@ -171,7 +174,7 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
     // Запускаем поток с калибровкой
     pthread_rwlock_wrlock(&l_cal->rwlock);
 
-    struct args * l_args  = DAP_NEW_Z(struct args);
+    struct drs_cal_args * l_args  = DAP_NEW_Z(struct drs_cal_args);
     l_args->cal = l_cal;
     l_args->keys.raw = a_cal_flags;
     memcpy(&l_args->param, a_params, sizeof(*a_params) );
@@ -318,5 +321,68 @@ int drs_calibrate_abort(int a_drs_num)
     s_state[a_drs_num].progress   = 0;
     pthread_rwlock_unlock(&s_state[a_drs_num].rwlock);
     return 0;
+}
+
+
+/**
+ * @brief s_x_to_real
+ * @param x
+ */
+static void s_x_to_real(double*x)
+{
+    *x=(*x)/(c_freq_DRS[g_current_freq]);
+}
+
+
+/**
+ * @brief drs_cal_get_array_x
+ * @param x
+ * @param shift
+ * @param coef
+ * @param key
+ */
+void drs_cal_get_array_x_old(double*x, unsigned int *shift,coefficients_t *coef,unsigned int key)
+{
+    double xMas[8192]={};
+    if((key&16)!=0)
+    {
+        drs_cal_time_local_apply_old(xMas,coef,shift);
+    }
+    if((key&32)!=0)
+    {
+        drs_cal_time_global_apply_old(x,xMas,shift,coef);
+    }else{
+        memcpy(x,xMas,sizeof(xMas));
+    }
+    if((key&64)!=0)
+    {
+        do_on_array(x,8192,s_x_to_real);
+    }
+
+}
+
+
+/**
+ * @brief drs_cal_get_array_x
+ * @param x
+ * @param shift
+ * @param coef
+ * @param key
+ */
+void drs_cal_get_array_x(drs_t * a_drs, double*a_x, int a_flags)
+{
+    double l_results[DRS_CELLS_COUNT]={0};
+    if(a_flags & DRS_CAL_FLAG_TIME_LOCAL) {
+        drs_cal_time_local_apply(a_drs, l_results);
+    }
+    if(a_flags & DRS_CAL_FLAG_TIME_GLOBAL) {
+        drs_cal_time_global_apply(a_drs, a_x,l_results);
+    }else{
+        memcpy(a_x,l_results,sizeof(l_results));
+    }
+    if(a_flags & DRS_CAL_FLAG_TO_REAL) {
+        do_on_array(a_x,DRS_CELLS_COUNT,s_x_to_real);
+    }
+
 }
 

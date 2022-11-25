@@ -17,383 +17,53 @@
 #include "calibrate.h"
 #include "commands.h"
 #include "data_operations.h"
-#include "drs_calibrate.h"
+
+#include "drs.h"
+#include "drs_cal.h"
 #include "drs_ops.h"
 #include "drs_data.h"
 
 
 #define LOG_TAG "calibrate"
 
-/**
- * double*x -массив под знчаени€ X
- * unsigned int shift - сдвиг €чеек
- * coefficients *coef - струтурка с коэффициентами
- * unsigned int key - ключ применени€ калибровок 4 бит-локальна€ временна€, 5 бит-глобальна€ временна€, 6 бит-приведение к физическим величинам
- */
-static const double c_freq_DRS[]= {1.024, 2.048, 3.072, 4.096, 4.915200};
-int g_current_freq=0;
+#define GeneratorFrequency 50 //MHz
+#define periodLength 38.912 //4.9152/2.4*19 || periodLength-длинна в отсчетах одного периода 4.9152 √√ц-частота ацп, 2400/19-ћ√ц частота синуса
+#define maxPeriodsCount 28//26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 дл€ нул€;
+//#define freqDRS 4915200.0/1000000000.0
+//extern const double freqDRS[];
 
-static void           s_x_to_real         (   double* x                                                                  );
-static void           s_find_splash       (   double* Y,             unsigned int* shift,       coefficients_t* coef,
-                                              unsigned int lvl                                                           );
-static void           s_remove_splash     (   double* Y,             unsigned int* shift,       coefficients_t* coef     );
-
-static void           s_time_global_apply (   double *x,             double* xMas,              unsigned int *shift,
-                                              coefficients_t *coef                                                       );
-static void           s_time_global       (   double *x,             double *y,                 unsigned int shift,
-                                              double *sumDeltaRef,   double *stat);
-static void           s_time_apply        (   double *bufferX,       coefficients_t *coef,      unsigned int * shift     );
-
-static double         s_get_deltas_min(       double* buffer,        double *sumDeltaRef,       double *stat,
-                                              unsigned int *shift);
-static unsigned int   s_fin_collect(          double* calibLvl,      unsigned int N     ,       float *DAC_gain,
-                                              float *DAC_offset,     coefficients_t *coef,      unsigned int count );
-static void           s_get_coefficients(     double* acc,           coefficients_t *coef,      double* calibLvl,    int count,
-                                              double *average );
-static unsigned int   s_channels_calibration( double* calibLvl,      float *DAC_gain,           float *DAC_offset,
-                                              coefficients_t *coef,  unsigned int count,        parameter_t *prm);
-
-static void           s_calc_coeff_b(         double *acc,           unsigned int *statistic,   double *average);
+static void           s_remove_splash     (   double* a_Y,             unsigned int* shift,       coefficients_t* coef     );
 
 
-/**
- * @brief calibrate_get_array_x
- * @param x
- * @param shift
- * @param coef
- * @param key
- */
-void calibrate_get_array_x(double*x, unsigned int *shift,coefficients_t *coef,unsigned int key)
-{
-    double xMas[8192]={};
-	if((key&16)!=0)
-	{
-        s_time_apply(xMas,coef,shift);
-	}
-	if((key&32)!=0)
-	{
-        s_time_global_apply(x,xMas,shift,coef);
-	}else{
-        memcpy(x,xMas,sizeof(xMas));
-	}
-	if((key&64)!=0)
-	{
-        arrayOperation(x,8192,s_x_to_real);
-	}
 
-}
 
-/**
- * @brief s_x_to_real
- * @param x
- */
-static void s_x_to_real(double*x)
-{
-    *x=(*x)/(c_freq_DRS[g_current_freq]);
-}
 
-/**
- * @brief s_find_splash
- * @param Y
- * @param shift
- * @param coef
- * @param lvl
- */
-static void s_find_splash(double*Y,unsigned int *shift,coefficients_t *coef,unsigned int lvl)
-{
-	unsigned int i = 0, j = 0;
-    for(j=0;j<2;j++)
-	{
-		coef->splash[j] = 1024;
-		for(i=1;i<1000;i++)
-		{
-			if(absf(Y[(i+1)*4+j]-Y[i*4+j])>lvl && absf(Y[(i-1)*4+j]-Y[i*4+j])>lvl)
-			{
-                log_it(L_DEBUG, "find splash for %d channel in %d cell\n",j+1,(i+shift[j>>1])&1023);
-				coef->splash[j] = ( i + shift[j>>1] ) & 1023;
-				break;
-			}
-		}
-		if(absf(Y[1*4+j]-Y[j])>lvl && absf(Y[1023*4+j]-Y[j])>lvl)
-		{
-			coef->splash[j] = 0;
-            log_it(L_DEBUG,"find splash for %u channel in %u cell",j+1,shift[j>>1]);
-		}
-//		if(absf(Y[1023*8+j]-Y[1022*8+j])>lvl && absf(Y[1023*8+j]-Y[j])>lvl)
-//		{
-//			coef->splash[j] = 1023;
-//			log_it(L_DEBUG,"find splash for %d chanal in %d cell",j+1,shift-1);
-//		}
-	}
-}
 
 /**
  * @brief s_remove_splash
- * @param Y
+ * @param a_Y
  * @param shift
  * @param coef
  */
-static void s_remove_splash(double*Y,unsigned int *shift,coefficients_t *coef)
+static void           s_remove_splash     (   double* a_Y,             unsigned int* shift,       coefficients_t* coef     )
 {
-	unsigned int i=0,j=0;
-    for(j=0;j<2;j++)
-	{
-		i = (coef->splash[j] - shift[j>>1] + 1023) & 1023;
-		if((i > 0) && (i < 1023))
-		{
-			Y[i*4+j] = (Y[(i + 1) * 4 + j] + Y[(i - 1) * 4 + j]) / 2;
-		}
-		if(i == 0)
-		{
-			Y[j] = (Y [4*1 + j] + Y[4*2 + j]) / 2;
-		}
-		if(i == 1023)
-		{
-			Y[1023 * 4 + j]=(Y[j] + Y[1022 * 4 + j]) / 2;
-		}
-	}
-}
-/**
- * double *x			указатель на массив дл€ значений x;
- * double *xMas;				рузельтат applyTimeCalibration;
- * unsigned int shift		сдвиг в данных;
- * coefficients *coef		структура с коэффициентами;
- */
-static void s_time_global_apply(double *x,double *xMas, unsigned int *shift, coefficients_t *coef)
-{
-	unsigned int i,j,pz;
-	double tmpX;
-	for(i=0;i<4;i++)
-	{
-		x[i]=0;
-		tmpX=0;
-		for(j=1;j<1024;j++)
-		{
-			pz=(shift[i>>1]+j)&1023;
-			tmpX+=(xMas[j*4+i] - xMas[(j-1)*4+i])*coef->kTime[pz*4+i];
-			x[j*4+i]=tmpX;
-		}
-	}
-}
-/**
- * unsigned int numCycle		количество циклов;
- * coefficients *coef		структура с коэффициентами;
- */
-unsigned int calibrate_time_global(unsigned int numCycle, coefficients_t *coef,parameter_t *prm)
-{
-    const unsigned c_calibr_count = 1024;
-	double sumDeltaRef[2048], statistic[32768],x[32768],dBuf[32768],dn=0;
-    unsigned short pageBuffer[2048],ind = 0;
-	unsigned int shift[2],k,t;
-	//unsigned char i=0;
-	fillArray((unsigned char*)(statistic),(unsigned char*)&dn,32768,sizeof(dn));
-	fillArray((unsigned char*)(sumDeltaRef),(unsigned char*)&dn,32768,sizeof(dn));
-	fillArray((unsigned char*)(x),(unsigned char*)&dn,32768,sizeof(dn));
-	if((coef->indicator&3)!=3)
-	{
-        log_it(L_WARNING,"before global timer calibration you need to do the timer calibration and amplitude calibration");
-		return 0;
-	}
-    drs_set_mode(4);
-	while(ind<numCycle)
-	{
-		ind++;
-        for(unsigned d = 0; d < DRS_COUNT; d++ ){
-            int l_ret = drs_data_get(&g_drs[d],0, &pageBuffer[c_calibr_count*d],c_calibr_count );
-            if ( l_ret != 0){
-                log_it(L_ERROR,"data get 1024 returned with error, code %d", l_ret);
-                drs_set_mode(0);
-            }
+    size_t i=0,j=0;
+    for(j=0;j<DRS_CHANNELS_COUNT;j++){
+        i = ( coef->splash[j] - shift[0] + 1023) & 1023;
+        if((i > 0) && (i < 1023)){
+            a_Y[i*4+j] = (a_Y[(i + 1) * 4 + j] + a_Y[(i - 1) * 4 + j]) / 2;
         }
 
-        calibrate_do_curgr(pageBuffer,dBuf,shift,coef,1024,4,3,prm);
-        s_time_apply(x,coef,shift);
-        s_time_global(x,dBuf,shift[0],sumDeltaRef,statistic);
-	}
-    drs_set_mode(0);
-
-	for(k=0;k<4;k++)
-	{
-		for(t=0;t<1024;t++)
-		{
-			if(statistic[t*4+k]==0)
-			{
-				statistic[t*4+k]=1;
-			}
-			coef->kTime[t*4+k]=sumDeltaRef[t*4+k]/statistic[t*4+k];
-		}
-	}
-	return 1;
-}
-
-static void s_time_global(double *x, double *y,unsigned int shift,double *sumDeltaRef, double *statistic)
-{
-	double average[4],lastX,lastY,period[maxPeriodsCount],periodDelt[maxPeriodsCount],deltX;
-	unsigned int i,j,pz,indexs[maxPeriodsCount],count=0,l;
-	getAverage(average,y,1000,4);
-	for(i=0;i<4;i++)
-	{
-		lastY=0;
-		lastX=0;
-		count=0;
-		for(j=0;j<1001;j++)
-		{
-			if((average[i]>=lastY)&&(y[j*4+i]>=average[i])&&(j!=0))
-			{
-				deltX=x[j*4+i]-lastX;
-				if(x[j*4+i]<lastX)
-				{
-					deltX+=1024;
-				}
-				period[count]=deltX/(y[j*4+i]-lastY)*(average[i]-lastY)+lastX;
-				if(count>0)
-				{
-					periodDelt[count-1]=period[count]-period[count-1];
-				}
-				indexs[count]=shift+j;
-				count++;
-			}
-			lastY=y[j*4+i];
-			lastX=x[j*4+i];
-		}
-		for(j=1;j<count;j++)
-		{
-			for(l=indexs[j-1];l<indexs[j];l++)
-			{
-				pz=l&1023;
-
-				sumDeltaRef[pz*4+i]+=periodLength/periodDelt[j-1];
-				statistic[pz*4+i]++;
-			}
-		}
-	}
-
-}
-
-/**
- * @brief s_time_apply
- * @param x
- * @param coef
- * @param shift
- */
-static void s_time_apply( double*x, coefficients_t *coef,unsigned int *shift)
-{
-	unsigned int k,t,pz;
-	double average[4],tmpX;
-	for(k=0;k<4;k++)
-	{
-		average[k]=0;
-		for(t=0;t<1024;t++)
-		{
-			average[k]+=coef->deltaTimeRef[t*4+k];
-		}
-		average[k]=1023/average[k];
-	}
-	for(k=0;k<4;k++)
-	{
-		tmpX=0;
-		for(t=0;t<1024;t++)
-		{
-			pz=(shift[k>>1]+t)&1023;
-			x[t*4+k]=tmpX;
-			tmpX+=coef->deltaTimeRef[pz*4+k]*average[k];
-		}
-	}
-}
-
-/**
- * unsigned int minN		minN с фронтпанели;
- * coefficients *coef		структура с коэффициентами;
- */
-unsigned int calibrate_time(unsigned int minN, coefficients_t *coef,parameter_t *prm)
-{
-	double minValue=0,sumDeltaRef[8192], statistic[8192],dBuf[8192],dn=0;
-    unsigned short *pageBuffer = DAP_NEW_Z_SIZE(unsigned short, sizeof(unsigned short)*DRS_PAGE_READ_SIZE);
-
-	unsigned int shift[2],k=0,t,n=0;
-	fillArray((unsigned char*)(statistic),(unsigned char*)&dn,8192,sizeof(dn));
-	fillArray((unsigned char*)(sumDeltaRef),(unsigned char*)&dn,8192,sizeof(dn));
-	if((coef->indicator&1)!=1){
-            log_it(L_WARNING, "before timer calibration you need to do the amplitude calibration");
-			return 0;
-	}
-
-    setMode(4);
-
-	while(minValue<minN)
-	{
-		k++;
-		n++;
-        log_it(L_DEBUG,"min=%u\tminValue=%f\n",minN,minValue);
-        int l_ret = drs_data_get_all(NULL,0, pageBuffer);
-        if(l_ret!=0){
-            log_it(L_ERROR,"data_get_all not read\n");
-            setMode(0);
-            return 0;
+        if(i == 0){
+            a_Y[j] = (a_Y [4*1 + j] + a_Y[4*2 + j]) / 2;
         }
-        calibrate_do_curgr(pageBuffer,dBuf,shift,coef,1024,4,3,prm);
-        minValue=s_get_deltas_min(dBuf,sumDeltaRef,statistic,shift);
 
-	}
-	for(k=0;k<4;k++)
-	{
-		for(t=0;t<1024;t++)
-		{
-			coef->deltaTimeRef[t*4+k]=sumDeltaRef[t*4+k]/statistic[t*4+k];
-		}
-	}
-    setMode(0);
-
-	coef->indicator|=2;
-	return 1;
+        if(i == 1023){
+            a_Y[1023 * 4 + j]=(a_Y[j] + a_Y[1022 * 4 + j]) / 2;
+        }
+    }
 }
 
-/**
- * double *buffer				массив с данными;
- * double *sumDeltaRef			массив дельт;
- * double *statistic			массив статистики по дельтам;
- * unsigned int shift			двиг в данных;
- */
-static double s_get_deltas_min(double*buffer,double *sumDeltaRef,double *statistic,unsigned int *shift)
-{
-	unsigned int i,j, pz, pz1;
-	double average[4];
-	double vmin,vmax, vtmp,min;
-	getAverage(average,buffer,1000,4);
-	for(i=0;i<4;i++)
-	{
-		if ((16383-average[i])>average[i])
-		{
-			vtmp=average[i]/2;
-		}else{
-			vtmp=(16383-average[i])/2;
-		}
-		vmin=average[i]-vtmp;
-		vmax=average[i]+vtmp;
-		for(j=0;j<1024;j++)
-		{
-			pz=(shift[i>>1]+j)&1023;
-			pz1=(j+1)&1023;
-			if ((buffer[j*4+i]<=vmax) && (buffer[pz1*4+i]>=vmin) )
-			{
-				sumDeltaRef[pz*4+i]+=absf(buffer[j*4+i]-buffer[pz1*4+i]);
-				statistic[pz*4+i]++;
-			}
-		}
-	}
-	min=statistic[0];
-	for(i=0;i<4;i++)
-	{
-		for(j=0;j<1024;j++)
-		{
-			if(statistic[j*4+i]<min)
-			{
-				min=statistic[j*4+i];
-			}
-		}
-	}
-	return min;
-}
 
 /*
  * ѕримен€ет амплитудную калибровку к данным
@@ -436,205 +106,6 @@ void calibrate_do_curgr(unsigned short *buffer,double *dBuf,unsigned int *shift,
 	}
 }
 
-/*	¬ысчитывает коэффициенты дл€ амплитудной калибровки;
- * coefficients *coef 			структура с кэффициентами;
- * double *calibLvl 			массив [Beg,Mid,End] с фронт панели плюс массив shiftDAC с фронт панели;
- * unsigned int N 				N с фронт панели;
- * parameter_t *prm				ini структура;
- * unsigned int count			количество уровней между
- */
-unsigned int calibrate_amplitude(coefficients_t *coef,double *calibLvl,unsigned int N, parameter_t *prm, unsigned int count, atomic_uint_fast32_t * a_progress)
-{
-    double * l_shifts = calibLvl +2;
-    log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, shifts=%p",count, calibLvl[0], calibLvl[1], l_shifts);
-    if(s_fin_collect(calibLvl,N,prm->fastadc.dac_gains, prm->fastadc.dac_offsets,coef,count)==0)
-	{
-        log_it(L_INFO, "No success with fin collect");
-        if (a_progress) *a_progress +=10;
-        return 0;
-	}else{
-        log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",count, calibLvl[0], calibLvl[1], l_shifts);
-        if(s_channels_calibration(calibLvl,prm->fastadc.dac_gains, prm->fastadc.dac_offsets,coef,count,prm)==0)
-		{
-            log_it(L_INFO, "No success with channels calibration");
-            return 0;
-		}
-        if (a_progress) *a_progress +=10;
-        log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p",count, calibLvl[0], calibLvl[1], l_shifts);
-        setShiftAllDac(l_shifts,prm->fastadc.dac_gains, prm->fastadc.dac_offsets);
-		setDAC(1);
-		coef->indicator|=1;
-        if (a_progress) *a_progress +=10;
-        return 1;
-	}
-}
-
-/**
- * —обирает данные по котором будет колибровать
- * double *calibLvl 			массив [Beg,Mid,End] с фронт панели;
- * unsigned int N				N с фронт панели;
- * float *DAC_gain				массив DAC_gain из ini;
- * float *DAC_offset			массив DAC_offset из ini;
- * coefficients *coef			структура с кэффициентами;
- */
-unsigned int s_fin_collect(double*calibLvl,unsigned int N,float *DAC_gain,float *DAC_offset,coefficients_t *coef, unsigned int count)
-{
-    int l_ret = 0;
-    unsigned int i=0,k=0;
-    double shiftDACValues[DCA_COUNT];
-    double dh=0,lvl=0;
-
-    unsigned short shift[DRS_COUNT];
-
-    double * l_average = DAP_NEW_SIZE(double, DCA_COUNT*count* sizeof(double) );
-    unsigned short *l_load_data = DAP_NEW_Z_SIZE(unsigned short, DRS_PAGE_ALL_SIZE * DRS_CHANNELS_COUNT);
-    unsigned int *l_stats = DAP_NEW_SIZE(unsigned int, DRS_PAGE_ALL_SIZE * sizeof (*l_stats) );
-    double *l_acc = DAP_NEW_Z_SIZE(double, count *DRS_PAGE_ALL_SIZE * sizeof (double));
-
-    memset(&coef->b,0 , sizeof (coef->b));
-    memset(&coef->k,0 , sizeof (coef->k));
-
-
-
-
-    setMode(1);
-	dh=(calibLvl[1]-calibLvl[0])/(count-1);
-
-    log_it(L_NOTICE,"--Collecting coeficients in %u iterations", count);
-
-	for(i=0;i<count;i++)
-	{
-		lvl=calibLvl[0]+dh*i;
-        memset(l_stats,0,DRS_PAGE_ALL_COUNT * sizeof (*l_stats) );
-        fillArray((unsigned char*)(shiftDACValues),(unsigned char*)&lvl,4,sizeof(lvl));
-
-		setShiftAllDac(shiftDACValues,DAC_gain,DAC_offset);
-		setDAC(1);
-
-		for(k=0;k<N;k++)
-		{
-            if(drs_data_get_all(NULL,0, l_load_data)!=0){
-                log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
-                setMode(0);
-                goto lb_exit;
-            }
-            if((shift[0]>1023)||(shift[1]>1023))
-            {
-               log_it(L_ERROR, "shift index went beyond on %u::%u iteration", i,k);
-
-               goto lb_exit;
-            }
-            calibrate_collect_statistics_b(&l_acc[i*DRS_PAGE_ALL_SIZE],l_load_data,shift,l_stats);
-		}
-        s_calc_coeff_b(&l_acc[i*DRS_PAGE_ALL_SIZE],l_stats,&l_average[i*4]);
-	}
-    setMode(0);
-    s_get_coefficients(l_acc,coef,calibLvl,count,l_average);
-
-    log_it(L_NOTICE,"Collected coeficients in %u::%u iterations",i,k);
-
-    l_ret = 1;
-lb_exit:
-    DAP_DELETE(l_stats);
-    DAP_DELETE(l_load_data);
-    DAP_DELETE(l_acc);
-    DAP_DELETE(l_average);
-
-    return l_ret;
-}
-
-
-/**
- * double *acc					сумма знчаений дл€ €чейки;
- * coefficients *coef			структура с кэффициентами;
- * double *calibLvl 			массив [Beg,Mid,End] с фронт панели;
- * double* average				средние значени€ по каналам;
- */
-void s_get_coefficients(double *acc,coefficients_t *coef,double* calibLvl,int count,double *average)
-{
-    int i,j,k;
-    double * yArr = count ? DAP_NEW_STACK_SIZE(double, sizeof(double) * count) : NULL;
-    double * xArr = count ? DAP_NEW_STACK_SIZE(double, sizeof(double) * count): NULL;
-    double dh;
-	dh=(calibLvl[1]-calibLvl[0])/(count-1);
-	for(j=0;j<4;j++)
-	{
-		for(i=0;i<1024;i++)
-		{
-			for(k=0;k<count;k++)
-			{
-				xArr[k]=(0.5-calibLvl[0]-dh*k)*16384;
-				yArr[k]=acc[k*8192+i*4+j]-average[k*4+j];
-			}
-			getCoefLine(yArr,xArr,count,&coef->b[i*4+j],&coef->k[i*4+j]);
-		}
-	}
-	for(j=0;j<4;j++)
-	{
-		for(k=0;k<count;k++)
-		{
-			yArr[k]=average[k*4+j];
-			xArr[k]=(0.5-calibLvl[0]-dh*k)*16384;
-		}
-	}
-}
-
-/**
- * @brief s_channels_calibration
- * @param calibLvl
- * @param DAC_gain
- * @param DAC_offset
- * @param coef
- * @param count
- * @param prm
- * @return
- */
-unsigned int s_channels_calibration(double*calibLvl,float *DAC_gain,float *DAC_offset,coefficients_t *coef, unsigned int count,parameter_t *prm)
-{
-	double dh,dn,shiftDACValues[4],lvl,average[4*count],dBuf[16384], xArr[count],yArr[count];
-	unsigned short loadData[16384];
-	unsigned int t=0,shift[2],i;
-	dh=(calibLvl[1]-calibLvl[0])/(count-1);
-    log_it(L_INFO,"--Channel calibration--");
-	for(t=0;t<count;t++)
-	{
-		lvl=calibLvl[0]+dh*t;
-		fillArray((unsigned char*)(shiftDACValues),(unsigned char*)&lvl,4,sizeof(dn));
-		setShiftAllDac(shiftDACValues,DAC_gain,DAC_offset);
-		usleep(200);
-		setDAC(1);
-		usleep(200);
-        if (drs_data_get_all(NULL,0, loadData ) != 0){
-            log_it(L_ERROR,"data not read on iteration %u", t);
-            setMode(0);
-            return 0;
-        }
-        for(unsigned d = 0; d < DRS_COUNT; d++ ){
-            if(shift[d]>1023){
-                log_it(L_ERROR,"shift index went beyond on iteration %u", t);
-                return 0;
-            }
-		}
-        calibrate_do_curgr(loadData,dBuf,shift,coef,1024,4,1,prm);
-		getAverage(&average[t*4],dBuf,1000,4);
-	}
-    s_find_splash(dBuf,shift,coef,100);
-	for(i=0;i<4;i++)
-	{
-		for(t=0;t<count;t++)
-		{
-			xArr[t]=average[4*t+i];
-			yArr[t]=average[4*t+i]-(0.5-calibLvl[0]-dh*t)*16384;
-		}
-		getCoefLine(yArr,xArr,count,&coef->chanB[i],&coef->chanK[i]);
-	}
-	return 1;
-}
-
-
-
-
-
 /**
  * —обирает статистику дл€ каждой €чкейки
  * coefficients *acc			сумма знчаений дл€ €чейки;
@@ -656,25 +127,5 @@ void calibrate_collect_statistics_b(double *acc,unsigned short *buff,unsigned sh
 		}
 }
 
-/**
- *	¬ыичсл€ет коэффиценты дл€ амплитудной калибровки €чеек
- */
-void s_calc_coeff_b(double *acc,unsigned int *statistic,double *average)
-{
-	unsigned int k,j;
-	double val=0;
-	for(j=0;j<4;j++)
-	{
-		average[j]=0;
-		for(k=0;k<1024;k++)
-		{
-			val=acc[k*4+j]/statistic[k*4+j];
-			average[j]+=val;
-			acc[k*4+j]=val;
-		}
-		average[j]=average[j]/1024;
-
-	}
-}
 
 

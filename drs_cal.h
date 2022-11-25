@@ -1,5 +1,5 @@
 /*
- * drs_calibrate.h
+ * drs_cal.h
  *
  *  Created on: 8 November 2022
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
@@ -28,7 +28,6 @@ typedef struct{
     pthread_mutex_t finished_mutex;
 } drs_calibrate_t;
 
-#define DCA_COUNT 8
 
 
 typedef struct{
@@ -41,7 +40,7 @@ typedef struct{
                                // при нуле будут выполняться два прохода для уровней BegServ и EndServ(о них ниже),
                                // при не нулевом значении, между  BegServ и EndServ будут включены count дополнительных уровней
                                // цапов для амплитудной калибровки
-        double levels[DCA_COUNT+2];
+        double levels[DRS_DCA_COUNT_ALL+2];
     } ampl;
 
     // Временная локальная
@@ -56,9 +55,28 @@ typedef struct{
 } drs_calibrate_params_t;
 
 
+// Аргументы калибровки
+typedef struct drs_cal_args{
+    union{
+        struct{
+            bool do_amplitude:1;
+            bool do_time_local:1;
+            bool do_time_global:1;
+            unsigned padding:29;
+        } DAP_ALIGN_PACKED;
+        uint32_t raw; //  ключи калибровки, 1 бит амплитудная,2 локальная временная,3 глобальная временная
+    } keys;
+    drs_calibrate_params_t param;
+    drs_calibrate_t * cal;
+} drs_cal_args_t;
+
 #define DRS_CAL_FLAG_AMPL           0x00000001
 #define DRS_CAL_FLAG_TIME_LOCAL     0x00000002
 #define DRS_CAL_FLAG_TIME_GLOBAL    0x00000004
+#define DRS_CAL_FLAG_TO_REAL        0x00000008
+
+extern int g_current_freq;
+
 
 int drs_calibrate_init(); // Инициализирует модуль
 void drs_calibrate_deinit(); // Денициализирует модуль
@@ -72,3 +90,7 @@ int drs_calibrate_progress(int a_drs_num);
 drs_calibrate_t* drs_calibrate_get_state(int a_drs_num);
 
 int drs_calibrate_abort(int a_drs_num);
+
+void drs_cal_get_array_x(drs_t * a_drs, double*x, int a_flags);
+void drs_cal_get_array_x_old(double*x, unsigned int *shift,coefficients_t *coef,unsigned int key);
+
