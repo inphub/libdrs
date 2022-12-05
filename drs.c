@@ -251,15 +251,29 @@ int drs_ini_save(const char *inifile, parameter_t *prm)
     return 0;
 }
 
+static drs_mode_t s_mode[DRS_COUNT] = {0};
+
 /**
  * @brief drs_set_mode
  * @param mode
  */
-void drs_mode_set(unsigned int mode)
+void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
 {
-    write_reg(DRS_MODE_REG, mode);
+    assert(a_drs_num >= -1 && a_drs_num < DRS_COUNT );
+    s_mode[a_drs_num] = a_mode;
+    write_reg(DRS_MODE_REG, a_mode);
     usleep(100);
-    drs_cmd(-1, INIT_DRS);
+    drs_cmd(a_drs_num, INIT_DRS);
+}
+
+/**
+ * @brief drs_get_mode
+ * @param a_drs_num
+ * @return
+ */
+drs_mode_t drs_get_mode(int a_drs_num)
+{
+    return s_mode[a_drs_num];
 }
 
 /**
@@ -267,9 +281,9 @@ void drs_mode_set(unsigned int mode)
  * @param addrShift
  * @param value
  */
-void drs_dac_shift_input_set(unsigned int addrShift,unsigned int value)//fix
+void drs_dac_shift_input_set(int a_drs_num,unsigned int a_value)//fix
 {
-    write_reg(0x8+addrShift,value);
+    write_reg(0x8+a_drs_num,a_value);
     usleep(100);
 }
 
@@ -287,13 +301,9 @@ void drs_dac_set(unsigned int onAH)//fix
 /**
  * unsigned short *shiftValue 		ìàñèèâ ñäèâãîâ äëÿ ÖÀÏ
  */
-void drs_dac_shift_input_set_all(unsigned short *shiftValue)//fix
+void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue)//fix
 {
-    int j;
-    for(j=0;j<2;j++)
-    {
-        drs_dac_shift_input_set(j,((shiftValue[j*2]<<16)&0xFFFF0000)|shiftValue[j*2+1]);
-    }
+    drs_dac_shift_input_set(a_drs_num,((shiftValue[0]<<16)&0xFFFF0000)|shiftValue[1]);
 }
 
 /**
@@ -301,19 +311,19 @@ void drs_dac_shift_input_set_all(unsigned short *shiftValue)//fix
  * float *DAC_gain		ìàññèâ èç ini
  * float *DAC_offset	ìàññèâ èç ini
  */
-void drs_dac_shift_set_all(double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
+void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
 {
     int i;
-    unsigned short shiftDACValues[4];
+    unsigned short shiftDACValues[DRS_DCA_COUNT];
     assert(shiftDAC);
     assert(DAC_gain);
     assert(DAC_offset);
-    for(i=0;i<4;i++)
-    {
+    for(i=0;i<DRS_DCA_COUNT;i++) {
         shiftDACValues[i]=(shiftDAC[i]*DAC_gain[i]+DAC_offset[i]);
         log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
     }
-    drs_dac_shift_input_set_all(shiftDACValues);
+    drs_dac_shift_input_set_all(a_drs_num, shiftDACValues);
     drs_dac_set(1);
+    usleep(60);
 }
 

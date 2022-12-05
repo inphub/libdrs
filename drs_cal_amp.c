@@ -6,6 +6,7 @@
 
 #include "drs.h"
 #include "drs_data.h"
+#include "drs_ops.h"
 #include "drs_cal.h"
 #include "drs_cal_amp.h"
 
@@ -16,12 +17,14 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
 static unsigned int s_fin_collect(drs_t * a_drs,  drs_cal_args_t * a_args);
 static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args);
 
-static void s_calc_coeff_b(double *a_acc,unsigned int *a_stats, double *a_average);
-static void s_collect_stats_cells(drs_t * a_drs, double *a_acc,unsigned short *a_values,unsigned int *a_stats);
+static void s_calc_coeff_b(double *a_acc, double *a_average, unsigned a_repeats);
+static void s_collect_stats_cells(drs_t * a_drs, double *a_acc,unsigned short *a_values);
 
 static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  double *a_acc, double *a_average);
 static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl);
 static void s_remove_splash(drs_t * a_drs, double* a_Y);
+
+static bool s_debug_more = true;
 
 /**
  * @brief drs_cal_amp
@@ -115,31 +118,48 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
      */
     double * l_shifts = a_args->param.ampl.levels +2;
     double * l_levels = a_args->param.ampl.levels;
-    log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, shifts=%p",a_args->param.ampl.repeats ,
-           l_levels[0], l_levels[1], l_shifts);
-    if(s_fin_collect( a_drs, a_args)==0)
+    int l_ret = 0;
+    drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
+    log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, mode_old=%d",a_args->param.ampl.repeats ,
+           l_levels[0], l_levels[1], l_mode_old);
+
+
+    drs_set_sinus_signal(false); // Отключаем сигнал синусоиды
+    drs_set_mode(a_drs->id, MODE_CAL_AMPL ); // Включаем режим калибровки амплитуды
+
+    if( s_fin_collect( a_drs, a_args) !=0 )
     {
         log_it(L_INFO, "No success with fin collect");
         if (a_progress) *a_progress +=10;
 
-        return -1;
-    }else{
-        log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",a_args->param.ampl.repeats, l_levels[0], l_levels[1], l_shifts);
-        if(s_channels_calibration( a_drs, a_args)==0)
-        {
-            log_it(L_INFO, "No success with channels calibration");
-            return -2;
-        }
-        if (a_progress) *a_progress +=10;
-        log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p", a_args->param.ampl.repeats
-               , l_levels[0], l_levels[1], l_shifts);
-        drs_dac_shift_set_all(l_shifts,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
-        drs_dac_set(1);
-        a_drs->coeffs.indicator|=1;
-        if (a_progress) *a_progress +=10;
-
-        return 0;
+        l_ret = -1;
+        goto lb_exit;
     }
+
+    log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",a_args->param.ampl.repeats, l_levels[0], l_levels[1], l_shifts);
+
+    if( s_channels_calibration( a_drs, a_args) !=0 ) {
+        log_it(L_INFO, "No success with channels calibration");
+        l_ret = -2;
+        goto lb_exit;
+    }
+
+    drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
+
+    if (a_progress) *a_progress +=10;
+    log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p", a_args->param.ampl.repeats
+           , l_levels[0], l_levels[1], l_shifts);
+    drs_dac_shift_set_all(a_drs->id, l_shifts,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+    drs_dac_set(1);
+    a_drs->coeffs.indicator|=1;
+    if (a_progress) *a_progress +=10;
+
+    return l_ret;
+lb_exit:
+    drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
+    return l_ret;
+
+
 }
 
 /**
@@ -167,56 +187,58 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args)
     double * calibLvl = a_args->param.ampl.levels;
     unsigned count = a_args->param.ampl.repeats;
 
-    double * l_average =          DAP_NEW_SIZE(   double,         DRS_DCA_COUNT*a_args->param.ampl.repeats* sizeof(double) );
-    unsigned short *l_cells =     DAP_NEW_Z_SIZE( unsigned short, DRS_PAGE_ALL_SIZE * DRS_CHANNELS_COUNT                   );
-    unsigned int *l_stats =       DAP_NEW_SIZE(   unsigned int,   DRS_CELLS_COUNT_ALL * sizeof (*l_stats)                  );
-    double *l_acc =               DAP_NEW_Z_SIZE( double,         count * DRS_CELLS_COUNT_ALL * sizeof (double)            );
+    double * l_average =          DAP_NEW_SIZE(   double,         DRS_CHANNELS_COUNT * count * sizeof(*l_average) );
+    assert(l_average);
+    unsigned short *l_cells =     DAP_NEW_Z_SIZE( unsigned short, DRS_CELLS_COUNT         * sizeof (*l_cells)  );
+    assert(l_cells);
+    double *l_acc =               DAP_NEW_Z_SIZE( double,         count * DRS_CELLS_COUNT * sizeof (*l_acc)    );
+    assert(l_acc);
 
     memset(&a_drs->coeffs.b,0 , sizeof (a_drs->coeffs.b));
     memset(&a_drs->coeffs.k,0 , sizeof (a_drs->coeffs.k));
 
 
-    drs_mode_set(1);
-
     dh=(calibLvl[1]-calibLvl[0])/((double) (a_args->param.ampl.repeats-1));
 
     log_it(L_NOTICE,"--Collecting coeficients in %u iterations, step length %f", a_args->param.ampl.repeats, dh);
 
-    for(i = 0; i < a_args->param.ampl.repeats; i++){
+    unsigned l_repeats = 0;
+    for(unsigned i = 0; i < a_args->param.ampl.repeats; i++){
+        debug_if(s_debug_more, L_INFO, "Repeat #%u", i);
         lvl = calibLvl[0]+dh*((double)i);
-        memset(l_stats, 0, DRS_CELLS_COUNT_ALL * sizeof (*l_stats) );
         fill_array(shiftDACValues, &lvl, DRS_DCA_COUNT, sizeof(lvl));
 
-        drs_dac_shift_set_all(   shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
-        drs_dac_set(1);
+        drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
 
         for(k=0;k< a_args->param.ampl.N +   2 ;k++){
-            if(drs_data_get_all(a_drs,0, l_cells)!=0){
+            if(drs_data_get_all(a_drs,DRS_OP_FLAG_CALIBRATE, l_cells)!=0){
                 log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
-                drs_mode_set(0);
+                l_ret = -1;
                 goto lb_exit;
             }
-            if(a_drs->shift>1023)
-            {
+            if(a_drs->shift>1023){
                log_it(L_ERROR, "shift index went beyond on %u::%u iteration", i,k);
-
+               l_ret = -2;
                goto lb_exit;
             }
-            s_collect_stats_cells(a_drs, l_acc, l_cells, l_stats);
+            s_collect_stats_cells(a_drs, l_acc, l_cells);
+            l_repeats++;
         }
-        s_calc_coeff_b(l_acc,l_stats,l_average);
+        s_calc_coeff_b(l_acc, & l_average[i*DRS_CHANNELS_COUNT], l_repeats );
     }
-    drs_mode_set(0);
+    debug_if(s_debug_more, L_INFO, "Collected stats in %u repeats", l_repeats);
+
     s_get_coefficients(a_drs, a_args, l_acc, l_average);
 
-    log_it(L_NOTICE,"Collected coeficients in %u::%u iterations",i,k);
+    log_it(L_NOTICE,"Collected coeficients in %u repeats",l_repeats);
 
-    l_ret = 1;
 lb_exit:
-    DAP_DELETE(l_stats);
-    DAP_DELETE(l_cells);
-    DAP_DELETE(l_acc);
-    DAP_DELETE(l_average);
+    if(l_cells)
+        DAP_DELETE(l_cells);
+    if(l_acc)
+        DAP_DELETE(l_acc);
+    if(l_average)
+        DAP_DELETE(l_average);
 
     return l_ret;
 }
@@ -230,43 +252,39 @@ lb_exit:
 static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
 {
     unsigned count = a_args->param.ampl.repeats;
-    double dh,dn,shiftDACValues[4],lvl,average[4*count],dBuf[16384], xArr[count],yArr[count];
-    unsigned short loadData[16384];
+    double dh,dn,shiftDACValues[DRS_CHANNELS_COUNT],l_lvl,average[DRS_CHANNELS_COUNT*count],l_d_buf[DRS_CELLS_COUNT], xArr[count],yArr[count];
+    unsigned short l_cells[DRS_CELLS_COUNT];
     double *calibLvl = a_args->param.ampl.levels;
     unsigned int t=0,i;
     dh=(calibLvl[1]-calibLvl[0])/(count-1);
     log_it(L_INFO,"--Channel calibration--");
-    for(t=0;t<count;t++)
-    {
-        lvl=calibLvl[0]+dh*t;
-        fill_array((unsigned char*)(shiftDACValues),(unsigned char*)&lvl,4,sizeof(dn));
-        drs_dac_shift_set_all(shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
+    for(t=0;t<count;t++){
+        l_lvl=calibLvl[0]+dh*t;
+        fill_array(shiftDACValues,&l_lvl,DRS_DCA_COUNT,sizeof(l_lvl));
+        drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
         usleep(200);
         drs_dac_set(1);
         usleep(200);
-        if (drs_data_get_all(NULL,0, loadData ) != 0){
+        if (drs_data_get_all(NULL,0, l_cells ) != 0){
             log_it(L_ERROR,"data not read on iteration %u", t);
-            drs_mode_set(0);
-            return 0;
+            return -1;
         }
         if(a_drs->shift>1023){
             log_it(L_ERROR,"shift index went beyond on iteration %u", t);
-            return 0;
+            return -2;
         }
-        drs_cal_ampl_apply(a_drs, loadData,dBuf, DRS_CAL_AMPL_APPLY_SPLASHS);
-        getAverage(&average[t*4],dBuf,1000,4);
+        drs_cal_ampl_apply(a_drs, l_cells,l_d_buf, DRS_CAL_AMPL_APPLY_SPLASHS);
+        getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,1000,DRS_CHANNELS_COUNT);
     }
-    s_find_splash( a_drs, dBuf,100);
-    for(i=0;i<4;i++)
-    {
-        for(t=0;t<count;t++)
-        {
-            xArr[t]=average[4*t+i];
-            yArr[t]=average[4*t+i]-(0.5-calibLvl[0]-dh*t)*16384;
+    s_find_splash( a_drs, l_d_buf,100);
+    for(i=0;i<DRS_CHANNELS_COUNT;i++){
+        for(t=0;t<count;t++){
+            xArr[t]=average[DRS_CHANNELS_COUNT*t+i];
+            yArr[t]=average[DRS_CHANNELS_COUNT*t+i]-(0.5-calibLvl[0]-dh*t)*DRS_CELLS_COUNT;
         }
         getCoefLine(yArr,xArr, a_args->param.ampl.repeats, &a_drs->coeffs.chanB[i],&a_drs->coeffs.chanK[i]);
     }
-    return 1;
+    return 0;
 }
 
 
@@ -285,27 +303,25 @@ static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  double *
     double * xArr = l_repeats ? DAP_NEW_STACK_SIZE(double, sizeof(double) * l_repeats): NULL;
     double * l_levels = a_args->param.ampl.levels;
     double dh;
-        dh=(l_levels[1]-l_levels[0])/(l_repeats-1);
-        for(j=0;j<4;j++)
-        {
-                for(i=0;i<1024;i++)
-                {
-                        for(k=0;k<l_repeats;k++)
-                        {
-                                xArr[k]=(0.5-l_levels[0]-dh*k)*16384;
-                                yArr[k]=a_acc[k*8192+i*4+j]-a_average[k*4+j];
-                        }
-                        getCoefLine(yArr,xArr,l_repeats,&a_drs->coeffs.b[i*4+j],&a_drs->coeffs.k[i*4+j]);
-                }
+    dh=(l_levels[1]-l_levels[0])/(l_repeats-1);
+    for(j=0;j<DRS_CHANNELS_COUNT;j++) {
+        //unsigned l_bank_shift = j*DRS_CELLS_COUNT_CHANNEL;
+        for(i=0;i<DRS_CELLS_COUNT_CHANNEL;i++){
+            for(k=0;k<l_repeats;k++){
+                xArr[k]=(0.5+ l_levels[0] -dh*k ) * DRS_CELLS_COUNT_CHANNEL * DRS_CHANNELS_COUNT;
+                yArr[k]=a_acc[k*DRS_CELLS_COUNT +i*DRS_CHANNELS_COUNT+j]-a_average[k*DRS_CHANNELS_COUNT+j];
+            }
+            getCoefLine(yArr,xArr,l_repeats,&a_drs->coeffs.b[i*DRS_CHANNELS_COUNT+j],&a_drs->coeffs.k[i*DRS_CHANNELS_COUNT+j]);
         }
-        for(j=0;j<4;j++)
-        {
-                for(k=0;k<l_repeats;k++)
-                {
-                        yArr[k]= a_average[k*4+j];
-                        xArr[k]=(0.5-l_levels[0]-dh*k)*16384;
-                }
-        }
+    }
+    for(j=0;j<DRS_CHANNELS_COUNT;j++)
+    {
+            for(k=0;k<l_repeats;k++)
+            {
+                    yArr[k]= a_average[k*4+j];
+                    xArr[k]=(0.5-l_levels[0]-dh*k)*16384;
+            }
+    }
 }
 
 /**
@@ -313,44 +329,43 @@ static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  double *
  * @param a_drs                         Объект DRS
  * @param a_acc                         сумма знчаений для ячейки
  * @param a_buff                        массив данных
- * @param a_statistic                   статистика для ячеек
  */
-static void s_collect_stats_cells(drs_t * a_drs, double *a_acc,unsigned short *a_values,unsigned int *a_stats)
+static void s_collect_stats_cells(drs_t * a_drs, double *a_acc,unsigned short *a_values)
 {
-	unsigned int j,k,l_rotate_index;
-		for(j=0;j<4;j++)
-		{
-			for(k=0;k<1000;k++)
-			{
-				l_rotate_index=( a_drs->shift+k)&1023;
-				a_acc[l_rotate_index*4+j]+=a_values[k*4+j];
-				a_stats[l_rotate_index*4+j]++;
-			}
-		}
+    debug_if(s_debug_more, L_DEBUG, "Collect stats");
+    unsigned int l_rotate_index;
+      for(unsigned i=0;i< DRS_CHANNELS_BANK_COUNT  ;i++){
+          unsigned l_bank_shift = i*DRS_CELLS_COUNT_CHANNEL;
+          for(unsigned s=0;s<DRS_CELLS_COUNT_CHANNEL;s++){
+              l_rotate_index=( a_drs->shift+(s&1023) )& 1023 ;
+              a_acc[l_bank_shift+  ((s&3072) | l_rotate_index) ]+=
+                  a_values[l_bank_shift + s ];
+          }
+      }
 }
 
 /**
  * @brief s_calc_coeff_b  Вычисляет коэффиценты для амплитудной калибровки ячеек
  * @param a_acc
- * @param a_stats
  * @param a_average
+ * @param a_repeats
  */
-static void s_calc_coeff_b(double *a_acc,unsigned int *a_stats, double *a_average)
+static void s_calc_coeff_b(double *a_acc, double *a_average, unsigned a_repeats)
 {
-	unsigned int k,j;
-	double val=0;
-	for(j=0;j<DRS_DCA_COUNT;j++)
-	{
-		a_average[j]=0;
-		for(k=0;k<1024;k++)
-		{
-			val=a_acc[k*4+j]/a_stats[k*4+j];
-			a_average[j]+=val;
-			a_acc[k*4+j]=val;
-		}
-		a_average[j]=a_average[j]/1024;
+    debug_if(s_debug_more, L_DEBUG, "Calc coef b");
 
-	}
+    double l_value=0;
+    for(unsigned j=0; j<DRS_CHANNELS_COUNT;j++) {
+        unsigned l_bank_shift = j*DRS_CELLS_COUNT_CHANNEL;
+        a_average[j]=0;
+        for(unsigned k=0; k<DRS_CELLS_COUNT_CHANNEL; k++)
+        {
+                l_value = a_acc[l_bank_shift + k]/ ((double)a_repeats);
+                a_average[j] += l_value;
+                a_acc[l_bank_shift + k ] = l_value;
+        }
+        a_average[j] = a_average[j]/ ((double)DRS_CELLS_COUNT_CHANNEL);
+    }
 }
 
 /**

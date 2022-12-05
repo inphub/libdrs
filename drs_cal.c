@@ -82,7 +82,7 @@ static void * s_thread_routine(void * a_arg)
 
     l_cal->progress = 10;
 
-    setNumPages(1);
+    //drs_set_num_pages(l_cal->drs, 1);
     l_cal->progress = 15;
     //setSizeSamples(1024);//Peter fix
     if(l_args->keys.do_amplitude){
@@ -371,7 +371,7 @@ void drs_cal_get_array_x_old(double*x, unsigned int *shift,coefficients_t *coef,
  */
 void drs_cal_get_array_x(drs_t * a_drs, double*a_x, int a_flags)
 {
-    double l_results[DRS_CELLS_COUNT]={0};
+    double l_results[DRS_CELLS_COUNT_ALL]={0};
     if(a_flags & DRS_CAL_FLAG_TIME_LOCAL) {
         drs_cal_time_local_apply(a_drs, l_results);
     }
@@ -381,7 +381,7 @@ void drs_cal_get_array_x(drs_t * a_drs, double*a_x, int a_flags)
         memcpy(a_x,l_results,sizeof(l_results));
     }
     if(a_flags & DRS_CAL_FLAG_TO_REAL) {
-        do_on_array(a_x,DRS_CELLS_COUNT,s_x_to_real);
+        do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
     }
 
 }

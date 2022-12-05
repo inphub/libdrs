@@ -144,7 +144,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
     }
 
-    drs_mode_set(4);
+    drs_set_mode(a_drs->id, MODE_CAL_TIME);
 
     while(minValue < minN) {
         k++;
@@ -153,7 +153,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         int l_ret = drs_data_get_all(NULL,0, pageBuffer);
         if(l_ret!=0){
             log_it(L_ERROR,"data_get_all not read");
-            drs_mode_set(0);
+            drs_set_mode(a_drs->id, MODE_SOFT_START);
             return 0;
         }
         drs_cal_ampl_apply(a_drs, pageBuffer, dBuf,DRS_CAL_AMPL_APPLY_CELLS |
@@ -168,7 +168,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             coef->deltaTimeRef[t*4+k]=sumDeltaRef[t*4+k]/statistic[t*4+k];
         }
     }
-    drs_mode_set(0);
+    drs_set_mode(a_drs->id, MODE_SOFT_START);
 
     coef->indicator|=2;
 lb_exit:

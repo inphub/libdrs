@@ -29,7 +29,7 @@ static unsigned int s_get_shift(unsigned int a_drs_num);
 int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
 {
     if (a_drs){
-        return drs_data_get(a_drs, a_flags, a_buffer, DRS_PAGE_READ_SIZE);
+        return drs_data_get(a_drs, a_flags, a_buffer, DRS_CELLS_COUNT *sizeof(unsigned short) );
     }else for (size_t d=0; d < DRS_COUNT; d++){
         int l_ret = drs_data_get(&g_drs[d],0,(unsigned short *) (((byte_t *) a_buffer) + DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE  );
         if (l_ret!= 0){
@@ -56,6 +56,9 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     if(a_flags & DRS_OP_FLAG_EXT_START){
         log_it(L_INFO, "start ext DRS");
         drs_cmd(a_drs->id, ENABLE_EXT_PULSE);
+    } else if (a_flags & DRS_OP_FLAG_CALIBRATE ){
+        drs_cmd(a_drs->id, INIT_DRS | START_DRS );
+        drs_cmd(a_drs->id, START_DRS);
     } else {
         drs_cmd(a_drs->id, START_DRS);
         //drs_cmd(a_drs->id, 1);
@@ -86,7 +89,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     }else
         log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
 
-    drs_read_page(a_drs, a_drs->id, a_buffer, a_buffer_size);
+    drs_read_page(a_drs, 0, a_buffer, a_buffer_size);
 
     drs_set_flag_end_read(a_drs->id, true);
     return l_ret;

@@ -17,17 +17,22 @@
 
 #define DRS_COUNT 2
 #define DRS_CHANNELS_COUNT 2
+#define DRS_CHANNELS_BANK_COUNT 4
+#define DRS_BANK_COUNT DRS_CHANNELS_BANK_COUNT * DRS_CHANNELS_COUNT
 
-#define DRS_DATA_MAP_SIZE   0x4000
-#define DRS_CELLS_COUNT       8192
+#define DRS_DATA_MAP_SIZE        0x4000
+
+#define DRS_CELLS_COUNT_BANK      1024
+#define DRS_CELLS_COUNT_CHANNEL   4*DRS_CELLS_COUNT_BANK
+#define DRS_CELLS_COUNT           DRS_CHANNELS_COUNT*DRS_CELLS_COUNT_CHANNEL
+#define DRS_CELLS_COUNT_ALL       DRS_COUNT*DRS_CELLS_COUNT
 
 #define DRS_DCA_COUNT_ALL               4
 
 #define DRS_DCA_COUNT (DRS_DCA_COUNT_ALL/DRS_COUNT)
 
-#define DRS_BASE_CONTROL_REG            14
-#define DRS1_CONTROL_REG		14
-#define DRS2_CONTROL_REG		15
+#define DRS_REG_CMD_DRS_1		14
+#define DRS_REG_CMD_DRS2		15
 #define DRS_MODE_REG			16
 
 #define DRS_BASE_NUM_PAGE		19
@@ -35,7 +40,11 @@
 #define DRS1_NUM_PAGE			19
 #define DRS2_NUM_PAGE			20
 
-#define DRS_CELLS_COUNT_ALL      (DRS_COUNT * DRS_CELLS_COUNT )
+
+#define DRS_REG_READY_A                 21
+#define DRS_REG_READY_B                 22
+#define DRS_REG_CALIB_SIN_ON            27
+
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
 
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
@@ -86,6 +95,15 @@ typedef struct{
     coefficients_t coeffs;
 } drs_t;
 
+typedef enum {
+  MODE_SOFT_START = 0,
+  MODE_EXT_START  = 1,
+  MODE_PAGE_MODE  = 2,
+  MODE_CAL_AMPL   = 3,
+  MODE_CAL_TIME   = 4,
+  MODE_OFF_INPUTS = 5
+} drs_mode_t;
+
 extern parameter_t * g_ini;
 extern drs_t g_drs[DRS_COUNT];
 
@@ -101,9 +119,11 @@ int drs_ini_save(const char *inifile, parameter_t *prm);
 int drs_ini_load(const char *inifile, parameter_t *prm);
 
 
-void drs_dac_shift_set_all(double *shiftDAC,float *DAC_gain,float *DAC_offset);
-void drs_dac_shift_input_set_all(unsigned short *shiftValue);
-void drs_mode_set( unsigned int mode);
-void drs_dac_shift_input_set(unsigned int addrShift,unsigned int value);
-void drs_dac_set(unsigned int onAH);
+void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset);
+void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue);
+void drs_set_mode(int a_drs_num, drs_mode_t mode);
+drs_mode_t drs_get_mode(int a_drs_num);
+
+void drs_dac_shift_input_set(int a_drs_num, unsigned int value);
+void drs_dac_set( unsigned int onAH);
 

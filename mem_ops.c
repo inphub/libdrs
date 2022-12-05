@@ -157,7 +157,7 @@ void deinit_mem(void)
         perror("munmap");
         goto cleanup;
     }
-    if (munmap(data_map_drs2, SDRAM_SPAN_DRS1) < 0)
+    if (munmap(data_map_drs2, SDRAM_SPAN_DRS2) < 0)
     {
         perror("munmap");
         goto cleanup;

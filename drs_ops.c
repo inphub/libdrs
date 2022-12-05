@@ -20,12 +20,13 @@
 void drs_start(int a_drs_num)
 {
     if(a_drs_num == -1){
-        write_reg(DRS1_CONTROL_REG, 2);
-        write_reg(DRS2_CONTROL_REG, 2);
+        write_reg(DRS_REG_CMD_DRS_1, 2);
+        write_reg(DRS_REG_CMD_DRS2, 2);
     }else if (a_drs_num >=0)
-        write_reg(DRS_BASE_CONTROL_REG + a_drs_num, 2);
+        write_reg(DRS_REG_CMD_DRS_1 + a_drs_num, 2);
     else
         log_it(L_ERROR, "Wrong DRS num %d", a_drs_num);
+    usleep(2);
 }
 
 
@@ -61,14 +62,14 @@ void drs_set_flag_end_read(int a_drs_num, bool a_enable)
 {
     switch (a_drs_num) {
         case -1:
-            write_reg(21, a_enable ? 1 : 0);
-            write_reg(22,a_enable? 1 : 0);
+            write_reg(DRS_REG_READY_A, a_enable ? 1 : 0);
+            write_reg(DRS_REG_READY_B,a_enable? 1 : 0);
         break;
         case 0:
-            write_reg(21, a_enable ? 1 : 0);
+            write_reg(DRS_REG_READY_A, a_enable ? 1 : 0);
         break;
         case 1:
-            write_reg(22, a_enable ? 1 : 0);
+            write_reg(DRS_REG_READY_B, a_enable ? 1 : 0);
         break;
     }
     usleep(100);
@@ -97,18 +98,18 @@ bool drs_get_flag_write_ready(int l_drs_num )
  * @param a_drs_num
  * @param a_cmd
  */
-void drs_cmd(unsigned int a_drs_num, unsigned int a_cmd)
+void drs_cmd(int a_drs_num, unsigned int a_cmd)
 {
     switch (a_drs_num){
         case -1:
-            write_reg(DRS1_CONTROL_REG, a_cmd);
-            write_reg(DRS2_CONTROL_REG, a_cmd);
+            write_reg(DRS_REG_CMD_DRS_1, a_cmd);
+            write_reg(DRS_REG_CMD_DRS2, a_cmd);
         break;
         case 0:
-            write_reg(DRS1_CONTROL_REG, a_cmd);
+            write_reg(DRS_REG_CMD_DRS_1, a_cmd);
         break;
         case 1:
-            write_reg(DRS2_CONTROL_REG, a_cmd);
+            write_reg(DRS_REG_CMD_DRS2, a_cmd);
         break;
         default:
             log_it(L_ERROR, "Wrong DRS number, could be 0, 1 or -1 for both");
@@ -116,3 +117,11 @@ void drs_cmd(unsigned int a_drs_num, unsigned int a_cmd)
     usleep(100);
 }
 
+/**
+ * @brief drs_set_sinus_signal
+ * @param a_sinus_signal
+ */
+void drs_set_sinus_signal(bool a_sinus_signal)
+{
+    write_reg( DRS_REG_CALIB_SIN_ON, a_sinus_signal ? 1 : 0 );
+}
