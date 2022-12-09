@@ -31,7 +31,7 @@ int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
     if (a_drs){
         return drs_data_get(a_drs, a_flags, a_buffer, DRS_CELLS_COUNT *sizeof(unsigned short) );
     }else for (size_t d=0; d < DRS_COUNT; d++){
-        int l_ret = drs_data_get(&g_drs[d],0,(unsigned short *) (((byte_t *) a_buffer) + DRS_PAGE_READ_SIZE), DRS_PAGE_READ_SIZE  );
+        int l_ret = drs_data_get(&g_drs[d],0,(unsigned short *) (((byte_t *) a_buffer) + DRS_CELLS_COUNT *sizeof(unsigned short) ), DRS_CELLS_COUNT *sizeof(unsigned short)  );
         if (l_ret!= 0){
             log_it(L_ERROR,"data not read on DRS #%u", d);
             return l_ret;
@@ -58,7 +58,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
         drs_cmd(a_drs->id, ENABLE_EXT_PULSE);
     } else if (a_flags & DRS_OP_FLAG_CALIBRATE ){
         drs_cmd(a_drs->id, INIT_DRS | START_DRS );
-        drs_cmd(a_drs->id, START_DRS);
+        //drs_cmd(a_drs->id, START_DRS);
     } else {
         drs_cmd(a_drs->id, START_DRS);
         //drs_cmd(a_drs->id, 1);
@@ -113,6 +113,33 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
     a_drs->shift =s_get_shift( a_drs->id);
 }
+
+/**
+ * @brief drs_read_pages
+ * @param a_drs
+ * @param a_page_count
+ * @param a_step
+ * @param a_buffer
+ * @param a_buffer_size
+ */
+void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_step,  unsigned short *a_buffer, size_t a_buffer_size)
+{
+    size_t l_offset = 0;
+    bool l_loop = true;
+    for (unsigned t=0; t< a_page_count && l_loop; t++){
+        size_t l_read_size;
+        if (l_offset + DRS_PAGE_READ_SIZE <= a_buffer_size)
+            l_read_size = DRS_PAGE_READ_SIZE;
+        else{
+            l_read_size = a_buffer_size - l_offset;
+            l_loop = false;
+            log_it(L_ERROR, "Page read function goes out of input buffer, size %zd is not enought, requires %zd ( page read size %zd, num pages %u",
+                    a_buffer_size, a_page_count * DRS_PAGE_READ_SIZE, DRS_PAGE_READ_SIZE, a_page_count );
+        }
+        drs_read_page(a_drs,t,&a_buffer[t*a_step], l_read_size);
+    }
+}
+
 
 
 /**

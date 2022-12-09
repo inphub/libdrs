@@ -14,7 +14,7 @@
 //индикатор внешнего запуска;
 #define DRS_OP_FLAG_EXT_START     BIT(1)
 
-#define DRS_PAGE_READ_SIZE        0x8000
+#define DRS_PAGE_READ_SIZE        DRS_CELLS_COUNT *sizeof(unsigned short)
 
 
 int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size);
@@ -25,3 +25,5 @@ static inline void drs_read_page_all(drs_t * a_drs,unsigned int a_page_num,  uns
 {
     return drs_read_page(a_drs, a_page_num, a_buffer, DRS_PAGE_READ_SIZE);
 }
+
+void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_step,  unsigned short *a_buffer, size_t a_buffer_size);

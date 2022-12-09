@@ -29,7 +29,7 @@
 
 #define DRS_DCA_COUNT_ALL               4
 
-#define DRS_DCA_COUNT (DRS_DCA_COUNT_ALL/DRS_COUNT)
+#define DRS_DAC_COUNT (DRS_DCA_COUNT_ALL/DRS_COUNT)
 
 #define DRS_REG_CMD_DRS_1		14
 #define DRS_REG_CMD_DRS2		15
@@ -108,6 +108,18 @@ extern parameter_t * g_ini;
 extern drs_t g_drs[DRS_COUNT];
 
 #define SIZE_FAST MAX_PAGE_COUNT*1024*8*4*4
+
+#define DRS_COEF_SPLASH           0x00000001
+#define DRS_COEF_DELTA_TIME       0x00000002
+#define DRS_COEF_CHAN_K           0x00000004
+#define DRS_COEF_CHAN_B           0x00000008
+#define DRS_COEF_K_TIME           0x00000010
+#define DRS_COEF_K                0x00000020
+#define DRS_COEF_B                0x00000040
+#define DRS_COEF_K9               0x00000080
+#define DRS_COEF_B9               0x00000100
+
+
 
 extern unsigned short tmasFast[SIZE_FAST];
 
