@@ -141,7 +141,10 @@ void set_dac_9ch_ofs(unsigned short speed)
 
 void set_gains_drss(unsigned short cha, unsigned short chb, unsigned short chc, unsigned short chd)
 {
-		write_reg(0x00000002, (((unsigned int)chd)<<24)|(((unsigned int)chc)<<16)|(((unsigned int)chb)<<8)|(((unsigned int)cha)<<0));
+    write_reg(0x00000002, ( (((unsigned int)chd)&0x3f) <<18)|
+                          (( ((unsigned int)chc)&0x3f) <<12)|
+                          (( ((unsigned int)chb)&0x3f) <<6)|
+                          (( ((unsigned int)cha)&0x3f )<<0));
 }
 
 void start_amplifier(unsigned int st)

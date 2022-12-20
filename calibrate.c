@@ -65,46 +65,6 @@ static void           s_remove_splash     (   double* a_Y,             unsigned 
 }
 
 
-/*
- * ѕримен€ет амплитудную калибровку к данным
- * unsigned short *buffer			массив данных;
- * double *dBuf 					массив данных с результатом применени€ амплитудной калибровки
- * unsigned int shift 				сдвиг получаемый через getShiftIndex;
- * coefficients *coef				структура с кэффициентами;
- * unsigned int chanalLength		длинна массива дл€ 1 канала;
- * unsigned int chanalCount			количество каналов
- * unsigned int key					0 бит- применение калибровки дл€ €чеек, 1 бит- межканальна€ калибровка,2 бит- избавление от всплесков, 3 бит- приведение к физическим виличинам
- * */
-void calibrate_do_curgr(unsigned short *buffer,double *dBuf,unsigned int *shift,coefficients_t *coef,unsigned int chanalLength,unsigned int chanalCount,unsigned int key,parameter_t *prm)
-{
-    unsigned int j,k,koefIndex;
-	double average[4];
-	getAverageInt(average,buffer,1000,4);
-	for(j=0;j<chanalCount;j++)
-	{
-		for(k=0;k<chanalLength;k++)
-		{
-            koefIndex=( shift[k>>1] )&1023;
-			dBuf[k*chanalCount+j]=buffer[k*chanalCount+j];
-			if((key&1)!=0)
-			{
-				dBuf[k*chanalCount+j]=(dBuf[k*chanalCount+j]-coef->b[koefIndex*4+j])/(coef->k[koefIndex*4+j]+1);
-			}
-			if((key&2)!=0)
-			{
-				dBuf[k*chanalCount+j]-=coef->chanB[j]+coef->chanK[j]*average[j];
-			}
-			if((key&8)!=0)
-			{
-				dBuf[k*chanalCount+j]=(dBuf[k*chanalCount+j]-prm->fastadc.adc_offsets[j])/prm->fastadc.adc_gains[j];
-			}
-		}
-	}
-	if((key&4)!=0)
-	{
-        s_remove_splash(dBuf,shift,coef);
-	}
-}
 
 /**
  * —обирает статистику дл€ каждой €чкейки

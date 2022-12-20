@@ -53,16 +53,19 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     assert(a_buffer);
     unsigned int l_ret=0,i=0;
 
+    drs_cmd(a_drs->id, INIT_DRS);
     if(a_flags & DRS_OP_FLAG_EXT_START){
         log_it(L_INFO, "start ext DRS");
         drs_cmd(a_drs->id, ENABLE_EXT_PULSE);
-    } else if (a_flags & DRS_OP_FLAG_CALIBRATE ){
+    }
+    drs_cmd(a_drs->id, START_DRS);
+    /* else if (a_flags & DRS_OP_FLAG_CALIBRATE ){
         drs_cmd(a_drs->id, INIT_DRS | START_DRS );
         //drs_cmd(a_drs->id, START_DRS);
     } else {
         drs_cmd(a_drs->id, START_DRS);
         //drs_cmd(a_drs->id, 1);
-    }
+    }*/
     usleep(100);
 
     bool l_is_ready = false;
@@ -89,9 +92,15 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     }else
         log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
 
-    drs_read_page(a_drs, 0, a_buffer, a_buffer_size);
+    if(a_flags & DRS_OP_FLAG_ROTATE)
+        drs_read_page_rotated(a_drs, 0, a_buffer, a_buffer_size);
+    else
+        drs_read_page(a_drs, 0, a_buffer, a_buffer_size);
 
     drs_set_flag_end_read(a_drs->id, true);
+
+    usleep(50000);
+
     return l_ret;
 }
 
@@ -112,6 +121,23 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
     else
        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
     a_drs->shift =s_get_shift( a_drs->id);
+}
+
+/**
+ * @brief drs_read_page_rotated
+ * @param a_drs
+ * @param a_page_num
+ * @param a_buffer
+ * @param a_buffer_size
+ */
+void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size)
+{
+    assert(a_drs);
+    assert(a_buffer);
+    byte_t * a_drs_mem = a_drs->id == 0 ? (byte_t*)data_map_drs1 : (byte_t*)data_map_drs2;
+    byte_t * a_drs_page = a_drs_mem + a_page_num*DRS_PAGE_READ_SIZE;
+    a_drs->shift =s_get_shift( a_drs->id);
+    memcpy(a_buffer, a_drs_page , a_buffer_size ) ;
 }
 
 /**

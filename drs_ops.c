@@ -21,12 +21,12 @@ void drs_start(int a_drs_num)
 {
     if(a_drs_num == -1){
         write_reg(DRS_REG_CMD_DRS_1, 2);
-        write_reg(DRS_REG_CMD_DRS2, 2);
+        write_reg(DRS_REG_CMD_DRS_2, 2);
     }else if (a_drs_num >=0)
         write_reg(DRS_REG_CMD_DRS_1 + a_drs_num, 2);
     else
         log_it(L_ERROR, "Wrong DRS num %d", a_drs_num);
-    usleep(2);
+    usleep(20);
 }
 
 
@@ -85,8 +85,8 @@ bool drs_get_flag_write_ready(int l_drs_num )
     usleep(100);
     //log_it(L_DEBUG, "get flag write ready for DRS %d", l_drs_num);
     switch(l_drs_num){
-        case 0 : return read_reg(49)&1;
-        case 1 : return read_reg(50)&1;
+        case 0 : return read_reg(DRS_REG_WAIT_DRS_A);
+        case 1 : return read_reg(DRS_REG_WAIT_DRS_B);
         default:
             log_it(L_ERROR, "Wrong DRS number, could be 0, 1 or -1 for both");
             return 0;
@@ -103,13 +103,13 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
     switch (a_drs_num){
         case -1:
             write_reg(DRS_REG_CMD_DRS_1, a_cmd);
-            write_reg(DRS_REG_CMD_DRS2, a_cmd);
+            write_reg(DRS_REG_CMD_DRS_2, a_cmd);
         break;
         case 0:
             write_reg(DRS_REG_CMD_DRS_1, a_cmd);
         break;
         case 1:
-            write_reg(DRS_REG_CMD_DRS2, a_cmd);
+            write_reg(DRS_REG_CMD_DRS_2, a_cmd);
         break;
         default:
             log_it(L_ERROR, "Wrong DRS number, could be 0, 1 or -1 for both");
@@ -124,4 +124,5 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
 void drs_set_sinus_signal(bool a_sinus_signal)
 {
     write_reg( DRS_REG_CALIB_SIN_ON, a_sinus_signal ? 1 : 0 );
+    usleep(100);
 }

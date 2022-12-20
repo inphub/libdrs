@@ -24,18 +24,17 @@
 void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *k)
 {
     // length может быть 0, тогда массивы yArr и xArr будут NULL
-	double x=0,x2=0,xy=0,y=0;
+    double x=0,x2=0,xy=0,y=0;
     unsigned int i=0;
-	for(i=0;i<length;i++)
-	{
-		x+=xArr[i];
-		y+=yArr[i];
-		xy+=xArr[i]*yArr[i];
-		x2+=xArr[i]*xArr[i];
-	}
-	*k=(length*xy-x*y)/(length*x2-x*x);
-	*b=(y-*k*x)/length;
-	//printf("k=%f\tb=%f\n",*k,*b);
+    for(i=0;i<length;i++){
+            x+=xArr[i];
+            y+=yArr[i];
+            xy+=xArr[i]*yArr[i];
+            x2+=xArr[i]*xArr[i];
+    }
+    *k= ( ((double) length)*xy- x*y )/(  ((double)length)*x2 - x*x);
+    *b=  (y-*k*x)/ ((double)length);
+    //printf("k=%f\tb=%f\n",*k,*b);
 }
 void do_on_array(double *array,int length,void (*operation)(double *num)){
 	int i;
@@ -126,35 +125,33 @@ void getAverage(double *average,double *data,unsigned int chanalLength,unsigned 
     unsigned int i,j;
 	for(i=0;i<chanalCount;i++)
 	{
-		average[i]=0;
+		average[i]=0.0;
 		for(j=0;j<chanalLength;j++)
 		{
 			average[i]+=data[j*chanalCount+i];
 		}
-		average[i]/=chanalLength;
+		average[i]/= (double) chanalLength;
 		//printf("average[%d]=%f\n",i,average[i]);
 	}
 }
 
 /**
- * double *average					масиив со средними значениями каналов;
- * unsigned short *data				массив данных
- * unsigned int chanalLength		длинна канала;
- * unsigned int chanalCount		число каналов;
+ * double *         a_average		масиив со средними значениями каналов;
+ * unsigned short*  a_cells		массив данных
+ * unsigned int     a_ch_cells_count	длинна канала;
+ * unsigned int     a_ch_count		число каналов;
  */
-void getAverageInt(double *average,unsigned short *data,unsigned int chanalLength,unsigned int chanalCount)
+void getAverageInt(double *a_average,unsigned short *a_cells,unsigned int a_ch_cells_count,unsigned int a_ch_count)
 {
     unsigned int i,j;
-	for(i=0;i<chanalCount;i++)
-	{
-		average[i]=0;
-		for(j=0;j<chanalLength;j++)
-		{
-			average[i]+=data[j*chanalCount+i];
-		}
-		average[i]/=chanalLength;
-		//printf("average[%d]=%f\n",i,average[i]);
-	}
+    for(i=0;i<a_ch_count;i++){
+        a_average[i]=0;
+        for(j=0;j<a_ch_cells_count;j++){
+                a_average[i]+=a_cells[j*a_ch_count+i];
+        }
+        a_average[i]/= (double) a_ch_cells_count;
+        //printf("average[%d]=%f\n",i,average[i]);
+    }
 }
 
  double absf(double value)

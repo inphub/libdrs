@@ -124,7 +124,7 @@ void write_reg(unsigned int reg_adr, unsigned int reg_data)
 {
     /* get the delay_ctrl peripheral's base address */
     control_mem = (unsigned int *) (control_map + reg_adr*4);
-    log_it(L_DEBUG, "write: adr=0x%08x, val=0x%08x", reg_adr, reg_data);
+    log_it(L_DEBUG, "write: adr=0x%08x (%u), val=0x%08x", reg_adr, reg_adr, reg_data);
 
     /* write the value */
     *control_mem = reg_data;

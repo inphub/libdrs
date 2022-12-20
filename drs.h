@@ -32,7 +32,7 @@
 #define DRS_DAC_COUNT (DRS_DCA_COUNT_ALL/DRS_COUNT)
 
 #define DRS_REG_CMD_DRS_1		14
-#define DRS_REG_CMD_DRS2		15
+#define DRS_REG_CMD_DRS_2		15
 #define DRS_MODE_REG			16
 
 #define DRS_BASE_NUM_PAGE		19
@@ -44,6 +44,9 @@
 #define DRS_REG_READY_A                 21
 #define DRS_REG_READY_B                 22
 #define DRS_REG_CALIB_SIN_ON            27
+
+#define DRS_REG_WAIT_DRS_A              49
+#define DRS_REG_WAIT_DRS_B              50
 
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
 
@@ -76,11 +79,11 @@ typedef struct
 
 typedef struct
 {
-    double b[2*4096];
-    double k[2*4096];
-    double b9[1*1024];
-    double k9[1*1024];
-    double kTime[1*1024];
+    double b[DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL];
+    double k[DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL];
+    double b9[1*DRS_CELLS_COUNT_BANK];
+    double k9[1*DRS_CELLS_COUNT_BANK];
+    double kTime[1*DRS_CELLS_COUNT_BANK];
     double chanB[2];
     double chanK[2];
     double deltaTimeRef[1*1024];
@@ -90,7 +93,6 @@ typedef struct
 
 typedef struct{
     short id;
-    uint32_t shifts [1024];
     unsigned int shift;
     coefficients_t coeffs;
 } drs_t;
@@ -134,8 +136,8 @@ int drs_ini_load(const char *inifile, parameter_t *prm);
 void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset);
 void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue);
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
+
 drs_mode_t drs_get_mode(int a_drs_num);
 
 void drs_dac_shift_input_set(int a_drs_num, unsigned int value);
 void drs_dac_set( unsigned int onAH);
-

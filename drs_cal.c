@@ -72,9 +72,9 @@ static void * s_thread_routine(void * a_arg)
     dap_string_t * l_dca_shifts_str = dap_string_new("{");
     size_t t;
 
-    for(t=0;t<DRS_DCA_COUNT_ALL;t++){
-        dap_string_append_printf(l_dca_shifts_str, "[%zd]=%f%s", t, l_args->param.ampl.levels[t+2],
-                                 t<DRS_DCA_COUNT_ALL-1 ? "," : "");
+    for(t=0;t<DRS_CHANNELS_COUNT ;t++){
+        dap_string_append_printf(l_dca_shifts_str, "[%zd]=%f%s", t, l_args->param.ampl.levels[t],
+                                 t<DRS_CHANNELS_COUNT-1 ? "," : "");
     }
     dap_string_append(l_dca_shifts_str, "}");
     log_it(L_DEBUG, "DAC shifts: %s", l_dca_shifts_str->str);

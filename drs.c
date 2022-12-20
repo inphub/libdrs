@@ -314,12 +314,13 @@ void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue)//fix
 void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
 {
     int i;
-    unsigned short shiftDACValues[DRS_DAC_COUNT];
+    unsigned short shiftDACValues[DRS_CHANNELS_COUNT];
     assert(shiftDAC);
     assert(DAC_gain);
     assert(DAC_offset);
-    for(i=0;i<DRS_DAC_COUNT;i++) {
-        shiftDACValues[i]=(shiftDAC[i]*DAC_gain[i]+DAC_offset[i]);
+    for(i=0;i<DRS_CHANNELS_COUNT;i++) {
+        shiftDACValues[i]= fabs((shiftDAC[i]+ 0.5)*16384.0) ;
+        shiftDACValues[i]=(shiftDACValues[i]*DAC_gain[i]+DAC_offset[i]);
         log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
     }
     drs_dac_shift_input_set_all(a_drs_num, shiftDACValues);
