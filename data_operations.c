@@ -136,6 +136,25 @@ void getAverage(double *average,double *data,unsigned int chanalLength,unsigned 
 }
 
 /**
+ * @brief getAverageCh
+ * @param average
+ * @param data
+ * @param chanalLength
+ * @param chanalCount
+ * @param a_ch_id
+ */
+void getAverageCh(double *average,double *data,unsigned int chanalLength,unsigned int chanalCount, unsigned a_ch_id)
+{
+    unsigned int i = a_ch_id,j;
+    average[i]=0.0;
+    for(j=0;j<chanalLength;j++)
+    {
+            average[i]+=data[j*chanalCount+i];
+    }
+    average[i]/= (double) chanalLength;
+                //printf("average[%d]=%f\n",i,average[i]);
+}
+/**
  * double *         a_average		масиив со средними значениями каналов;
  * unsigned short*  a_cells		массив данных
  * unsigned int     a_ch_cells_count	длинна канала;

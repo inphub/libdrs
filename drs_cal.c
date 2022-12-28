@@ -341,34 +341,6 @@ static void s_x_to_real(double*x)
  * @param coef
  * @param key
  */
-void drs_cal_get_array_x_old(double*x, unsigned int *shift,coefficients_t *coef,unsigned int key)
-{
-    double xMas[8192]={};
-    if((key&16)!=0)
-    {
-        drs_cal_time_local_apply_old(xMas,coef,shift);
-    }
-    if((key&32)!=0)
-    {
-        drs_cal_time_global_apply_old(x,xMas,shift,coef);
-    }else{
-        memcpy(x,xMas,sizeof(xMas));
-    }
-    if((key&64)!=0)
-    {
-        do_on_array(x,8192,s_x_to_real);
-    }
-
-}
-
-
-/**
- * @brief drs_cal_get_array_x
- * @param x
- * @param shift
- * @param coef
- * @param key
- */
 void drs_cal_get_array_x(drs_t * a_drs, double*a_x, int a_flags)
 {
     double l_results[DRS_CELLS_COUNT_ALL]={0};

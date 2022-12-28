@@ -99,7 +99,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
 
     drs_set_flag_end_read(a_drs->id, true);
 
-    usleep(50000);
+    //usleep(50000);
 
     return l_ret;
 }

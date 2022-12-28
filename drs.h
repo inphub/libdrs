@@ -57,6 +57,7 @@
 
 #define ADC_FAST_SIZE MAX_PAGE_COUNT*1024*8*8
 
+#define DRS_ADC_TOP_LEVEL 16384.0
 
 typedef struct 
 {
@@ -86,7 +87,7 @@ typedef struct
     double kTime[1*DRS_CELLS_COUNT_BANK];
     double chanB[2];
     double chanK[2];
-    double deltaTimeRef[1*1024];
+    double deltaTimeRef[DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_BANK];
     unsigned int indicator;
     unsigned int splash[2];
 } DAP_ALIGN_PACKED coefficients_t;
@@ -135,9 +136,12 @@ int drs_ini_load(const char *inifile, parameter_t *prm);
 
 void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset);
 void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue);
+
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
 
 drs_mode_t drs_get_mode(int a_drs_num);
 
 void drs_dac_shift_input_set(int a_drs_num, unsigned int value);
+unsigned drs_adc_shift_input_get(int a_drs_num);
+
 void drs_dac_set( unsigned int onAH);

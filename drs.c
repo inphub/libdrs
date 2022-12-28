@@ -69,6 +69,7 @@ int drs_init()
  */
 int drs_cmd_init(parameter_t *a_params)
 {
+    memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
 
     set_dma_addr_drs1(0x08000000);  		//    write_reg(0x00000017, 0x8000000);// DRS1
     set_size_dma_drs1(0x00004000);  		//    write_reg(0x00000019, 0x4000);
@@ -281,10 +282,19 @@ drs_mode_t drs_get_mode(int a_drs_num)
  * @param addrShift
  * @param value
  */
-void drs_dac_shift_input_set(int a_drs_num,unsigned int a_value)//fix
+void drs_dac_shift_input_set(int a_drs_num,unsigned int a_value)
 {
     write_reg(0x8+a_drs_num,a_value);
     usleep(100);
+}
+
+/**
+ * @brief drs_dac_shift_input_get
+ * @param a_drs_num
+ */
+unsigned drs_adc_shift_input_get(int a_drs_num)
+{
+    return read_reg(0x8+a_drs_num);
 }
 
 /**
