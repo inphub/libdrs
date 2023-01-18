@@ -18,10 +18,10 @@
 #define LOG_TAG "drs_cal_time_local"
 
 
-bool s_debug_more = true;
+bool s_debug_more = false;
 
-static double s_get_deltas_min (double*               a_buffer,  double**         a_sum_delta_ref,
-                                double**              a_stats,   unsigned int     a_shift);
+static double s_get_deltas_min (double*               a_buffer,  double*          a_sum_delta_ref,
+                                double*               a_stats,   unsigned int     a_shift);
 static int    s_proc_drs       (drs_t*                a_drs,     drs_cal_args_t*  a_args,
                                 atomic_uint_fast32_t* a_progress);
 
@@ -61,25 +61,23 @@ int drs_cal_time_local( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast
  * @param a_drs
  * @param a_values
  */
-void drs_cal_time_local_apply(drs_t * a_drs, double * a_values )
+void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_output )
 {
     assert(a_drs);
     unsigned int pz;
-    double l_average[4],l_tmp_value;
-    for(unsigned ch=0; ch<DRS_CHANNELS_COUNT; ch++)
-    {
+    double l_average[DRS_CHANNELS_COUNT];
+    for(unsigned ch=0; ch<DRS_CHANNELS_COUNT; ch++){
         l_average[ch]=0;
         for(unsigned n=0;n<DRS_CELLS_COUNT_CHANNEL;n++){
-            l_average[ch]+= a_drs->coeffs.deltaTimeRef[ch][n];
+            l_average[ch]+= a_drs->coeffs.deltaTimeRef[ n% DRS_CELLS_COUNT_BANK ] ;
         }
-        l_average[ch]=1023/l_average[ch];
+        l_average[ch] /= ((double) DRS_CELLS_COUNT_CHANNEL);
     }
+
     for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++) {
-        l_tmp_value=0;
         for( unsigned n=0; n<DRS_CELLS_COUNT_CHANNEL; n++) {
             pz=( a_drs->shift+n)&1023;
-            a_values[n*DRS_CHANNELS_COUNT+ch]=l_tmp_value;
-            l_tmp_value+= a_drs->coeffs.deltaTimeRef[ch][pz]*l_average[ch];
+            a_output[DRS_IDX(ch,n)] =  a_values[DRS_IDX(ch,n)] + a_drs->coeffs.deltaTimeRef[pz% DRS_CELLS_COUNT_BANK]*l_average[ch];
         }
     }
 }
@@ -97,13 +95,8 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     int l_rc = 0;
     double l_value_min=0;
 
-    double **l_sum_delta_ref = DAP_NEW_Z_SIZE(double *, sizeof (double*) * DRS_CHANNELS_COUNT);
-    for (size_t ch = 0; ch <  DRS_CHANNELS_COUNT; ch ++)
-         l_sum_delta_ref[ch] = DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT_CHANNEL);
-
-    double **l_stats = DAP_NEW_Z_SIZE(double *, sizeof (double*) * DRS_CHANNELS_COUNT);
-    for (size_t ch = 0; ch <  DRS_CHANNELS_COUNT; ch ++)
-         l_stats[ch] = DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT_CHANNEL);
+    double *l_sum_delta_ref =  DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT_BANK);
+    double *l_stats =  DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT_BANK);
 
     double *l_cells = DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT);
     unsigned short *l_page_buffer = DAP_NEW_Z_SIZE(unsigned short, sizeof(unsigned short)*DRS_CELLS_COUNT);
@@ -120,9 +113,10 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     drs_set_mode(a_drs->id, MODE_CAL_TIME);
 
-    static const unsigned c_repeats_max = 1000000;
-    for(unsigned n=0; l_value_min < l_N_min && n < c_repeats_max; n++ ) {
-        log_it(L_DEBUG, "prod drs #%u, min=%u\tminValue=%f",a_drs->id, l_N_min,l_value_min);
+    static const unsigned REPEATS_MAX = 100000;
+
+    for(unsigned n=0; l_value_min < l_N_min && n < REPEATS_MAX; n++ ) {
+        debug_if(s_debug_more, L_INFO, "prod drs #%u, min=%u\tminValue=%f",a_drs->id, l_N_min,l_value_min);
         int l_ret = drs_data_get_all(a_drs,0, l_page_buffer);
         if(l_ret!=0){
             log_it(L_ERROR,"data_get_all not read");
@@ -130,36 +124,33 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             l_rc = -2;
             goto lb_exit;
         }
-        debug_if(s_debug_more, L_DEBUG, "l_page_buffer[]={0x%04X,0x%04X,0x%04X,0x%04X...}", l_page_buffer[0],
-            l_page_buffer[1], l_page_buffer[2], l_page_buffer[3]);
 
-        drs_cal_ampl_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_AMPL_APPLY_CELLS );
+        drs_cal_ampl_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_AMPL_APPLY_CELLS | DRS_CAL_AMPL_CH9_ONLY);
 
-        debug_if(s_debug_more, L_DEBUG, "l_cells[]={%f,%f,%f,%f...}", l_cells[0], l_cells[1], l_cells[2], l_cells[3]);
 
         l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats,a_drs->shift);
+        debug_if(s_debug_more, L_DEBUG, "l_value_min=%f",l_value_min);
+        debug_if(s_debug_more, L_DEBUG, "l_page_buffer[]={0x%04X,0x%04X,0x%04X,0x%04X...}", l_page_buffer[0],
+            l_page_buffer[1], l_page_buffer[2], l_page_buffer[3]);
+        debug_if(s_debug_more, L_DEBUG, "l_cells[]={%f,%f,%f,%f...}", l_cells[0], l_cells[1], l_cells[2], l_cells[3]);
 
     }
-    for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++) {
-        for(unsigned n=0;n<DRS_CELLS_COUNT_CHANNEL;n++)
-        {
-            coef->deltaTimeRef[ch][n]=l_sum_delta_ref[ch][n]/l_stats[ch][n];
-        }
+    for(unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++){
+        if(l_stats[n])
+            coef->deltaTimeRef[n]=l_sum_delta_ref[n]/l_stats[n];
+        else
+            debug_if(s_debug_more, L_WARNING, "Zero l_stats[n:%u]=%f", n, l_stats[n]);
     }
     drs_set_mode(a_drs->id, MODE_SOFT_START);
 
     coef->indicator|=2;
 lb_exit:
     DAP_DELETE( l_page_buffer );
-
-    for (size_t ch = 0; ch <  DRS_CHANNELS_COUNT; ch ++){
-        DAP_DELETE( l_sum_delta_ref[ch] );
-        DAP_DELETE( l_stats[ch] );
-    }
-
     DAP_DELETE( l_sum_delta_ref );
     DAP_DELETE( l_stats );
     DAP_DELETE( l_cells );
+    if (a_progress) *a_progress +=30;
+
     return l_rc;
 }
 
@@ -169,36 +160,43 @@ lb_exit:
  * double *statistic			массив статистики по дельтам;
  * unsigned int shift			двиг в данных;
  */
-static double s_get_deltas_min(double*a_buffer,double **a_sum_delta_ref,double **a_stats,unsigned int a_shift)
+static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a_stats,unsigned int a_shift)
 {
     unsigned int n, pz, pz1;
-    double l_average[1] = {0};
     double l_vmin,l_vmax, l_vtmp,l_min;
-    unsigned ch = 0;
-    getAverageCh(l_average,a_buffer,DRS_CELLS_COUNT_CHANNEL,2,ch);
-#define DRS_IDX(a,b) (b*DRS_CHANNELS_COUNT+a)
+    double l_average = drs_ch_get_average(a_buffer,DRS_CELLS_COUNT_BANK, DRS_CHANNEL_CAL_SIN);
 
-    if ((16383.0-l_average[ch]) > l_average[ch]) {
-        l_vtmp = l_average[ch]/2.0;
+    double l_average_inverted = DRS_ADC_TOP_LEVEL-l_average - 1.0;
+    debug_if(s_debug_more,L_INFO,"l_average=%f, l_average_inverted=%f", l_average, l_average_inverted);
+
+
+    if ((l_average_inverted) > l_average) {
+        l_vtmp = l_average/3.0;
     }else{
-        l_vtmp=(16383.0-l_average[ch])/2.0;
+        l_vtmp=( l_average_inverted)/3.0;
     }
-    l_vmin=l_average[ch]-l_vtmp;
-    l_vmax=l_average[ch]+l_vtmp;
+    l_vmin=l_average-l_vtmp;
+    l_vmax=l_average+l_vtmp;
 
-    for(n=0; n < DRS_CELLS_COUNT_CHANNEL ;n++) {
+    for(n=0; n < DRS_CELLS_COUNT_BANK ;n++) {
         pz=(a_shift+n)&1023;
         pz1=(n+1)&1023;
-        if ((a_buffer[DRS_IDX(ch,n)]<=l_vmax) && (a_buffer[DRS_IDX(ch,pz1)]>=l_vmin) ) {
-            a_sum_delta_ref[ch][pz]+=absf(a_buffer[DRS_IDX(ch,n)]-a_buffer[DRS_IDX(ch,pz1)]);
-            a_stats[ch][pz]++;
+        double l_cell_n = a_buffer[DRS_IDX_CAL(n)];
+        double l_cell_pz1 =  a_buffer[DRS_IDX_CAL(pz1)];
+        if (( (l_cell_n <=l_vmax)   &&  (l_cell_n >= l_vmin  ) )&&
+            ( (l_cell_pz1 <=l_vmax) &&  (l_cell_pz1 >= l_vmin) ) &&
+            ( l_cell_pz1 > l_cell_n )){
+
+            a_sum_delta_ref[pz]+=absf( l_cell_n - l_cell_pz1 );
+            a_stats[pz]++;
+            //log_it(L_INFO, "a_stats[%u]=%f", pz, a_stats[pz]);
         }
     }
 
-    l_min=a_stats[0][0];
-    for(n=0;n< DRS_CELLS_COUNT_CHANNEL;n++) {
-        if(a_stats[ch][n] < l_min) {
-            l_min = a_stats[ch][n];
+    l_min=a_stats[0];
+    for(n=0;n< DRS_CELLS_COUNT_BANK;n++) {
+        if(a_stats[n] < l_min) {
+            l_min = a_stats[n];
         }
     }
     return l_min;

@@ -19,6 +19,10 @@
 #define DRS_PAGE_READ_SIZE        DRS_CELLS_COUNT *sizeof(unsigned short)
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size);
 int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
 
@@ -33,3 +37,7 @@ static inline void drs_read_page_all(drs_t * a_drs,unsigned int a_page_num,  uns
 }
 
 void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_step,  unsigned short *a_buffer, size_t a_buffer_size);
+
+#ifdef __cplusplus
+}
+#endif

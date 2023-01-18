@@ -27,15 +27,15 @@ struct amp_context{
 
 static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress);
 
-static unsigned int s_fin_collect(drs_t * a_drs,  drs_cal_args_t * a_args);
+static unsigned int s_fin_collect(drs_t * a_drs,  drs_cal_args_t * a_args, bool a_ch9_only);
 static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args);
 
-static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats);
-static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter);
+static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats, bool a_ch9_only);
+static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter, bool a_ch9_only);
 
-static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  struct amp_context * a_ctx);
-static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl);
-static void s_remove_splash(drs_t * a_drs, double* a_Y);
+static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  struct amp_context * a_ctx, bool a_ch9_only);
+static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl, bool a_ch9_only);
+static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only);
 
 static bool s_debug_more = false;
 
@@ -85,6 +85,7 @@ int drs_cal_amp( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast32_t * 
 void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
 {
     unsigned int l_ch_id,l_cell_id,koefIndex;
+    unsigned l_cells_proc_count = a_flags & DRS_CAL_AMPL_CH9_ONLY ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
     //double * l_bi = s_bi; // a_drs->coeffs.b
     //double * l_ki = s_ki; // a_drs->coeffs.k
     //double  **l_bi = a_drs->coeffs.b;
@@ -92,16 +93,27 @@ void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
-        for(l_cell_id=0; l_cell_id<DRS_CELLS_COUNT_CHANNEL;l_cell_id++){
-            size_t l_cell_id_masked = l_cell_id&3072 ;
+        if(a_flags & DRS_CAL_AMPL_CH9_ONLY)
+            l_ch_id = DRS_CHANNEL_CAL_SIN;
+
+        for(l_cell_id=0; l_cell_id<l_cells_proc_count;l_cell_id++){
+            size_t l_cell_id_masked = a_flags & DRS_CAL_AMPL_CH9_ONLY ? l_cell_id :
+                                                                        l_cell_id&3072 ;
             unsigned l_inout_id = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id;
 
-            koefIndex= (a_drs->shift +(l_cell_id &1023) ) & 1023;
+            koefIndex=  a_flags & DRS_CAL_AMPL_CH9_ONLY ? (a_drs->shift +(l_cell_id &1023) ) & 1023 :
+                                                          (a_drs->shift + l_cell_id ) & 1023 ;
             a_out[l_inout_id] = a_in[l_inout_id];
             if((a_flags & DRS_CAL_AMPL_APPLY_CELLS)!=0){
+                double l_bi, l_ki;
+                if (a_flags & DRS_CAL_AMPL_CH9_ONLY){
+                    l_bi = a_drs->coeffs.b9 [koefIndex | l_cell_id_masked];
+                    l_ki = a_drs->coeffs.k9 [koefIndex | l_cell_id_masked];
+                }else{
+                    l_bi = a_drs->coeffs.b[l_ch_id][koefIndex | l_cell_id_masked];
+                    l_ki = a_drs->coeffs.k[l_ch_id][koefIndex | l_cell_id_masked];
+                }
 
-                double l_bi = a_drs->coeffs.b[l_ch_id][koefIndex | l_cell_id_masked];
-                double l_ki = a_drs->coeffs.k[l_ch_id][koefIndex | l_cell_id_masked];
 
                 a_out[l_inout_id] =  ( a_out[l_inout_id] - l_bi ) /
                                                  (l_ki +1.0 );
@@ -113,10 +125,12 @@ void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a
                 a_out[l_inout_id]=(a_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }
         }
+        if(a_flags & DRS_CAL_AMPL_CH9_ONLY)
+            break;
     }
     if((a_flags& DRS_CAL_AMPL_APPLY_SPLASHS)!=0)
     {
-        s_remove_splash(a_drs, a_out);
+        s_remove_splash(a_drs, a_out, a_flags & DRS_CAL_AMPL_CH9_ONLY);
     }
 }
 
@@ -147,15 +161,14 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
            l_levels[0], l_levels[1], l_mode_old);
 
 
-    drs_set_sinus_signal(true); // Включаяем сигнал синусоиды
+    drs_set_sinus_signal(false); // Включаяем сигнал синусоиды
     drs_set_mode(a_drs->id, MODE_CAL_AMPL ); // Включаем режим калибровки амплитуды
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
 
-    if( s_fin_collect( a_drs, a_args) !=0 )
-    {
+    if( s_fin_collect( a_drs, a_args,false) !=0 ) {
         log_it(L_INFO, "No success with fin collect");
-        if (a_progress) *a_progress +=10;
+        if (a_progress) *a_progress +=5;
 
         l_ret = -1;
         goto lb_exit;
@@ -168,6 +181,24 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         l_ret = -2;
         goto lb_exit;
     }
+
+    log_it(L_NOTICE, "Calibrate 9 channel");
+    // Калибруем 9ый канал
+    drs_set_sinus_signal(false); // Включаяем сигнал синусоиды
+    drs_set_mode(a_drs->id, MODE_CAL_TIME);
+    set_gains_drss(32, 32, 32, 32);
+    start_amplifier(1);
+    drs_start(a_drs->id);
+    drs_dac_shift_input_set( a_drs->id, l_dac_shifts_old);
+
+    if( s_fin_collect( a_drs, a_args,true) !=0 ) {
+        log_it(L_INFO, "No success with fin collect");
+        if (a_progress) *a_progress +=5;
+
+        l_ret = -9;
+        goto lb_exit;
+    }
+
 
     drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
 
@@ -194,7 +225,7 @@ lb_exit:
  * @param a_args
  * @return
  */
-static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args)
+static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_only)
 {
     /**
      * Собирает данные по котором будет калибровать
@@ -235,8 +266,15 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args)
     }
 
     // Зануляем коэфициенты
-    memset(&a_drs->coeffs.b,0 , sizeof (a_drs->coeffs.b));
-    memset(&a_drs->coeffs.k,0 , sizeof (a_drs->coeffs.k));
+    if (a_ch9_only){
+        memset(&a_drs->coeffs.b9,0 , sizeof (a_drs->coeffs.b9));
+        memset(&a_drs->coeffs.k9,0 , sizeof (a_drs->coeffs.k9));
+    }else{
+        for (unsigned ch = 0; ch < DRS_CHANNELS_COUNT; ch++){
+            memset(&a_drs->coeffs.b[ch],0 , sizeof (a_drs->coeffs.b[ch]));
+            memset(&a_drs->coeffs.k[ch],0 , sizeof (a_drs->coeffs.k[ch]));
+        }
+    }
 
 
     dh=(calibLvl[1]-calibLvl[0])/((double) (l_count-1));
@@ -260,7 +298,7 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args)
                l_ret = -2;
                goto lb_exit;
             }
-            s_collect_stats_b(a_drs,&l_ctx,i);
+            s_collect_stats_b(a_drs,&l_ctx,i, a_ch9_only);
             l_repeats++;
         }
 
@@ -275,7 +313,7 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args)
                 }
             }
         }
-        s_calc_coeff_b(&l_ctx, i, a_args->param.ampl.N );
+        s_calc_coeff_b(&l_ctx, i, a_args->param.ampl.N, a_ch9_only );
         //debug_if(s_debug_more, L_DEBUG, "acc[]={%f,%f,%f,%f...}", l_ctx.acc[0], l_ctx.acc[1], l_ctx.acc[2], l_ctx.acc[3]);
     }
     //debug_if(s_debug_more, L_DEBUG, "acc[]={%f,%f,%f,%f...}", l_ctx.acc[0], l_ctx.acc[1], l_ctx.acc[2], l_ctx.acc[3]);
@@ -285,7 +323,7 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args)
     }
     debug_if(s_debug_more, L_INFO, "Collected stats in %u repeats", l_repeats);
 
-    s_get_coefficients(a_drs, a_args, &l_ctx);
+    s_get_coefficients(a_drs, a_args, &l_ctx, a_ch9_only);
 
     log_it(L_NOTICE,"Collected coeficients in %u repeats",l_repeats);
 
@@ -349,7 +387,7 @@ static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_ar
         drs_cal_ampl_apply(a_drs, l_cells,l_d_buf, DRS_CAL_AMPL_APPLY_SPLASHS);
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     }
-    s_find_splash( a_drs, l_d_buf,100);
+    s_find_splash( a_drs, l_d_buf,100,false);
     for(i=0;i<DRS_CHANNELS_COUNT;i++){
         for(t=0;t<l_count;t++){
             xArr[t]=average[DRS_CHANNELS_COUNT*t+i];
@@ -368,18 +406,21 @@ static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_ar
  * @param a_acc                Сумма знчаений для ячейки
  * @param a_average            Средние значения по каналам
  */
-static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args, struct amp_context * a_ctx)
+static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args, struct amp_context * a_ctx, bool a_ch9_only)
 {
     unsigned int l_cell_id,l_ch_id;
     unsigned int l_count = a_args->param.ampl.repeats+2;
+    unsigned l_cells_proc_count =  a_ch9_only ?DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL ;
     double * yArr = l_count ? DAP_NEW_STACK_SIZE(double, sizeof(double) * l_count) : NULL;
     double * xArr = l_count ? DAP_NEW_STACK_SIZE(double, sizeof(double) * l_count): NULL;
     double * l_levels = a_args->param.ampl.levels;
     double dh;
     dh=(l_levels[1] - l_levels[0])/(l_count - 1);
     for(l_ch_id=0; l_ch_id < DRS_CHANNELS_COUNT; l_ch_id++) {
-        //unsigned l_bank_shift = j*DRS_CELLS_COUNT_CHANNEL;
-        for(l_cell_id=0; l_cell_id < DRS_CELLS_COUNT_CHANNEL;l_cell_id ++){
+        if(a_ch9_only)
+            l_ch_id = DRS_CHANNEL_CAL_SIN;
+
+        for(l_cell_id=0; l_cell_id < l_cells_proc_count;l_cell_id ++){
             for(unsigned l_iter=0; l_iter < l_count; l_iter++){
                 unsigned l_average_id = l_iter*DRS_CHANNELS_COUNT+l_ch_id;
 
@@ -387,20 +428,18 @@ static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args, struct am
 
                 yArr[l_iter]=a_ctx->acc[l_iter][l_ch_id][l_cell_id] - a_ctx->average[l_average_id];
                 //log_it(L_INFO, "l_cell_id=%u|| acc[] = %f,  xArr[%u]=%f, yArr[%u]=%f", l_cell_id,
-                //       a_ctx->acc[l_acc_shift + l_cell_id],
+                //       a_ctx->acc[l_iter][l_ch_id][l_cell_id],
                 //       l_iter, xArr[l_iter],  l_iter, yArr[l_iter] );
             }
-            getCoefLine(yArr, xArr, l_count, &a_drs->coeffs.b[l_ch_id][l_cell_id], &a_drs->coeffs.k[l_ch_id][l_cell_id]);
+            if (a_ch9_only)
+                getCoefLine(yArr, xArr, l_count, &a_drs->coeffs.b9[l_cell_id], &a_drs->coeffs.k9[l_cell_id]);
+            else
+                getCoefLine(yArr, xArr, l_count, &a_drs->coeffs.b[l_ch_id][l_cell_id], &a_drs->coeffs.k[l_ch_id][l_cell_id]);
         }
+
+        if(a_ch9_only) // Если только 9ый канал, то тут выходим
+            break;
     }
-    /*for(j=0;j<DRS_CHANNELS_COUNT;j++)
-    {
-            for(k=0;k<l_count;k++)
-            {
-                    yArr[k]= a_ctx->average[k*DRS_CHANNELS_COUNT+j];
-                    xArr[k]=(0.5-l_levels[0]-dh*k)*16384;
-            }
-    }*/
 }
 
 /**
@@ -409,30 +448,37 @@ static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args, struct am
  * @param a_acc                         сумма знчаений для ячейки
  * @param a_buff                        массив данных
  */
-static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter)
+static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter, bool a_ch9_only)
 {
     debug_if(s_debug_more, L_DEBUG, "Collect stats ( shift %u )  ", a_drs->shift);
     double **l_acc = a_ctx->acc[a_repeat_iter];
     unsigned short *l_values = a_ctx->cells;
 
     unsigned int l_rotate_index;
+    unsigned l_cells_proc_count =  a_ch9_only ?DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL ;
     for(unsigned l_ch_id = 0; l_ch_id< DRS_CHANNELS_COUNT; l_ch_id++){
-        for(unsigned l_cell_id=0; l_cell_id < DRS_CELLS_COUNT_CHANNEL ;l_cell_id++){
+        if(a_ch9_only)
+            l_ch_id = DRS_CHANNEL_CAL_SIN;
+        for(unsigned l_cell_id=0; l_cell_id < l_cells_proc_count ;l_cell_id++){
 
-            l_rotate_index=(a_drs->shift + (l_cell_id&1023)) & 1023 ;
+            l_rotate_index=a_ch9_only? (a_drs->shift + l_cell_id) & 1023:
+                                       (a_drs->shift + (l_cell_id&1023)) & 1023 ;
 
-            unsigned l_acc_index =(l_cell_id&3072) | l_rotate_index;
+            unsigned l_acc_index =  a_ch9_only?   l_rotate_index :
+                                                (l_cell_id&3072) | l_rotate_index;
             unsigned l_cell_id_shift = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id ;
-            assert( l_acc_index< DRS_CELLS_COUNT_CHANNEL);
+            assert( l_acc_index< l_cells_proc_count);
 
             l_acc[l_ch_id][l_acc_index] += l_values[ l_cell_id_shift];
             if(!l_acc_index && s_debug_more)
-              log_it(L_NOTICE, "l_acc[%u][%u][0] += l_values[%u]{%u}", a_repeat_iter, l_ch_id, l_cell_id_shift, l_values[l_cell_id_shift]);
+                log_it(L_NOTICE, "l_acc[%u][%u][0] += l_values[%u]{%u}", a_repeat_iter, l_ch_id, l_cell_id_shift, l_values[l_cell_id_shift]);
             //if( l_values[l_cell_id_shift + l_cell_id] > 10000.0)
             //if (  l_values[l_cell_id_shift + l_cell_id] < 16000)
             //    debug_if(s_debug_more, L_DEBUG, "l_acc_index = %u, l_cell_id = %u, l_cell_id_shift = %u, l_values = [%u]", l_acc_index, l_cell_id,
              //            l_cell_id_shift, l_values[l_cell_id_shift + l_cell_id]);
         }
+        if(a_ch9_only) // Если только 9ый канал, то тут выходим
+            break;
     }
 
 }
@@ -443,7 +489,7 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
  * @param a_average
  * @param a_repeats
  */
-static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats)
+static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats, bool a_ch9_only)
 {
     debug_if(s_debug_more, L_DEBUG, "Calc coef b");
 
@@ -451,14 +497,23 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
     double * l_average = &a_ctx->average[a_iteration *DRS_CHANNELS_COUNT];
     double ** l_acc = a_ctx->acc[a_iteration];
 
+    unsigned l_cells_proc_count =  a_ch9_only ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL ;
+
+
     for(unsigned l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++) { // пробег по каналам
+        if(a_ch9_only) // Если только 9ый канал, то работает только по одному
+            l_ch_id = DRS_CHANNEL_CAL_SIN;
+
         l_average[l_ch_id]=0; // зануляемся
-        for(unsigned l_cell_id=0; l_cell_id<DRS_CELLS_COUNT_CHANNEL; l_cell_id++){ // пробег по ячейкам канала
+        for(unsigned l_cell_id=0; l_cell_id<l_cells_proc_count; l_cell_id++){ // пробег по ячейкам канала
             l_value = l_acc[l_ch_id][l_cell_id]/ ((double)a_repeats);
             l_average[l_ch_id] += l_value;
             l_acc[l_ch_id][l_cell_id ] = l_value;
         }
-        l_average[l_ch_id] = l_average[l_ch_id]/ ((double)DRS_CELLS_COUNT_CHANNEL);
+        l_average[l_ch_id] = l_average[l_ch_id]/ ((double)l_cells_proc_count);
+
+        if(a_ch9_only) // Если только 9ый канал, то тут выходим
+            break;
     }
 }
 
@@ -468,7 +523,7 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
  * @param Y
  * @param lvl
  */
-static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl)
+static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl, bool a_ch9_only)
 {
     unsigned int i = 0, j = 0;
     unsigned int * l_splash = a_drs->coeffs.splash;
@@ -495,7 +550,7 @@ static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl)
  * @param shift
  * @param coef
  */
-static void s_remove_splash(drs_t * a_drs, double* a_Y)
+static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
 {
     size_t i=0,j=0;
     for(j=0;j<DRS_CHANNELS_COUNT;j++){

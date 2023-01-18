@@ -123,6 +123,6 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
  */
 void drs_set_sinus_signal(bool a_sinus_signal)
 {
-    write_reg( DRS_REG_CALIB_SIN_ON, a_sinus_signal ? 1 : 0 );
+    write_reg( DRS_REG_CALIB_SIN_ON, a_sinus_signal ? 0 : 1 );
     usleep(100);
 }

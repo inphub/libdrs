@@ -15,7 +15,7 @@
 #define SHIFT_DRS2	0x3FD00000
 
 
-int fd;
+static int fd;
 volatile unsigned int *control_mem;
 void *control_map;
 void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
@@ -24,6 +24,8 @@ void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2,
 
 #define MAP_SIZE           (4096)
 #define MAP_MASK           (MAP_SIZE-1)
+
+static bool s_debug_more = false;
 
 void memw(off_t byte_addr, uint32_t data)
 {
@@ -124,7 +126,7 @@ void write_reg(unsigned int reg_adr, unsigned int reg_data)
 {
     /* get the delay_ctrl peripheral's base address */
     control_mem = (unsigned int *) (control_map + reg_adr*4);
-    log_it(L_DEBUG, "write: adr=0x%08x (%u), val=0x%08x", reg_adr, reg_adr, reg_data);
+    debug_if(s_debug_more, L_DEBUG, "write: adr=0x%08x (%u), val=0x%08x", reg_adr, reg_adr, reg_data);
 
     /* write the value */
     *control_mem = reg_data;

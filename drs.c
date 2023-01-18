@@ -7,11 +7,15 @@
 #include <assert.h>
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <math.h>
 
 #include <dap_common.h>
 #include <dap_config.h>
+#include <dap_file_utils.h>
 
 #define LOG_TAG          "drs"
 
@@ -39,6 +43,7 @@
 
 unsigned short tmasFast[SIZE_FAST];
 const unsigned int freqREG[]= {480, 240, 160, 120, 100};
+const char s_drs_check_file[]="/tmp/drs_init";
 
 
 parameter_t * g_ini = NULL;
@@ -63,12 +68,26 @@ int drs_init()
     drs_ini_load("/media/card/config.ini", g_ini );
     return 0;
 }
+
+/**
+ * @brief dap_get_inited
+ * @return
+ */
+bool drs_get_inited()
+{
+    return dap_file_test(s_drs_check_file);
+}
+
 /**
  * @brief drs_init
  * @param a_params
  */
 int drs_cmd_init(parameter_t *a_params)
 {
+    if( drs_get_inited() ){
+        log_it(L_WARNING, "Already initialized");
+        return -1;
+    }
     memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
 
     set_dma_addr_drs1(0x08000000);  		//    write_reg(0x00000017, 0x8000000);// DRS1
@@ -114,6 +133,10 @@ int drs_cmd_init(parameter_t *a_params)
 
     // Start all
     write_reg(0x00000001, 0x0000001);
+
+    // Touch file
+    FILE * f = fopen(s_drs_check_file,"w");
+    fclose(f);
 
     return 0;
 }

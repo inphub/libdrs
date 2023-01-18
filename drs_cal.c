@@ -124,7 +124,10 @@ static void * s_thread_routine(void * a_arg)
     pthread_rwlock_unlock( &l_cal->rwlock);
 
     DAP_DELETE(l_args);
+    pthread_mutex_lock(&l_cal->finished_mutex);
     pthread_cond_broadcast(&l_cal->finished_cond);
+    pthread_mutex_unlock(&l_cal->finished_mutex);
+
     return NULL;
 }
 
@@ -226,16 +229,31 @@ int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec)
         log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
         return -1;
     }
+    drs_calibrate_t * l_cal = &s_state[a_drs_num];
+
+    // Блокируем вызов сигнала о том, что запущены
+    pthread_mutex_lock(& l_cal->finished_mutex);
+
+    // Проверяем, не запущен ли
+    pthread_rwlock_rdlock(&l_cal->rwlock);
+    bool l_is_running = l_cal->is_running;
+    pthread_rwlock_rdlock(&l_cal->rwlock);
+    if( ! l_is_running){
+        pthread_mutex_unlock(& l_cal->finished_mutex);
+        return 0;
+    }
+
+    // Встаём в ожидание срабатывания события
     if (a_wait_msec < 0){
-        pthread_cond_wait( &s_state[a_drs_num].finished_cond, &s_state[a_drs_num].finished_mutex );
+        pthread_cond_wait( &l_cal->finished_cond, &l_cal->finished_mutex );
     }else{
         struct timespec l_ts = {
             .tv_sec = a_wait_msec / 1000,
             .tv_nsec = (a_wait_msec % 1000) * 1000000
         };
-        pthread_cond_timedwait( &s_state[a_drs_num].finished_cond, &s_state[a_drs_num].finished_mutex, &l_ts );
+        pthread_cond_timedwait( &l_cal->finished_cond, &l_cal->finished_mutex, &l_ts );
     }
-    pthread_mutex_unlock(&s_state[a_drs_num].finished_mutex);
+    pthread_mutex_unlock(&l_cal->finished_mutex);
     return 0;
 }
 
@@ -343,18 +361,77 @@ static void s_x_to_real(double*x)
  */
 void drs_cal_get_array_x(drs_t * a_drs, double*a_x, int a_flags)
 {
-    double l_results[DRS_CELLS_COUNT_ALL]={0};
     if(a_flags & DRS_CAL_FLAG_TIME_LOCAL) {
-        drs_cal_time_local_apply(a_drs, l_results);
+        drs_cal_time_local_apply(a_drs, a_x, a_x);
     }
     if(a_flags & DRS_CAL_FLAG_TIME_GLOBAL) {
-        drs_cal_time_global_apply(a_drs, a_x,l_results);
-    }else{
-        memcpy(a_x,l_results,sizeof(l_results));
+        drs_cal_time_global_apply(a_drs, a_x,a_x);
     }
     if(a_flags & DRS_CAL_FLAG_TO_REAL) {
         do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
     }
 
 }
+
+/**
+ * @brief drs_cal_state_print
+ * @param a_reply
+ * @param a_cal
+ * @param a_limits
+ * @param a_flags
+ */
+void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigned a_limits, int a_flags)
+{
+    pthread_rwlock_rdlock(&a_cal->rwlock);
+    dap_string_append_printf( a_reply, "Running:     %s\n\n", a_cal->is_running? "yes" : "no" );
+    dap_string_append_printf( a_reply, "Progress:    %d%%\n\n", a_cal->progress );
+    if (a_cal->ts_end){
+        coefficients_t * l_params = &a_cal->drs->coeffs;
+        if ( a_flags & DRS_COEF_SPLASH)
+            dap_string_append_array(a_reply, "splash", "0x%08X", l_params->splash, a_limits);
+
+
+        if ( a_flags & DRS_COEF_DELTA_TIME )
+            dap_string_append_array(a_reply, "deltaTimeRef", "%f", l_params->deltaTimeRef, a_limits);
+
+        if ( a_flags & DRS_COEF_CHAN_K )
+            dap_string_append_array(a_reply, "chanK", "%f", l_params->chanK, a_limits);
+
+        if ( a_flags & DRS_COEF_CHAN_B )
+            dap_string_append_array(a_reply, "chanB", "%f", l_params->chanB, a_limits);
+
+        if ( a_flags & DRS_COEF_K_TIME )
+            dap_string_append_array(a_reply, "kTime", "%f", l_params->kTime, a_limits);
+
+        if ( a_flags & DRS_COEF_K ){
+            char l_str[128];
+            for(unsigned c = 0; c< DRS_CHANNELS_COUNT; c++){
+                snprintf(l_str, sizeof(l_str),"k[%u]", c);
+                dap_string_append_array(a_reply, l_str, "%f", l_params->k[c], a_limits);
+            }
+        }
+
+        if ( a_flags & DRS_COEF_B ){
+            char l_str[128];
+            for(unsigned c = 0; c< DRS_CHANNELS_COUNT; c++){
+                snprintf(l_str, sizeof(l_str),"b[%u]", c);
+                dap_string_append_array(a_reply, l_str, "%f", l_params->b[c], a_limits);
+            }
+        }
+
+        if ( a_flags & DRS_COEF_K9 )
+            dap_string_append_array(a_reply, "k9", "%f", l_params->k9, a_limits);
+
+        if ( a_flags & DRS_COEF_B9 )
+            dap_string_append_array(a_reply, "b9", "%f", l_params->b9, a_limits);
+
+        dap_string_append_printf( a_reply, "indicator=%d \n\n", l_params->indicator);
+        dap_string_append_printf( a_reply, "Got time:    %.3f seconds \n\n",
+                                   ((double) (a_cal->ts_end - a_cal->ts_start)) / 1000000000.0 );
+
+
+    }
+    pthread_rwlock_unlock(&a_cal->rwlock);
+}
+
 

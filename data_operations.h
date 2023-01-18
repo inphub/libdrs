@@ -32,7 +32,7 @@ static inline void fill_array(void *a_array,const void *a_value,size_t a_array_l
 
 void getAverage(double *average,double *data,unsigned int chanalLength,unsigned int chanalCount);
 void getAverageInt(double *average,unsigned short *data,unsigned int chanalLength,unsigned int chanalCount);
-void getAverageCh(double *average,double *data,unsigned int chanalLength,unsigned int chanalCount, unsigned a_ch_id);
+double drs_ch_get_average(double *a_cells, unsigned a_cells_count, unsigned a_ch_id);
 
 void readNPage(unsigned short *buffer,unsigned int *shift,unsigned int numPage, unsigned int drsnum);
 void writeNPage(unsigned short *buffer,unsigned int numPage, unsigned int drsnum);

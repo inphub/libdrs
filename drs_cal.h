@@ -9,6 +9,7 @@
 #include <stdatomic.h>
 #include <dap_common.h>
 #include <dap_time.h>
+#include <dap_string.h>
 #include "drs.h"
 typedef struct{
     pthread_rwlock_t rwlock;
@@ -77,6 +78,9 @@ typedef struct drs_cal_args{
 
 extern int g_current_freq;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int drs_calibrate_init(); // Инициализирует модуль
 void drs_calibrate_deinit(); // Денициализирует модуль
@@ -93,3 +97,23 @@ int drs_calibrate_abort(int a_drs_num);
 
 void drs_cal_get_array_x(drs_t * a_drs, double*x, int a_flags);
 
+void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_state,unsigned a_limits, int a_flags );
+
+#define dap_string_append_array(a_reply, a_name, a_fmt, a_array, a_limits )\
+    {\
+        size_t l_array_count = (sizeof(a_array))/sizeof(a_array[0]); \
+        size_t l_limit = a_limits == 0 || a_limits > l_array_count ? l_array_count  : a_limits; \
+        dap_string_append_printf(a_reply,"%s:{",a_name);\
+        for (size_t i = 0; i < l_limit ; i++){\
+            dap_string_append_printf(a_reply, a_fmt, a_array[i]); \
+            if (i != l_limit-1 ) \
+                dap_string_append_printf(a_reply, ", "); \
+            if ( i && i % 16 == 0 ) \
+                dap_string_append_printf(a_reply, "\n"); \
+        } \
+        dap_string_append_printf(a_reply,"}\n\n");\
+    }
+
+#ifdef __cplusplus
+}
+#endif

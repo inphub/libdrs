@@ -18,6 +18,7 @@
 
 static unsigned int s_get_shift(unsigned int a_drs_num);
 
+static bool s_debug_more=false;
 
 /**
  * @brief drs_data_get_all
@@ -88,7 +89,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
         //readExternalStatus(0xc); //Peter fix
     }
     if(l_is_ready ){
-        log_it(L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+        debug_if(s_debug_more, L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
     }else
         log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
 

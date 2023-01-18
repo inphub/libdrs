@@ -16,6 +16,10 @@
 #include "mem_ops.h"
 
 #define DRS_COUNT 2
+
+// Канал с калибровочной синусоидой для временной калибровки
+#define DRS_CHANNEL_CAL_SIN 0
+
 #define DRS_CHANNELS_COUNT 2
 #define DRS_CHANNELS_BANK_COUNT 4
 #define DRS_BANK_COUNT DRS_CHANNELS_BANK_COUNT * DRS_CHANNELS_COUNT
@@ -85,11 +89,11 @@ typedef struct
     double b9[1*DRS_CELLS_COUNT_BANK];
     double k9[1*DRS_CELLS_COUNT_BANK];
     double kTime[1*DRS_CELLS_COUNT_BANK];
-    double chanB[2];
-    double chanK[2];
-    double deltaTimeRef[DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_BANK];
+    double chanB[DRS_CHANNELS_COUNT];
+    double chanK[DRS_CHANNELS_COUNT];
+    double deltaTimeRef[DRS_CELLS_COUNT_BANK];
     unsigned int indicator;
-    unsigned int splash[2];
+    unsigned int splash[DRS_CHANNELS_COUNT];
 } DAP_ALIGN_PACKED coefficients_t;
 
 typedef struct{
@@ -123,12 +127,19 @@ extern drs_t g_drs[DRS_COUNT];
 #define DRS_COEF_B9               0x00000100
 
 
-
+#define DRS_IDX(ch,n) ((n)*DRS_CHANNELS_COUNT+(ch))
+#define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_CAL_SIN,n)
 extern unsigned short tmasFast[SIZE_FAST];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int drs_init();
 int drs_cmd_init(parameter_t *prm);
+bool drs_get_inited();
+
+
 void drs_deinit();
 int drs_ini_save(const char *inifile, parameter_t *prm);
 int drs_ini_load(const char *inifile, parameter_t *prm);
@@ -145,3 +156,7 @@ void drs_dac_shift_input_set(int a_drs_num, unsigned int value);
 unsigned drs_adc_shift_input_get(int a_drs_num);
 
 void drs_dac_set( unsigned int onAH);
+
+#ifdef __cplusplus
+}
+#endif

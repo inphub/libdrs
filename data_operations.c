@@ -8,10 +8,16 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <dap_common.h>
+
 #include "data_operations.h"
 #include "commands.h"
 #include "mem_ops.h"
 #include "drs_ops.h"
+
+#define LOG_TAG "data_operations"
+
+static bool s_debug_more = false;
 
 /**
  * МНК
@@ -136,23 +142,32 @@ void getAverage(double *average,double *data,unsigned int chanalLength,unsigned 
 }
 
 /**
- * @brief getAverageCh
- * @param average
- * @param data
- * @param chanalLength
- * @param chanalCount
+ * @brief drs_ch_get_average
+ * @param a_cells
+ * @param a_cells_count
  * @param a_ch_id
+ * @return
  */
-void getAverageCh(double *average,double *data,unsigned int chanalLength,unsigned int chanalCount, unsigned a_ch_id)
+double drs_ch_get_average(double *a_cells, unsigned a_cells_count, unsigned a_ch_id)
 {
-    unsigned int i = a_ch_id,j;
-    average[i]=0.0;
-    for(j=0;j<chanalLength;j++)
-    {
-            average[i]+=data[j*chanalCount+i];
+    double l_acc=0.0;
+    double l_min=0.0, l_max=0.0;
+    for(unsigned n=0; n<a_cells_count ; n++){
+        unsigned l_idx = n* DRS_CHANNELS_COUNT + a_ch_id;
+        double l_cell = a_cells[l_idx];
+        l_acc += l_cell;
+        if(l_cell < l_min)
+            l_min = l_cell;
+        if(l_cell > l_max)
+            l_max = l_cell;
     }
-    average[i]/= (double) chanalLength;
-                //printf("average[%d]=%f\n",i,average[i]);
+
+    double l_ret = l_acc / ((double) a_cells_count);
+
+    debug_if(s_debug_more,L_DEBUG,"drs_ch_get_average: l_acc=%f, l_ret=%f, l_min=%f, l_max=%f, a_cells_count=%u",
+             l_acc, l_ret, l_min, l_max, a_cells_count);
+
+    return l_ret;
 }
 /**
  * double *         a_average		масиив со средними значениями каналов;
