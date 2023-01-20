@@ -5,6 +5,7 @@
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
  */
 #include <assert.h>
+#include <math.h>
 
 #include "data_operations.h"
 
@@ -105,6 +106,10 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     unsigned l_N_min = a_args->param.time_local.min_N;
     coefficients_t * coef = &a_drs->coeffs;
 
+    unsigned l_progress_old = 0;
+    if (a_progress)
+      l_progress_old = *a_progress;
+
     if((coef->indicator&1)!=1){
             log_it(L_WARNING, "before timer calibration you need to do the amplitude calibration");
             l_rc = -1;
@@ -113,9 +118,21 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     drs_set_mode(a_drs->id, MODE_CAL_TIME);
 
-    static const unsigned REPEATS_MAX = 100000;
+    log_it(L_NOTICE, "Process time calibration for DRS #%u with maximum repeats %u and minumum N %u", a_drs->id,
+           a_args->param.time_local.max_repeats,
+                    a_args->param.time_local.min_N);
 
-    for(unsigned n=0; l_value_min < l_N_min && n < REPEATS_MAX; n++ ) {
+    dap_nanotime_t l_ts_start = dap_nanotime_now();
+
+    const double l_progress_total = 30.0;
+
+
+    double l_progress = 0, l_progress_step = l_progress_total / a_args->param.time_local.max_repeats;
+
+    for(unsigned n=0; l_value_min < l_N_min && n < a_args->param.time_local.max_repeats; n++, l_progress += l_progress_step ) {
+        if (a_progress)
+            *a_progress = l_progress_old + floor(l_progress);
+
         debug_if(s_debug_more, L_INFO, "prod drs #%u, min=%u\tminValue=%f",a_drs->id, l_N_min,l_value_min);
         int l_ret = drs_data_get_all(a_drs,0, l_page_buffer);
         if(l_ret!=0){
@@ -135,11 +152,15 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         debug_if(s_debug_more, L_DEBUG, "l_cells[]={%f,%f,%f,%f...}", l_cells[0], l_cells[1], l_cells[2], l_cells[3]);
 
     }
+    double l_ts_diff  =  ((double) (dap_nanotime_now() - l_ts_start))/ 1000000000.0  ;
+    log_it(L_NOTICE,"Finished local time calibration in %.3f seconds", l_ts_diff);
     for(unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++){
         if(l_stats[n])
             coef->deltaTimeRef[n]=l_sum_delta_ref[n]/l_stats[n];
-        else
-            debug_if(s_debug_more, L_WARNING, "Zero l_stats[n:%u]=%f", n, l_stats[n]);
+        else{
+            log_it(L_WARNING, "Zero l_stats[n:%u]=%.3f ( l_sum_delta_ref[n]=%.3f )", n, l_stats[n], l_sum_delta_ref[n]);
+            coef->deltaTimeRef[n] = 0.0;
+        }
     }
     drs_set_mode(a_drs->id, MODE_SOFT_START);
 
@@ -149,7 +170,8 @@ lb_exit:
     DAP_DELETE( l_sum_delta_ref );
     DAP_DELETE( l_stats );
     DAP_DELETE( l_cells );
-    if (a_progress) *a_progress +=30;
+    if (a_progress)
+      *a_progress = l_progress_old +l_progress_total;
 
     return l_rc;
 }

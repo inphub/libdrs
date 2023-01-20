@@ -47,6 +47,7 @@ typedef struct{
     // ¬ременна€ локальна€
     struct {
         unsigned min_N; // Min N с клиента, минимальное число набора статистики дл€ каждой €чейки в локальной калибровке
+        unsigned max_repeats; // ћаксимальное количество повторов при наборе статистики
     } time_local;
 
     // ¬ременна€ глобальна€
@@ -75,6 +76,8 @@ typedef struct drs_cal_args{
 #define DRS_CAL_FLAG_TIME_LOCAL     0x00000002
 #define DRS_CAL_FLAG_TIME_GLOBAL    0x00000004
 #define DRS_CAL_FLAG_TO_REAL        0x00000008
+
+#define DRS_CAL_MAX_REPEATS_DEFAULT 10000
 
 extern int g_current_freq;
 

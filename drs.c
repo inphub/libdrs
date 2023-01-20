@@ -138,6 +138,7 @@ int drs_cmd_init(parameter_t *a_params)
     FILE * f = fopen(s_drs_check_file,"w");
     fclose(f);
 
+    log_it(L_NOTICE, "DRS Initialized");
     return 0;
 }
 
