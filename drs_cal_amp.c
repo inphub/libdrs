@@ -106,8 +106,9 @@ void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a
                                                                         l_cell_id&3072 ;
             unsigned l_inout_id = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id;
 
-            koefIndex=  a_flags & DRS_CAL_AMPL_CH9_ONLY ? (a_drs->shift +(l_cell_id &1023) ) & 1023 :
-                                                          (a_drs->shift + l_cell_id ) & 1023 ;
+            koefIndex=  a_flags & DRS_CAL_AMPL_CH9_ONLY ?
+                (a_drs->shift + l_cell_id ) & 1023
+                :(a_drs->shift + l_cell_id&1023 ) & 1023 ;
             a_out[l_inout_id] = a_in[l_inout_id];
             if((a_flags & DRS_CAL_AMPL_APPLY_CELLS)!=0){
                 double l_bi, l_ki;
@@ -246,14 +247,15 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool 
     double dh=0.0,lvl=0.0;
     double * calibLvl = a_args->param.ampl.levels;
     unsigned l_count = a_args->param.ampl.repeats +2;
-    unsigned l_cells_count = a_ch9_only ? DRS_CELLS_COUNT : DRS_CELLS_COUNT_BANK;
+    unsigned l_cells_count = a_ch9_only ?DRS_CELLS_COUNT_BANK*DRS_CHANNELS_COUNT  : DRS_CELLS_COUNT  ;
+    unsigned l_cells_count_ch = a_ch9_only ?DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL  ;
 
     struct amp_context l_ctx = {
       .average_count =       DRS_CHANNELS_COUNT * l_count,
       .average =          DAP_NEW_SIZE(   double,  DRS_CHANNELS_COUNT * l_count * sizeof(*l_ctx.average)),
 
-      .cells_count     =     DRS_CELLS_COUNT,
-      .cells =     DAP_NEW_Z_SIZE( unsigned short, DRS_CELLS_COUNT * sizeof (unsigned short) ),
+      .cells_count     =     l_cells_count,
+      .cells =     DAP_NEW_Z_SIZE( unsigned short, l_cells_count * sizeof (unsigned short) ),
 
       .acc       =   DAP_NEW_Z_SIZE( double**,l_count* sizeof (*l_ctx.acc)   ),
 
@@ -293,7 +295,7 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool 
         drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
-            if(drs_data_get(a_drs,DRS_OP_FLAG_CALIBRATE, l_ctx.cells, l_cells_count)!=0){
+            if(drs_data_get(a_drs,DRS_OP_FLAG_CALIBRATE, l_ctx.cells, l_cells_count * sizeof (unsigned short) )!=0){
                 log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
                 l_ret = -1;
                 goto lb_exit;
