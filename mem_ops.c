@@ -130,6 +130,7 @@ void write_reg(unsigned int reg_adr, unsigned int reg_data)
 
     /* write the value */
     *control_mem = reg_data;
+    usleep(100);
 }
 
 unsigned int read_reg(unsigned int reg_adr)
@@ -138,6 +139,7 @@ unsigned int read_reg(unsigned int reg_adr)
     control_mem = (unsigned int *) (control_map + reg_adr*4);
     reg_data=(unsigned int)control_mem[0];
 //    printf("read: adr=0x%08x, val=0x%08x\n\r", reg_adr, reg_data), fflush(stdout);
+    usleep(100);
     return(reg_data);
 }
 

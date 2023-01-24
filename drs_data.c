@@ -100,7 +100,9 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
 
     drs_set_flag_end_read(a_drs->id, true);
 
-    //usleep(50000);
+#ifndef DRS_OPT_DATA_GET_NODELAYS
+    usleep(DRS_PAGE_READ_DELAY);
+#endif
 
     return l_ret;
 }

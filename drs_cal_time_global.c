@@ -132,21 +132,21 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         log_it(L_WARNING,"before global timer calibration you need to do the timer calibration and amplitude calibration");
         return 0;
     }
-    drs_set_mode(a_drs->id, MODE_CAL_TIME);
+    drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
     while(ind< a_args->param.time_global.num_cycle)
     {
         ind++;
         int l_ret = drs_data_get(a_drs,0, pageBuffer,sizeof (pageBuffer) );
         if ( l_ret != 0){
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
-            drs_set_mode(a_drs->id, MODE_SOFT_START);
+            drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
         }
         drs_cal_ampl_apply(a_drs, pageBuffer,dBuf, DRS_CAL_AMPL_APPLY_CELLS |
                                                    DRS_CAL_AMPL_APPLY_INTERCHANNEL );
         drs_cal_time_local_apply(a_drs, x, x);
         s_proc(a_drs, x,dBuf, sumDeltaRef,statistic);
     }
-    drs_set_mode(a_drs->id, MODE_SOFT_START);
+    drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
 
     for(k=0;k<4;k++)
     {

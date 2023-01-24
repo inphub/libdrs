@@ -18,7 +18,7 @@
 #define DRS_COUNT 2
 
 // Канал с калибровочной синусоидой для временной калибровки
-#define DRS_CHANNEL_CAL_SIN 0
+#define DRS_CHANNEL_9 0
 
 #define DRS_CHANNELS_COUNT 2
 #define DRS_CHANNELS_BANK_COUNT 4
@@ -53,6 +53,9 @@
 #define DRS_REG_WAIT_DRS_B              50
 
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
+
+// Задержка после чтения, в микросекундах
+#define DRS_PAGE_READ_DELAY             50000
 
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
@@ -103,12 +106,13 @@ typedef struct{
 } drs_t;
 
 typedef enum {
-  MODE_SOFT_START = 0,
-  MODE_EXT_START  = 1,
-  MODE_PAGE_MODE  = 2,
-  MODE_CAL_AMPL   = 3,
-  MODE_CAL_TIME   = 4,
-  MODE_OFF_INPUTS = 5
+  DRS_MODE_SOFT_START = 0,
+  DRS_MODE_EXT_START  = 1,
+  DRS_MODE_PAGE_MODE  = 2,
+  DRS_MODE_CAL_AMPL   = 3,
+  DRS_MODE_CAL_TIME   = 4,
+  DRS_MODE_OFF_INPUTS = 5,
+  DRS_MODE_MAX = DRS_MODE_OFF_INPUTS
 } drs_mode_t;
 
 extern parameter_t * g_ini;
@@ -128,7 +132,7 @@ extern drs_t g_drs[DRS_COUNT];
 
 
 #define DRS_IDX(ch,n) ((n)*DRS_CHANNELS_COUNT+(ch))
-#define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_CAL_SIN,n)
+#define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_9,n)
 extern unsigned short tmasFast[SIZE_FAST];
 
 #ifdef __cplusplus

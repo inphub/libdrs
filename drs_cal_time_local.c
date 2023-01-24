@@ -66,20 +66,33 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
 {
     assert(a_drs);
     unsigned int pz;
+    bool l_is_9_channel = drs_get_mode(a_drs->id) == DRS_MODE_CAL_TIME;
     double l_average[DRS_CHANNELS_COUNT];
     for(unsigned ch=0; ch<DRS_CHANNELS_COUNT; ch++){
+        if (l_is_9_channel)
+            ch = DRS_CHANNEL_9;
+
         l_average[ch]=0;
         for(unsigned n=0;n<DRS_CELLS_COUNT_CHANNEL;n++){
             l_average[ch]+= a_drs->coeffs.deltaTimeRef[ n% DRS_CELLS_COUNT_BANK ] ;
         }
         l_average[ch] /= ((double) DRS_CELLS_COUNT_CHANNEL);
+
+        if (l_is_9_channel)
+            break;
     }
 
     for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++) {
+        if (l_is_9_channel)
+            ch = DRS_CHANNEL_9;
+
         for( unsigned n=0; n<DRS_CELLS_COUNT_CHANNEL; n++) {
             pz=( a_drs->shift+n)&1023;
             a_output[DRS_IDX(ch,n)] =  a_values[DRS_IDX(ch,n)] + a_drs->coeffs.deltaTimeRef[pz% DRS_CELLS_COUNT_BANK]*l_average[ch];
         }
+
+        if (l_is_9_channel)
+            break;
     }
 }
 
@@ -116,7 +129,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
     }
 
-    drs_set_mode(a_drs->id, MODE_CAL_TIME);
+    drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
 
     log_it(L_NOTICE, "Process time calibration for DRS #%u with maximum repeats %u and minumum N %u", a_drs->id,
            a_args->param.time_local.max_repeats,
@@ -137,7 +150,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         int l_ret = drs_data_get_all(a_drs,0, l_page_buffer);
         if(l_ret!=0){
             log_it(L_ERROR,"data_get_all not read");
-            drs_set_mode(a_drs->id, MODE_SOFT_START);
+            drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
             l_rc = -2;
             goto lb_exit;
         }
@@ -162,7 +175,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             coef->deltaTimeRef[n] = 0.0;
         }
     }
-    drs_set_mode(a_drs->id, MODE_SOFT_START);
+    drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
 
     coef->indicator|=2;
 lb_exit:
@@ -186,7 +199,7 @@ static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a
 {
     unsigned int n, pz, pz1;
     double l_vmin,l_vmax, l_vtmp,l_min;
-    double l_average = drs_ch_get_average(a_buffer,DRS_CELLS_COUNT_BANK, DRS_CHANNEL_CAL_SIN);
+    double l_average = drs_ch_get_average(a_buffer,DRS_CELLS_COUNT_BANK, DRS_CHANNEL_9);
 
     double l_average_inverted = DRS_ADC_TOP_LEVEL-l_average - 1.0;
     debug_if(s_debug_more,L_INFO,"l_average=%f, l_average_inverted=%f", l_average, l_average_inverted);
