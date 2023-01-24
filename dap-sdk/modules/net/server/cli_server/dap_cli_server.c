@@ -1009,3 +1009,137 @@ dap_cli_cmd_t* dap_cli_server_cmd_find(const char *a_name)
     HASH_FIND_STR(s_commands,a_name,l_cmd_item);
     return l_cmd_item;
 }
+
+/**
+ * @brief dap_cli_server_cmd_parse_list_double
+ * @param a_str_reply
+ * @param a_str
+ * @param a_array
+ * @param a_array_size_min
+ * @param a_array_size_max
+ * @param a_array_size
+ * @return
+ */
+int dap_cli_server_cmd_parse_list_double(char ** a_str_reply,  const char * a_str, double * a_array, const size_t a_array_size_min, const size_t a_array_size_max, size_t * a_array_size )
+{
+    assert(a_array);
+    assert(a_array_size_max);
+    int l_retcode = 0;
+    char ** l_strs = dap_strsplit(a_str, ",",a_array_size_max);
+    if (l_strs == NULL){
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "List argument is empty");
+        l_retcode = -22;
+        goto lb_exit;
+    }
+    size_t n =0;
+    for ( n = 0; l_strs[n] && n <= a_array_size_max ; n ++){
+        char * l_shift_str = l_strs[n];
+        char * l_shift_str_endptr = NULL;
+        double l_shift = strtod( l_shift_str, & l_shift_str_endptr);
+        if (l_shift_str_endptr == l_shift_str){
+            dap_cli_server_cmd_set_reply_text(a_str_reply, "List argument #%i can't be converted to double value (\"%s\"",
+                                              n,l_shift_str);
+            l_retcode = -23;
+            goto lb_exit;
+        }
+        a_array[n] = l_shift;
+        DAP_DELETE(l_shift_str);
+    }
+
+    // Сохраняем количество записанных элементов
+    if (a_array_size)
+        *a_array_size = n;
+
+    // Если мы прошли корректно весь список, то удаляем исходный массив
+    if(! l_strs[n] )
+        DAP_DEL_Z(l_strs);
+
+    if (n < a_array_size_min){
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "List size %u is too small, should be %u at least",
+                                          n,a_array_size_min);
+        l_retcode = -24;
+        goto lb_exit;
+    }
+    if (n > a_array_size_max){
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "List size %u is too big, should be not more than %u",
+                                          n,a_array_size_max);
+        l_retcode = -25;
+        goto lb_exit;
+    }
+    return 0;
+lb_exit:
+    if (l_strs){
+        for (; l_strs[n]; n ++){
+            DAP_DELETE(l_strs[n]);
+        }
+        DAP_DELETE(l_strs);
+    }
+    return l_retcode;
+}
+
+/**
+ * @brief dap_cli_server_cmd_parse_list_double
+ * @param a_str_reply
+ * @param a_str
+ * @param a_array
+ * @param a_array_size_min
+ * @param a_array_size_max
+ * @param a_array_size
+ * @return
+ */
+int dap_cli_server_cmd_parse_list_int(char ** a_str_reply,  const char * a_str, long * a_array, const size_t a_array_size_min, const size_t a_array_size_max, size_t * a_array_size )
+{
+    assert(a_array);
+    assert(a_array_size_max);
+    int l_retcode = 0;
+    char ** l_strs = dap_strsplit(a_str, ",",a_array_size_max);
+    if (l_strs == NULL){
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "List argument is empty");
+        l_retcode = -22;
+        goto lb_exit;
+    }
+    size_t n =0;
+    for ( n = 0; l_strs[n] && n <= a_array_size_max ; n ++){
+        char * l_str = l_strs[n];
+        char * l_str_endptr = NULL;
+        long l_value = strtol( l_str, & l_str_endptr,10);
+        if (l_str_endptr == l_str){
+            dap_cli_server_cmd_set_reply_text(a_str_reply, "List argument #%i can't be converted to int value (\"%s\"",
+                                              n,l_str);
+            l_retcode = -23;
+            goto lb_exit;
+        }
+        a_array[n] = l_value;
+        DAP_DELETE(l_str);
+    }
+
+    // Сохраняем количество записанных элементов
+    if (a_array_size)
+        *a_array_size = n;
+
+    // Если мы прошли корректно весь список, то удаляем исходный массив
+    if(! l_strs[n] )
+        DAP_DEL_Z(l_strs);
+
+    if (n < a_array_size_min){
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "List size %u is too small, should be %u at least",
+                                          n,a_array_size_min);
+        l_retcode = -24;
+        goto lb_exit;
+    }
+    if (n > a_array_size_max){
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "List size %u is too big, should be not more than %u",
+                                          n,a_array_size_max);
+        l_retcode = -25;
+        goto lb_exit;
+    }
+    return 0;
+lb_exit:
+    if (l_strs){
+        for (; l_strs[n]; n ++){
+            DAP_DELETE(l_strs[n]);
+        }
+        DAP_DELETE(l_strs);
+    }
+    return l_retcode;
+}

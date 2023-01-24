@@ -65,3 +65,6 @@ void dap_cli_server_cmd_apply_overrides(const char * a_name, const dap_cli_serve
 
 dap_cli_cmd_t* dap_cli_server_cmd_get_first();
 dap_cli_cmd_t* dap_cli_server_cmd_find(const char *a_name);
+
+int dap_cli_server_cmd_parse_list_double(char ** a_str_reply,  const char * a_str, double * a_array, const size_t a_array_size_min, const size_t a_array_size_max, size_t * a_array_size );
+int dap_cli_server_cmd_parse_list_int(char ** a_str_reply,  const char * a_str, long * a_array, const size_t a_array_size_min, const size_t a_array_size_max, size_t * a_array_size );
