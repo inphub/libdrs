@@ -47,7 +47,10 @@
 
 #define DRS_REG_READY_A                 21
 #define DRS_REG_READY_B                 22
-#define DRS_REG_CALIB_SIN_ON            27
+#define DRS_REG_CALIB_SIN_ON_CH9        27
+
+#define DRS_REG_DATA_DAC_CH9		31
+
 
 #define DRS_REG_WAIT_DRS_A              49
 #define DRS_REG_WAIT_DRS_B              50
@@ -66,6 +69,11 @@
 
 #define DRS_ADC_TOP_LEVEL 16384.0
 
+typedef struct  {
+  float offset;
+  float gain;
+} drs_dac_ch_params_t;
+
 typedef struct 
 {
 //  char firmware_path[256];
@@ -79,6 +87,8 @@ typedef struct
     float adc_offsets[4];
     float adc_gains[4];
 } DAP_ALIGN_PACKED fastadc_parameter_t;
+
+
 
 typedef struct 
 {
@@ -116,7 +126,10 @@ typedef enum {
 } drs_mode_t;
 
 extern parameter_t * g_ini;
+extern drs_dac_ch_params_t g_ini_ch9;
+
 extern drs_t g_drs[DRS_COUNT];
+
 
 #define SIZE_FAST MAX_PAGE_COUNT*1024*8*4*4
 
@@ -150,6 +163,8 @@ int drs_ini_load(const char *inifile, parameter_t *prm);
 
 
 void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset);
+void drs_dac_shift_set_ch9(double a_shiftDAC,float DAC_gain,float DAC_offset);
+
 void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue);
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
@@ -157,7 +172,11 @@ void drs_set_mode(int a_drs_num, drs_mode_t mode);
 drs_mode_t drs_get_mode(int a_drs_num);
 
 void drs_dac_shift_input_set(int a_drs_num, unsigned int value);
-unsigned drs_adc_shift_input_get(int a_drs_num);
+void drs_dac_shift_input_set_ch9(unsigned int a_value);
+
+unsigned drs_dac_shift_input_get(int a_drs_num);
+unsigned drs_dac_shift_input_get_ch9();
+
 
 void drs_dac_set( unsigned int onAH);
 

@@ -113,8 +113,8 @@ void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a
             if((a_flags & DRS_CAL_AMPL_APPLY_CELLS)!=0){
                 double l_bi, l_ki;
                 if (a_flags & DRS_CAL_AMPL_CH9_ONLY){
-                    l_bi = a_drs->coeffs.b9 [koefIndex | l_cell_id_masked];
-                    l_ki = a_drs->coeffs.k9 [koefIndex | l_cell_id_masked];
+                    l_bi = a_drs->coeffs.b9 [koefIndex ];
+                    l_ki = a_drs->coeffs.k9 [koefIndex ];
                 }else{
                     l_bi = a_drs->coeffs.b[l_ch_id][koefIndex | l_cell_id_masked];
                     l_ki = a_drs->coeffs.k[l_ch_id][koefIndex | l_cell_id_masked];
@@ -160,7 +160,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     double * l_levels = a_args->param.ampl.levels;
     int l_ret = 0;
 
-    unsigned l_dac_shifts_old =  drs_adc_shift_input_get(a_drs->id);
+    unsigned l_dac_shifts_old =  drs_dac_shift_input_get(a_drs->id);
 
     drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
     log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, mode_old=%d",a_args->param.ampl.repeats ,
@@ -187,14 +187,15 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         l_ret = -2;
         goto lb_exit;
     }
+    drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
     log_it(L_NOTICE, "Calibrate 9 channel");
     // Калибруем 9ый канал
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
+    l_dac_shifts_old =  drs_dac_shift_input_get_ch9();
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
     drs_start(a_drs->id);
-    drs_dac_shift_input_set( a_drs->id, l_dac_shifts_old);
 
     if( s_fin_collect( a_drs, a_args,true) !=0 ) {
         log_it(L_INFO, "No success with fin collect");
@@ -204,6 +205,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         goto lb_exit;
     }
 
+    drs_dac_shift_input_set_ch9(l_dac_shifts_old);
 
     drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
 
@@ -243,7 +245,6 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool 
     assert(a_drs);
     assert(a_args);
     int l_ret = 0;
-    double shiftDACValues[DRS_CHANNELS_COUNT ];
     double dh=0.0,lvl=0.0;
     double * calibLvl = a_args->param.ampl.levels;
     unsigned l_count = a_args->param.ampl.repeats +2;
@@ -291,8 +292,13 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool 
     for(unsigned i = 0; i < l_count; i++){
         debug_if(s_debug_more, L_INFO, "Repeat #%u", i);
         lvl = calibLvl[0]+dh*((double)i);
-        fill_array(shiftDACValues, &lvl, DRS_CHANNELS_COUNT, sizeof(lvl));
-        drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+        if(a_ch9_only){
+            drs_dac_shift_set_ch9(lvl,g_ini_ch9.gain, g_ini_ch9.offset);
+        }else{
+            double shiftDACValues[DRS_CHANNELS_COUNT ];
+            fill_array(shiftDACValues, &lvl, DRS_CHANNELS_COUNT, sizeof(lvl));
+            drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+        }
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
             if(drs_data_get(a_drs,DRS_OP_FLAG_CALIBRATE, l_ctx.cells, l_cells_count * sizeof (unsigned short) )!=0){
@@ -312,12 +318,16 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool 
         // Немного дополнительного отладочного вывода
         if( s_debug_more){
             for(unsigned n = 0; n < 10; n++){
-                log_it(L_INFO, "cells[%u]=%u", n, l_ctx.cells[n]);
+                log_it(L_INFO, "cells[%u]=%u", n,  l_ctx.cells[n]);
             }
             for(unsigned c = 0; c < DRS_CHANNELS_COUNT; c++){
+                if (a_ch9_only)
+                    c = DRS_CHANNEL_9;
                 for(unsigned n = 0; n < 10; n++){
                     log_it(L_INFO, "acc[%u][%u][%u]=%f", i,c,n, l_ctx.acc[i][c][n]);
                 }
+                if (a_ch9_only)
+                  break;
             }
         }
         s_calc_coeff_b(&l_ctx, i, a_args->param.ampl.N, a_ch9_only );
@@ -325,8 +335,16 @@ static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool 
     }
     //debug_if(s_debug_more, L_DEBUG, "acc[]={%f,%f,%f,%f...}", l_ctx.acc[0], l_ctx.acc[1], l_ctx.acc[2], l_ctx.acc[3]);
 
-    for(unsigned i = 0; i < l_count * DRS_CHANNELS_COUNT; i++){
-        debug_if(s_debug_more, L_DEBUG, "average[%u]=%f", i, l_ctx.average[i]);
+    if(a_ch9_only){
+        for(unsigned i = 0; i < l_count; i++){
+            unsigned idx = i*DRS_CHANNELS_COUNT + DRS_CHANNEL_9;
+            debug_if(s_debug_more, L_DEBUG, "average[%u]=%f", idx, l_ctx.average[idx]);
+        }
+
+    }else {
+        for(unsigned i = 0; i < l_count * DRS_CHANNELS_COUNT; i++){
+            debug_if(s_debug_more, L_DEBUG, "average[%u]=%f", i, l_ctx.average[i]);
+        }
     }
     debug_if(s_debug_more, L_INFO, "Collected stats in %u repeats", l_repeats);
 
@@ -471,11 +489,11 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
 
             l_rotate_index=a_ch9_only? (a_drs->shift + l_cell_id) & 1023:
                                        (a_drs->shift + (l_cell_id&1023)) & 1023 ;
+            assert( a_drs->shift < l_cells_proc_count);
 
             unsigned l_acc_index =  a_ch9_only?  l_rotate_index :
                                                 (l_cell_id&3072) | l_rotate_index;
             unsigned l_cell_id_shift = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id ;
-            assert( l_acc_index< l_cells_proc_count);
 
             l_acc[l_ch_id][l_acc_index] += l_values[ l_cell_id_shift];
             //if(!l_acc_index && s_debug_more)

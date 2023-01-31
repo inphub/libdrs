@@ -72,7 +72,7 @@ void drs_set_flag_end_read(int a_drs_num, bool a_enable)
             write_reg(DRS_REG_READY_B, a_enable ? 1 : 0);
         break;
     }
-    usleep(100);
+   // usleep(100);
 }
 
 /**
@@ -123,6 +123,6 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
  */
 void drs_set_sinus_signal(bool a_sinus_signal)
 {
-    write_reg( DRS_REG_CALIB_SIN_ON, a_sinus_signal ? 0 : 1 );
+    write_reg( DRS_REG_CALIB_SIN_ON_CH9, a_sinus_signal ? 0 : 1 );
     usleep(100);
 }

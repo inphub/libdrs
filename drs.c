@@ -47,6 +47,7 @@ const char s_drs_check_file[]="/tmp/drs_init";
 
 
 parameter_t * g_ini = NULL;
+drs_dac_ch_params_t g_ini_ch9;
 
 drs_t g_drs[DRS_COUNT]={
     [0]={
@@ -206,26 +207,30 @@ int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
     a_prm->fastadc.ROFS2 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS2", 35000 );
     a_prm->fastadc.OFS2				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS2", 30000 );
     a_prm->fastadc.CLK_PHASE		= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "CLK_PHASE", 40 );
-    for (t=0;t<4;t++)
-    {
-     sDAC_offset[strlen(sDAC_offset)-1]=t+49;
-     a_prm->fastadc.dac_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, 0.0);
+    for (t=0;t<DRS_DCA_COUNT_ALL ;t++){
+        sDAC_offset[strlen(sDAC_offset)-1]=t+49;
+        a_prm->fastadc.dac_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, 0.0);
     }
-    for (t=0;t<4;t++)
-    {
-     sDAC_gain[strlen(sDAC_gain)-1]=t+49;
-     a_prm->fastadc.dac_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, 1.0);
+
+    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
+        sDAC_gain[strlen(sDAC_gain)-1]=t+49;
+        a_prm->fastadc.dac_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, 1.0);
     }
-    for (t=0;t<4;t++)
-    {
-     sADC_offset[strlen(sADC_offset)-1]=t+49;
-     a_prm->fastadc.adc_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_offset, 0.0);
+    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
+        sADC_offset[strlen(sADC_offset)-1]=t+49;
+        a_prm->fastadc.adc_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_offset, 0.0);
     }
-    for (t=0;t<4;t++)
-    {
-     sADC_gain[strlen(sADC_gain)-1]=t+49;
-     a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_gain, 1.0);
+    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
+        sADC_gain[strlen(sADC_gain)-1]=t+49;
+        a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_gain, 1.0);
     }
+
+    // Для 9 канала
+    sDAC_offset[strlen(sDAC_offset)-1]=9 + 49;
+    sDAC_gain[strlen(sDAC_offset)-1]=9 + 49;
+    g_ini_ch9.offset  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, a_prm->fastadc.dac_offsets[0]);
+    g_ini_ch9.gain  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, a_prm->fastadc.dac_gains[0]);
+
     dap_config_close( l_cfg );
     return 0;
 }
@@ -313,12 +318,30 @@ void drs_dac_shift_input_set(int a_drs_num,unsigned int a_value)
 }
 
 /**
+ * @brief drs_dac_shift_input_set_ch9
+ * @param a_value
+ */
+void drs_dac_shift_input_set_ch9(unsigned int a_value)
+{
+    write_reg(DRS_REG_DATA_DAC_CH9 ,a_value);
+    usleep(100);
+}
+
+/**
  * @brief drs_dac_shift_input_get
  * @param a_drs_num
  */
-unsigned drs_adc_shift_input_get(int a_drs_num)
+unsigned drs_dac_shift_input_get(int a_drs_num)
 {
     return read_reg(0x8+a_drs_num);
+}
+
+/**
+ * @brief drs_dac_shift_input_get_ch9
+ */
+unsigned drs_dac_shift_input_get_ch9()
+{
+    return read_reg(DRS_REG_DATA_DAC_CH9);
 }
 
 /**
@@ -358,6 +381,23 @@ void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float
         log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
     }
     drs_dac_shift_input_set_all(a_drs_num, shiftDACValues);
+    drs_dac_set(1);
+    usleep(60);
+}
+
+/**
+ * @brief drs_dac_shift_set_ch9
+ * @param shiftDAC
+ * @param DAC_gain
+ * @param DAC_offset
+ */
+void drs_dac_shift_set_ch9(double a_shift,float a_gain,float a_offset)
+{
+    unsigned short l_shift_DAC_value;
+    l_shift_DAC_value= fabs((a_shift+ 0.5)*16384.0) ;
+    l_shift_DAC_value=(l_shift_DAC_value*a_gain +a_offset );
+    log_it(L_DEBUG, "Set CH9 DAC shift: a_shift_DAC=%f\tl_shift_DAC_value=%d",a_shift,l_shift_DAC_value);
+    drs_dac_shift_input_set_ch9( l_shift_DAC_value);
     drs_dac_set(1);
     usleep(60);
 }

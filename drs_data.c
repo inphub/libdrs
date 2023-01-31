@@ -177,10 +177,20 @@ void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_ste
  */
 static unsigned int s_get_shift(unsigned int a_drs_num)//npage
 {
+    return drs_get_shift(a_drs_num) &1023;
+}
+
+/**
+ * @brief drs_get_shift
+ * @param a_drs_num
+ * @return
+ */
+unsigned int drs_get_shift(unsigned int a_drs_num)
+{
     unsigned short tmpshift;
     if (a_drs_num==0)
-     tmpshift=((unsigned long *)data_map_shift_drs1)[0]&1023;
+     tmpshift=((unsigned long *)data_map_shift_drs1)[0];
     else
-     tmpshift=((unsigned long *)data_map_shift_drs2)[0]&1023;
+     tmpshift=((unsigned long *)data_map_shift_drs2)[0];
     return tmpshift;
 }
