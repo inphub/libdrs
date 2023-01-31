@@ -65,32 +65,39 @@ int drs_cal_time_local( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast
 void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_output )
 {
     assert(a_drs);
-    unsigned int pz;
+    unsigned int l_cell_id_shifted;
     bool l_is_9_channel = drs_get_mode(a_drs->id) == DRS_MODE_CAL_TIME;
     double l_average[DRS_CHANNELS_COUNT];
+    unsigned l_cells_proc_count = l_is_9_channel? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
     for(unsigned ch=0; ch<DRS_CHANNELS_COUNT; ch++){
         if (l_is_9_channel)
             ch = DRS_CHANNEL_9;
 
         l_average[ch]=0;
-        for(unsigned n=0;n<DRS_CELLS_COUNT_CHANNEL;n++){
+        for(unsigned n=0;n<l_cells_proc_count;n++){
             l_average[ch]+= a_drs->coeffs.deltaTimeRef[ n% DRS_CELLS_COUNT_BANK ] ;
         }
-        l_average[ch] /= ((double) DRS_CELLS_COUNT_CHANNEL);
+        l_average[ch] = ((double) (l_cells_proc_count-1 )) / l_average[ch];
 
         if (l_is_9_channel)
             break;
     }
 
     for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++) {
+        double l_tmpX = 0;
         if (l_is_9_channel)
             ch = DRS_CHANNEL_9;
 
-        for( unsigned n=0; n<DRS_CELLS_COUNT_CHANNEL; n++) {
-            pz=( a_drs->shift+n)&1023;
-            a_output[DRS_IDX(ch,n)] =  a_values[DRS_IDX(ch,n)] + a_drs->coeffs.deltaTimeRef[pz% DRS_CELLS_COUNT_BANK]*l_average[ch];
-        }
+        for(unsigned b=0;b <  (l_is_9_channel? 1: DRS_CHANNELS_BANK_COUNT) ;b++) {
+            for( unsigned n=0; n<l_cells_proc_count; n++) {
+                l_cell_id_shifted= b* DRS_CELLS_COUNT_BANK + ( a_drs->shift+n)&1023;
+                a_output[DRS_IDX(ch,n + b* DRS_CELLS_COUNT_BANK)] = l_tmpX;
 
+                l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_shifted] * l_average[ch];
+                //a_output[DRS_IDX(ch,n)] =  a_values[DRS_IDX(ch,n)] +
+                //                        a_drs->coeffs.deltaTimeRef[l_cell_id_shifted% DRS_CELLS_COUNT_BANK] * l_average[ch];
+            }
+        }
         if (l_is_9_channel)
             break;
     }
@@ -130,6 +137,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     }
 
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
+    drs_set_sinus_signal(true);
 
     log_it(L_NOTICE, "Process time calibration for DRS #%u with maximum repeats %u and minumum N %u", a_drs->id,
            a_args->param.time_local.max_repeats,
@@ -176,6 +184,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         }
     }
     drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
+    drs_set_sinus_signal(false);
 
     coef->indicator|=2;
 lb_exit:
