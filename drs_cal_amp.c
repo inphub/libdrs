@@ -82,15 +82,15 @@ int drs_cal_amp( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast32_t * 
  * unsigned int chanalCount			количество каналов
  * unsigned int a_flags	    		0 бит- применение калибровки для ячеек, 1 бит- межканальная калибровка,2 бит- избавление от всплесков, 3 бит- приведение к физическим виличинам
  * */
-void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
+void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
 {
     unsigned int l_ch_id,l_cell_id,koefIndex;
 
     // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
     if (drs_get_mode(a_drs->id) == DRS_MODE_CAL_TIME)
-        a_flags |= DRS_CAL_AMPL_CH9_ONLY;
+        a_flags |= DRS_CAL_APPLY_CH9_ONLY;
 
-    unsigned l_cells_proc_count = a_flags & DRS_CAL_AMPL_CH9_ONLY ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
+    unsigned l_cells_proc_count = a_flags & DRS_CAL_APPLY_CH9_ONLY ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
     //double * l_bi = s_bi; // a_drs->coeffs.b
     //double * l_ki = s_ki; // a_drs->coeffs.k
     //double  **l_bi = a_drs->coeffs.b;
@@ -98,21 +98,21 @@ void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
-        if(a_flags & DRS_CAL_AMPL_CH9_ONLY)
+        if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
             l_ch_id = DRS_CHANNEL_9;
 
         for(l_cell_id=0; l_cell_id<l_cells_proc_count;l_cell_id++){
-            size_t l_cell_id_masked = a_flags & DRS_CAL_AMPL_CH9_ONLY ? l_cell_id :
+            size_t l_cell_id_masked = a_flags & DRS_CAL_APPLY_CH9_ONLY ? l_cell_id :
                                                                         l_cell_id&3072 ;
             unsigned l_inout_id = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id;
 
-            koefIndex=  a_flags & DRS_CAL_AMPL_CH9_ONLY ?
+            koefIndex=  a_flags & DRS_CAL_APPLY_CH9_ONLY ?
                 (a_drs->shift + l_cell_id ) & 1023
                 :(a_drs->shift + l_cell_id&1023 ) & 1023 ;
             a_out[l_inout_id] = a_in[l_inout_id];
-            if((a_flags & DRS_CAL_AMPL_APPLY_CELLS)!=0){
+            if((a_flags & DRS_CAL_APPLY_Y_CELLS)!=0){
                 double l_bi, l_ki;
-                if (a_flags & DRS_CAL_AMPL_CH9_ONLY){
+                if (a_flags & DRS_CAL_APPLY_CH9_ONLY){
                     l_bi = a_drs->coeffs.b9 [koefIndex ];
                     l_ki = a_drs->coeffs.k9 [koefIndex ];
                 }else{
@@ -124,19 +124,19 @@ void drs_cal_ampl_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a
                 a_out[l_inout_id] =  ( a_out[l_inout_id] - l_bi ) /
                                                  (l_ki +1.0 );
             }
-            if((a_flags & DRS_CAL_AMPL_APPLY_INTERCHANNEL)!=0){
+            if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
                 a_out[l_inout_id] = (a_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
             }
-            if((a_flags & DRS_CAL_AMPL_APPLY_PHYS)!=0){
+            if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
                 a_out[l_inout_id]=(a_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }
         }
-        if(a_flags & DRS_CAL_AMPL_CH9_ONLY)
+        if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
             break;
     }
-    if((a_flags& DRS_CAL_AMPL_APPLY_SPLASHS)!=0)
+    if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
     {
-        s_remove_splash(a_drs, a_out, a_flags & DRS_CAL_AMPL_CH9_ONLY);
+        s_remove_splash(a_drs, a_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
     }
 }
 
@@ -410,7 +410,7 @@ static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_ar
             log_it(L_ERROR,"shift index went beyond on iteration %u", t);
             return -2;
         }
-        drs_cal_ampl_apply(a_drs, l_cells,l_d_buf, DRS_CAL_AMPL_APPLY_SPLASHS);
+        drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_SPLASHS);
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     }
     s_find_splash( a_drs, l_d_buf,100,false);

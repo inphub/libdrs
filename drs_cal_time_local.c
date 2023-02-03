@@ -75,7 +75,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
 
         l_average[ch]=0;
         for(unsigned n=0;n<l_cells_proc_count;n++){
-            l_average[ch]+= a_drs->coeffs.deltaTimeRef[ n% DRS_CELLS_COUNT_BANK ] ;
+            l_average[ch]+= a_values[DRS_IDX(ch,n)] ;
         }
         l_average[ch] = ((double) (l_cells_proc_count-1 )) / l_average[ch];
 
@@ -90,7 +90,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
 
         for(unsigned b=0;b <  (l_is_9_channel? 1: DRS_CHANNELS_BANK_COUNT) ;b++) {
             for( unsigned n=0; n<l_cells_proc_count; n++) {
-                l_cell_id_shifted= b* DRS_CELLS_COUNT_BANK + ( a_drs->shift+n)&1023;
+                l_cell_id_shifted=  ( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift+n)&1023) );
                 a_output[DRS_IDX(ch,n + b* DRS_CELLS_COUNT_BANK)] = l_tmpX;
 
                 l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_shifted] * l_average[ch];
@@ -163,7 +163,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
         }
 
-        drs_cal_ampl_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_AMPL_APPLY_CELLS | DRS_CAL_AMPL_CH9_ONLY);
+        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY);
 
 
         l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats,a_drs->shift);

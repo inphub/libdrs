@@ -353,13 +353,12 @@ static void s_x_to_real(double*x)
 
 
 /**
- * @brief drs_cal_get_array_x
- * @param x
- * @param shift
- * @param coef
- * @param key
+ * @brief drs_cal_x_amply
+ * @param a_drs
+ * @param a_x
+ * @param a_flags
  */
-void drs_cal_get_array_x(drs_t * a_drs, double*a_x, int a_flags)
+void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags)
 {
     if(a_flags & DRS_CAL_FLAG_TIME_LOCAL) {
         drs_cal_time_local_apply(a_drs, a_x, a_x);

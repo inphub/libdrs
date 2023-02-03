@@ -141,8 +141,8 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
             drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
         }
-        drs_cal_ampl_apply(a_drs, pageBuffer,dBuf, DRS_CAL_AMPL_APPLY_CELLS |
-                                                   DRS_CAL_AMPL_APPLY_INTERCHANNEL );
+        drs_cal_y_apply(a_drs, pageBuffer,dBuf, DRS_CAL_APPLY_Y_CELLS |
+                                                   DRS_CAL_APPLY_Y_INTERCHANNEL );
         drs_cal_time_local_apply(a_drs, x, x);
         s_proc(a_drs, x,dBuf, sumDeltaRef,statistic);
     }

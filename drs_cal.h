@@ -98,7 +98,7 @@ drs_calibrate_t* drs_calibrate_get_state(int a_drs_num);
 
 int drs_calibrate_abort(int a_drs_num);
 
-void drs_cal_get_array_x(drs_t * a_drs, double*x, int a_flags);
+void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags);
 
 void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_state,unsigned a_limits, int a_flags );
 
