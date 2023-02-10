@@ -58,6 +58,15 @@ drs_t g_drs[DRS_COUNT]={
     }
 };
 
+static const double c_freq_DRS[]= {
+  [DRS_FREQ_1GHz] = 1.024,
+  [DRS_FREQ_2GHz] = 2.048,
+  [DRS_FREQ_3GHz] = 3.072,
+  [DRS_FREQ_4GHz] = 4.096,
+  [DRS_FREQ_5GHz]=  4.915200};
+
+enum drs_freq g_current_freq=DRS_FREQ_5GHz;
+
 
 
 int drs_init()
@@ -67,6 +76,8 @@ int drs_init()
 
     g_ini = DAP_NEW_Z(parameter_t);
     drs_ini_load("/media/card/config.ini", g_ini );
+
+    drs_set_freq(g_current_freq);
     return 0;
 }
 
@@ -143,6 +154,18 @@ int drs_cmd_init(parameter_t *a_params)
     return 0;
 }
 
+void drs_set_freq(enum drs_freq a_freq)
+{
+    g_current_freq = a_freq;
+    write_reg(0x4, 1);//select frequency (0 - external, 1 - internal
+    write_reg(30,   freqREG[g_current_freq]);//select ref frequency
+}
+
+double drs_get_freq_value(enum drs_freq a_freq)
+{
+    return c_freq_DRS[g_current_freq];
+}
+
 /**
  * @brief drs_deinit
  */
@@ -158,8 +181,6 @@ void drs_deinit()
  */
 void drs_init_old(parameter_t *a_params)
 {
-    write_reg(0x4, 1);//select frequency (0 - external, 1 - internal
-    write_reg(30, freqREG[g_current_freq]);//select ref frequency
 
     write_reg(6, a_params->fastadc.CLK_PHASE);//clk_phase
     printf("initialization\tprm->fastadc.OFS1=%u\tprm->fastadc.ROFS1=%u\n",a_params->fastadc.OFS1,a_params->fastadc.ROFS1);

@@ -35,16 +35,15 @@
  * coefficients *coef - струтурка с коэффициентами
  * unsigned int key - ключ применения калибровок 4 бит-локальная временная, 5 бит-глобальная временная, 6 бит-приведение к физическим величинам
  */
-static const double c_freq_DRS[]= {1.024, 2.048, 3.072, 4.096, 4.915200};
-int g_current_freq=0;
 
 // Состояния калибровки (текущие )
 drs_calibrate_t s_state[DRS_COUNT] = {};
 // Поток калибровки
-static void * s_thread_routine(void * a_arg);
-static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
+static void *     s_thread_routine(void * a_arg);
+static inline int s_run           (int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
 
-static void           s_x_to_real         (   double* x                                                                  );
+static void       s_x_to_real     (double* x                                                             );
+static void       s_remove_splash (drs_t * a_drs, double* a_Y, bool a_ch9_only                           );
 
 /**
  * @brief s_thread_routine
@@ -348,7 +347,7 @@ int drs_calibrate_abort(int a_drs_num)
  */
 static void s_x_to_real(double*x)
 {
-    *x=(*x)/(c_freq_DRS[g_current_freq]);
+    *x=(*x)/(drs_get_freq_value(g_current_freq));
 }
 
 
@@ -360,16 +359,85 @@ static void s_x_to_real(double*x)
  */
 void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags)
 {
-    if(a_flags & DRS_CAL_FLAG_TIME_LOCAL) {
+    if(a_flags & DRS_CAL_APPLY_X_TIME_LOCAL) {
         drs_cal_time_local_apply(a_drs, a_x, a_x);
     }
-    if(a_flags & DRS_CAL_FLAG_TIME_GLOBAL) {
+    /*if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
         drs_cal_time_global_apply(a_drs, a_x,a_x);
     }
-    if(a_flags & DRS_CAL_FLAG_TO_REAL) {
+    if(a_flags & DRS_CAL_APPLY_PHYS) {
         do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
-    }
+    }*/
 
+}
+
+
+/*
+ * Применяет амплитудную калибровку к данным
+ * unsigned short *buffer			массив данных;
+ * double *dBuf 					массив данных с результатом применения амплитудной калибровки
+ * unsigned int shift 				сдвиг получаемый через getShiftIndex;
+ * coefficients *coef				структура с кэффициентами;
+ * unsigned int chanalLength		длинна массива для 1 канала;
+ * unsigned int chanalCount			количество каналов
+ * unsigned int a_flags	    		0 бит- применение калибровки для ячеек, 1 бит- межканальная калибровка,2 бит- избавление от всплесков, 3 бит- приведение к физическим виличинам
+ * */
+void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
+{
+    unsigned int l_ch_id,l_cell_id,koefIndex;
+
+    // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
+    if (drs_get_mode(a_drs->id) == DRS_MODE_CAL_TIME)
+        a_flags |= DRS_CAL_APPLY_CH9_ONLY;
+
+    unsigned l_cells_proc_count = a_flags & DRS_CAL_APPLY_CH9_ONLY ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
+    //double * l_bi = s_bi; // a_drs->coeffs.b
+    //double * l_ki = s_ki; // a_drs->coeffs.k
+    //double  **l_bi = a_drs->coeffs.b;
+    //double  **l_ki = a_drs->coeffs.k;
+    //double average[4];
+    //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
+    for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
+        if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
+            l_ch_id = DRS_CHANNEL_9;
+
+        for(l_cell_id=0; l_cell_id<l_cells_proc_count;l_cell_id++){
+            size_t l_cell_id_masked = a_flags & DRS_CAL_APPLY_CH9_ONLY ? l_cell_id :
+                                                                        l_cell_id&3072 ;
+            unsigned l_inout_id = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id;
+
+            koefIndex=  a_flags & DRS_CAL_APPLY_CH9_ONLY ?
+                (a_drs->shift + l_cell_id ) & 1023
+                :(a_drs->shift + (l_cell_id&1023) ) & 1023 ;
+            a_out[l_inout_id] = a_in[l_inout_id];
+            if((a_flags & DRS_CAL_APPLY_Y_CELLS)!=0){
+                double l_bi, l_ki;
+                if (a_flags & DRS_CAL_APPLY_CH9_ONLY){
+                    l_bi = a_drs->coeffs.b9 [koefIndex ];
+                    l_ki = a_drs->coeffs.k9 [koefIndex ];
+                }else{
+                    l_bi = a_drs->coeffs.b[l_ch_id][koefIndex | l_cell_id_masked];
+                    l_ki = a_drs->coeffs.k[l_ch_id][koefIndex | l_cell_id_masked];
+                }
+
+
+                a_out[l_inout_id] =  ( a_out[l_inout_id] - l_bi ) /
+                                                 (l_ki +1.0 );
+            }
+            if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
+                a_out[l_inout_id] = (a_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
+            }
+            if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
+                a_out[l_inout_id]=(a_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
+            }
+        }
+        if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
+            break;
+    }
+    if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
+    {
+        s_remove_splash(a_drs, a_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
+    }
 }
 
 /**
@@ -434,3 +502,28 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigne
 }
 
 
+/**
+ * @brief s_remove_splash
+ * @param Y
+ * @param shift
+ * @param coef
+ */
+static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
+{
+    size_t i=0,j=0;
+    for(j=0;j<DRS_CHANNELS_COUNT;j++){
+        #define A_Y_IDX(a) ( (a)*DRS_CHANNELS_COUNT+j)
+        i = ( a_drs->coeffs.splash[j] - a_drs->shift + 1023) & 1023;
+        //if((i > 0) && (i < 1023)){
+        //    a_Y[A_Y_IDX(i)] = (a_Y[A_Y_IDX(i+1)] + a_Y[a_Y[A_Y_IDX(i-1)]) / 2;
+        //}
+
+        if(i == 0){
+            a_Y[j] = (a_Y [4*1 + j] + a_Y[4*2 + j]) / 2;
+        }
+
+        if(i == 1023){
+            a_Y[1023 * 4 + j]=(a_Y[j] + a_Y[1022 * 4 + j]) / 2;
+        }
+    }
+}

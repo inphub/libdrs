@@ -79,7 +79,6 @@ typedef struct drs_cal_args{
 
 #define DRS_CAL_MAX_REPEATS_DEFAULT 10000
 
-extern int g_current_freq;
 
 #ifdef __cplusplus
 extern "C" {

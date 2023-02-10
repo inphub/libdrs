@@ -125,6 +125,10 @@ typedef enum {
   DRS_MODE_MAX = DRS_MODE_OFF_INPUTS
 } drs_mode_t;
 
+enum drs_freq{DRS_FREQ_1GHz,DRS_FREQ_2GHz,DRS_FREQ_3GHz,DRS_FREQ_4GHz,DRS_FREQ_5GHz};
+
+extern enum drs_freq g_current_freq;
+
 extern parameter_t * g_ini;
 extern drs_dac_ch_params_t g_ini_ch9;
 
@@ -179,6 +183,8 @@ unsigned drs_dac_shift_input_get_ch9();
 
 
 void drs_dac_set( unsigned int onAH);
+void drs_set_freq(enum drs_freq a_freq);
+double drs_get_freq_value(enum drs_freq a_freq);
 
 #ifdef __cplusplus
 }
