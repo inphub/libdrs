@@ -362,12 +362,12 @@ void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags)
     if(a_flags & DRS_CAL_APPLY_X_TIME_LOCAL) {
         drs_cal_time_local_apply(a_drs, a_x, a_x);
     }
-    /*if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
+    if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
         drs_cal_time_global_apply(a_drs, a_x,a_x);
     }
     if(a_flags & DRS_CAL_APPLY_PHYS) {
         do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
-    }*/
+    }
 
 }
 
@@ -424,9 +424,11 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
                 a_out[l_inout_id] =  ( a_out[l_inout_id] - l_bi ) /
                                                  (l_ki +1.0 );
             }
-            if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
+
+            // TODO вернуть межканальную калибровку
+            /*if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
                 a_out[l_inout_id] = (a_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
-            }
+            }*/
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
                 a_out[l_inout_id]=(a_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }

@@ -19,7 +19,7 @@
 #define LOG_TAG "drs_cal_time_local"
 
 
-bool s_debug_more = true;
+bool s_debug_more = false;
 
 static double s_get_deltas_min (double*               a_buffer,  double*          a_sum_delta_ref,
                                 double*               a_stats,   unsigned int     a_shift);
@@ -88,7 +88,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
         if (l_is_9_channel)
             ch = DRS_CHANNEL_9;
 
-        for(unsigned b=0;b <  (l_is_9_channel? 1: DRS_CHANNELS_BANK_COUNT) ;b++) {
+        for(unsigned b=0;b <  (l_is_9_channel? 1: DRS_CHANNEL_BANK_COUNT) ;b++) {
             for( unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++) {
                 unsigned idx = n + b* DRS_CELLS_COUNT_BANK;
                 a_output[idx] = l_tmpX;
@@ -182,7 +182,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     for(unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++){
         if(l_stats[n]){
             coef->deltaTimeRef[n]= l_sum_delta_ref[n]/l_stats[n];
-            log_it(L_INFO, "l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f ) deltaTime=%.5f",
+            debug_if(s_debug_more, L_INFO, "l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f ) deltaTime=%.5f",
                    n, l_stats[n], l_sum_delta_ref[n],coef->deltaTimeRef[n]);
         }else{
             log_it(L_WARNING, "Zero l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f )", n, l_stats[n], l_sum_delta_ref[n]);
@@ -243,7 +243,7 @@ static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a
             a_sum_delta_ref[pz]+= l_delta_current;
             a_stats[pz]++;
             if ( pz ==0 )
-              log_it(L_INFO, "a_stats[%u]=%f l_delta_current=%f", pz, a_stats[pz], l_delta_current);
+              debug_if(s_debug_more, L_INFO, "a_stats[%u]=%f l_delta_current=%f", pz, a_stats[pz], l_delta_current);
         }
     }
 
