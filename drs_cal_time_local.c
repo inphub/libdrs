@@ -19,7 +19,7 @@
 #define LOG_TAG "drs_cal_time_local"
 
 
-bool s_debug_more = false;
+bool s_debug_more = true;
 
 static double s_get_deltas_min (double*               a_buffer,  double*          a_sum_delta_ref,
                                 double*               a_stats,   unsigned int     a_shift);
@@ -95,8 +95,6 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
 
                 l_cell_id_shifted = ( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift+n)&1023 ) );
                 l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_shifted] * l_average[ch];
-                //a_output[DRS_IDX(ch,n)] =  a_values[DRS_IDX(ch,n)] +
-                //                        a_drs->coeffs.deltaTimeRef[l_cell_id_shifted% DRS_CELLS_COUNT_BANK] * l_average[ch];
             }
         }
         if (l_is_9_channel)
@@ -182,7 +180,8 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     for(unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++){
         if(l_stats[n]){
             coef->deltaTimeRef[n]= l_sum_delta_ref[n]/l_stats[n];
-            debug_if(s_debug_more, L_INFO, "l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f ) deltaTime=%.5f",
+            if(n < 10)
+                debug_if(s_debug_more, L_INFO, "l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f ) deltaTime=%.5f",
                    n, l_stats[n], l_sum_delta_ref[n],coef->deltaTimeRef[n]);
         }else{
             log_it(L_WARNING, "Zero l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f )", n, l_stats[n], l_sum_delta_ref[n]);
@@ -224,12 +223,11 @@ static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a
     }else{
         l_vtmp=( l_average_inverted)/3.0;
     }
-    l_vmin=l_average-l_vtmp;
-    l_vmax=l_average+l_vtmp;
+    l_vmin = l_average - l_vtmp;
+    l_vmax = l_average + l_vtmp;
 
-    debug_if(s_debug_more,L_INFO,"l_average=%f, l_average_inverted=%f,l_vmin=%f,l_vmax=%f",
-             l_average, l_average_inverted, l_vmin, l_vmax);
-
+    //debug_if(s_debug_more,L_INFO,"l_average=%f, l_average_inverted=%f,l_vmin=%f,l_vmax=%f",
+    //         l_average, l_average_inverted, l_vmin, l_vmax);
     for(n=0; n < DRS_CELLS_COUNT_BANK ;n++) {
         pz=(a_shift+n)&1023;
         pz1=(n+1)&1023;
@@ -240,10 +238,10 @@ static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a
             ( l_cell_pz1 > l_cell_n )){
 
             double l_delta_current =  absf( l_cell_n - l_cell_pz1 );
-            a_sum_delta_ref[pz]+= l_delta_current;
+            a_sum_delta_ref[pz] += l_delta_current;
             a_stats[pz]++;
-            if ( pz ==0 )
-              debug_if(s_debug_more, L_INFO, "a_stats[%u]=%f l_delta_current=%f", pz, a_stats[pz], l_delta_current);
+            //if ( pz ==0  )
+            //  debug_if(s_debug_more, L_INFO, "a_stats[%u]=%f l_delta_current=%f", pz, a_stats[pz], l_delta_current);
         }
     }
 

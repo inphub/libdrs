@@ -11,6 +11,7 @@
 #include <dap_string.h>
 
 #include "drs.h"
+#include "drs_data.h"
 #include "drs_cal.h"
 #include "drs_cal_amp.h"
 #include "drs_cal_time_global.h"
@@ -440,6 +441,18 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     {
         s_remove_splash(a_drs, a_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
     }
+
+    // Разворачиваем всё вместе
+    if ( (a_flags & DRS_CAL_APPLY_CH9_ONLY) ){
+        unsigned l_global_shift_count = drs_get_shift(a_drs->id) * DRS_CHANNELS_COUNT;
+        size_t l_global_shift_size = l_global_shift_count * sizeof (double) ;
+        size_t l_buffer_size = DRS_CELLS_COUNT_CHANNEL * sizeof (double);
+        byte_t * l_tmp = DAP_NEW_STACK_SIZE(byte_t, l_global_shift_size);
+        memcpy(l_tmp, a_out, l_global_shift_size  );
+        memmove(a_out, a_out + l_global_shift_count, l_buffer_size - l_global_shift_size);
+        memcpy(a_out + l_buffer_size - l_global_shift_size, l_tmp, l_global_shift_size  );
+    }
+
 }
 
 /**
