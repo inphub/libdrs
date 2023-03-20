@@ -16,6 +16,7 @@
 #include <dap_common.h>
 #include <dap_config.h>
 #include <dap_file_utils.h>
+#include <dap_timerfd.h>
 
 #define LOG_TAG          "drs"
 
@@ -67,6 +68,8 @@ static const double c_freq_DRS[]= {
 
 enum drs_freq g_current_freq=DRS_FREQ_5GHz;
 
+static bool s_init_on_start_timer_callback(void* a_arg); // Init on start timeout callback
+
 
 
 int drs_init()
@@ -78,23 +81,40 @@ int drs_init()
     drs_ini_load("/media/card/config.ini", g_ini );
 
     drs_set_freq(g_current_freq);
+
+    // Инициализация параметров DRS по таймеру
+    log_it(L_NOTICE,"DRS config and memory are initialized");
+
+    dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
+                                       s_init_on_start_timer_callback, g_ini);
     return 0;
 }
 
 /**
- * @brief dap_get_inited
+ * @brief s_init_on_start_timer_callback
+ * @details Callback for timer. If return true,
+ *          it will be called after next timeout
+ * @param a_arg
  * @return
  */
-bool drs_get_inited()
+static bool s_init_on_start_timer_callback(void* a_arg)
 {
-    return dap_file_test(s_drs_check_file);
+    UNUSED(a_arg);
+    if( ! drs_get_inited() ){
+        log_it(L_INFO,"Timeout for init on start passed, initializing DRS...");
+        drs_cmd_init();
+    }else{
+        log_it(L_DEBUG,"DRS is already initialized so lets just pass this stage");
+    }
+    return false;
 }
+
 
 /**
  * @brief drs_init
  * @param a_params
  */
-int drs_cmd_init(parameter_t *a_params)
+int drs_cmd_init()
 {
     if( drs_get_inited() ){
         log_it(L_WARNING, "Already initialized");
@@ -150,7 +170,7 @@ int drs_cmd_init(parameter_t *a_params)
     FILE * f = fopen(s_drs_check_file,"w");
     fclose(f);
 
-    log_it(L_NOTICE, "DRS Initialized");
+    log_it(L_NOTICE, "DRS settings are implemented");
     return 0;
 }
 
@@ -223,6 +243,7 @@ int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
   //  n = ini_gets("COMMON", "host", "dummy", IP, sizearray(IP), inifile);
   //  printf("Host = %s\n", IP);
   //  n = ini_gets("COMMON", "firmware", "dummy", prm->firmware_path, sizearray(prm->firmware_path), inifile);
+    a_prm->init_on_start_timer_ms                  = dap_config_get_item_uint32_default(l_cfg,"COMMON","init_on_start_timer",1000);
     a_prm->fastadc.ROFS1 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS1", 35000 );
     a_prm->fastadc.OFS1				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS1", 30000 );
     a_prm->fastadc.ROFS2 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS2", 35000 );
@@ -253,52 +274,6 @@ int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
     g_ini_ch9.gain  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, a_prm->fastadc.dac_gains[0]);
 
     dap_config_close( l_cfg );
-    return 0;
-}
-
-/**
- * @brief Сохраняет параметры в ini файл
- * @param inifile
- * @param prm
- */
-int drs_ini_save(const char *inifile, parameter_t *prm)
-{
-    char sDAC_offset[]="DAC_offset_X";
-    char sDAC_gain[]="DAC_gain_X";
-    char sADC_offset[]="ADC_offset_X";
-    char sADC_gain[]="ADC_gain_X";
-    unsigned char t;
-  //  char IP[16];
-  //  long n;
-    /* string reading */
-  //  n = ini_puts("COMMON", "host", IP, inifile);
-  //  printf("Host = %s\n", IP);
-  //  ini_puts("COMMON", "firmware", prm.firmware_path, inifile);
-    ini_putl("FASTADC_SETTINGS", "ROFS1", prm->fastadc.ROFS1, inifile);
-    ini_putl("FASTADC_SETTINGS", "OFS1", prm->fastadc.OFS1, inifile);
-    ini_putl("FASTADC_SETTINGS", "ROFS2", prm->fastadc.ROFS2, inifile);
-    ini_putl("FASTADC_SETTINGS", "OFS2", prm->fastadc.OFS2, inifile);
-    ini_putl("FASTADC_SETTINGS", "CLK_PHASE", prm->fastadc.CLK_PHASE, inifile);
-    for (t=0;t<4;t++)
-    {
-     sDAC_offset[strlen(sDAC_offset)-1]=t+49;
-     ini_putf("FASTADC_SETTINGS", sDAC_offset, prm->fastadc.dac_offsets[t], inifile);
-    }
-    for (t=0;t<4;t++)
-    {
-     sDAC_gain[strlen(sDAC_gain)-1]=t+49;
-     ini_putf("FASTADC_SETTINGS", sDAC_gain, prm->fastadc.dac_gains[t], inifile);
-    }
-    for (t=0;t<4;t++)
-    {
-     sADC_offset[strlen(sADC_offset)-1]=t+49;
-     ini_putf("FASTADC_SETTINGS", sADC_offset, prm->fastadc.adc_offsets[t], inifile);
-    }
-    for (t=0;t<4;t++)
-    {
-     sADC_gain[strlen(sADC_gain)-1]=t+49;
-     ini_putf("FASTADC_SETTINGS", sADC_gain, prm->fastadc.adc_gains[t], inifile);
-    }
     return 0;
 }
 
@@ -423,3 +398,11 @@ void drs_dac_shift_set_ch9(double a_shift,float a_gain,float a_offset)
     usleep(60);
 }
 
+/**
+ * @brief dap_get_inited
+ * @return
+ */
+bool drs_get_inited()
+{
+    return dap_file_test(s_drs_check_file);
+}

@@ -426,10 +426,9 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
                                                  (l_ki +1.0 );
             }
 
-            // TODO вернуть межканальную калибровку
-            /*if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
+            if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
                 a_out[l_inout_id] = (a_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
-            }*/
+            }
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
                 a_out[l_inout_id]=(a_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }
@@ -443,7 +442,9 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     }
 
     // Разворачиваем всё вместе
-    if ( (a_flags & DRS_CAL_APPLY_CH9_ONLY) ){
+
+
+    if ( !(a_flags & DRS_CAL_APPLY_CH9_ONLY) ){
         unsigned l_global_shift_count = drs_get_shift(a_drs->id) * DRS_CHANNELS_COUNT;
         size_t l_global_shift_size = l_global_shift_count * sizeof (double) ;
         size_t l_buffer_size = DRS_CELLS_COUNT_CHANNEL * sizeof (double);
@@ -470,7 +471,7 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigne
     if (a_cal->ts_end){
         coefficients_t * l_params = &a_cal->drs->coeffs;
         if ( a_flags & DRS_COEF_SPLASH)
-            dap_string_append_array(a_reply, "splash", "0x%08X", l_params->splash, a_limits);
+            dap_string_append_array(a_reply, "splash", "%d", l_params->splash, a_limits);
 
 
         if ( a_flags & DRS_COEF_DELTA_TIME )
@@ -525,20 +526,20 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigne
  */
 static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
 {
-    size_t i=0,j=0;
-    for(j=0;j<DRS_CHANNELS_COUNT;j++){
-        #define A_Y_IDX(a) ( (a)*DRS_CHANNELS_COUNT+j)
-        i = ( a_drs->coeffs.splash[j] - a_drs->shift + 1023) & 1023;
-        //if((i > 0) && (i < 1023)){
-        //    a_Y[A_Y_IDX(i)] = (a_Y[A_Y_IDX(i+1)] + a_Y[a_Y[A_Y_IDX(i-1)]) / 2;
-        //}
+    for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
+        for (unsigned b = 0; a_ch9_only ? b == 0 : b < DRS_BANK_COUNT ; b++){
+            unsigned l_cell_id = ( a_drs->coeffs.splash[ch] - a_drs->shift + DRS_CELLS_COUNT_BANK - 1) & (DRS_CELLS_COUNT_BANK-1 );
+            if((l_cell_id > 0) && (l_cell_id < (DRS_CELLS_COUNT_BANK - 1) )){
+                a_Y[DRS_IDX_BANK(ch,b,l_cell_id)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id + 1)] + a_Y[DRS_IDX_BANK(ch,b,l_cell_id - 1)]) / 2.0;
+            }
 
-        if(i == 0){
-            a_Y[j] = (a_Y [4*1 + j] + a_Y[4*2 + j]) / 2;
-        }
+            if(l_cell_id == 0){
+                a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
+            }
 
-        if(i == 1023){
-            a_Y[1023 * 4 + j]=(a_Y[j] + a_Y[1022 * 4 + j]) / 2;
+            if(l_cell_id == 1023){
+                a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
+            }
         }
     }
 }

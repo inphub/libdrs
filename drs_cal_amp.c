@@ -27,14 +27,14 @@ struct amp_context{
 
 static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress);
 
-static unsigned int s_fin_collect(drs_t * a_drs,  drs_cal_args_t * a_args, bool a_ch9_only);
-static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args);
+static int s_fin_collect(drs_t * a_drs,  drs_cal_args_t * a_args, bool a_ch9_only);
+static int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args);
 
 static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats, bool a_ch9_only);
 static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter, bool a_ch9_only);
 
 static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  struct amp_context * a_ctx, bool a_ch9_only);
-static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl, bool a_ch9_only);
+static void s_find_splash(drs_t * a_drs, double*a_Y, double a_lvl, bool a_ch9_only);
 
 static bool s_debug_more = true;
 
@@ -105,6 +105,8 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
 
+
+    // Основная калибровка
     if( s_fin_collect( a_drs, a_args,false) !=0 ) {
         log_it(L_INFO, "No success with fin collect");
         if (a_progress) *a_progress +=5;
@@ -112,15 +114,17 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         l_ret = -1;
         goto lb_exit;
     }
-
     log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",a_args->param.ampl.repeats, l_levels[0], l_levels[1], l_shifts);
+    drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
+    // Межканальная калибровка
     if( s_channels_calibration( a_drs, a_args) !=0 ) {
         log_it(L_INFO, "No success with channels calibration");
         l_ret = -2;
         goto lb_exit;
     }
     drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
+
 
     log_it(L_NOTICE, "Calibrate 9 channel");
     // Калибруем 9ый канал
@@ -129,18 +133,13 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
     drs_start(a_drs->id);
-
-    if( s_fin_collect( a_drs, a_args,true) !=0 ) {
-        log_it(L_INFO, "No success with fin collect");
-        if (a_progress) *a_progress +=5;
-
-        l_ret = -9;
-        goto lb_exit;
-    }
-
     drs_dac_shift_input_set_ch9(l_dac_shifts_old);
 
-    drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
+
+
+    // Выключаем режим калибровки амплитуды
+
+    drs_set_mode(a_drs->id, l_mode_old );
 
     if (a_progress) *a_progress +=10;
     log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p", a_args->param.ampl.repeats
@@ -165,7 +164,7 @@ lb_exit:
  * @param a_args
  * @return
  */
-static unsigned int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_only)
+static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_only)
 {
     /**
      * Собирает данные по котором будет калибровать
@@ -322,15 +321,25 @@ lb_exit:
  * @param a_args
  * @return
  */
-static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
+static int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
 {
-    unsigned l_count = a_args->param.ampl.repeats+2;
-    double dh,shiftDACValues[DRS_CHANNELS_COUNT],l_lvl,average[DRS_CHANNELS_COUNT*l_count],l_d_buf[DRS_CELLS_COUNT], xArr[l_count],yArr[l_count];
+    unsigned l_count = a_args->param.ampl.repeats + DRS_CAL_MIN_REPEATS_DEFAULT;
+    double dh,shiftDACValues[DRS_CHANNELS_COUNT],
+        l_lvl,average[DRS_CHANNELS_COUNT*l_count],
+        l_d_buf[DRS_CELLS_COUNT],
+        x[l_count],
+        y[l_count];
     unsigned short l_cells[DRS_CELLS_COUNT];
     double *calibLvl = a_args->param.ampl.levels;
-    unsigned int t=0,i;
+    unsigned int t=0,ch;
     dh=(calibLvl[1]-calibLvl[0])/(l_count-1);
-    log_it(L_INFO,"--Channel calibration--");
+    if (l_count == 0){
+      log_it(L_ERROR, "Repeats %d is wrong, its sum with %d should be not less than 0", a_args->param.ampl.repeats,
+             DRS_CAL_MIN_REPEATS_DEFAULT );
+      return -10;
+    }
+    log_it(L_INFO,"--Interchannel calibration--");
+
     for(t=0;t<l_count;t++){
         l_lvl=calibLvl[0]+dh*t;
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
@@ -343,16 +352,17 @@ static unsigned int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_ar
             log_it(L_ERROR,"shift index went beyond on iteration %u", t);
             return -2;
         }
-        drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_SPLASHS);
+        drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS );
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     }
-    s_find_splash( a_drs, l_d_buf,100,false);
-    for(i=0;i<DRS_CHANNELS_COUNT;i++){
+    s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
+    for(ch=0;ch<DRS_CHANNELS_COUNT;ch++){
         for(t=0;t<l_count;t++){
-            xArr[t]=average[DRS_CHANNELS_COUNT*t+i];
-            yArr[t]=average[DRS_CHANNELS_COUNT*t+i]-(0.5-calibLvl[0]-dh*t)*DRS_CELLS_COUNT;
+            x[t] = (DRS_ADC_VOLTAGE_BASE + calibLvl[0]+dh*t)*DRS_ADC_TOP_LEVEL;
+            y[t] = average[DRS_CHANNELS_COUNT*t+ch] - x[t];
         }
-        getCoefLine(yArr,xArr, a_args->param.ampl.repeats, &a_drs->coeffs.chanB[i],&a_drs->coeffs.chanK[i]);
+        getCoefLine(y,x, l_count, &a_drs->coeffs.chanB[ch],
+                    &a_drs->coeffs.chanK[ch]);
     }
 
     // Restore levels
@@ -491,22 +501,26 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
  * @param Y
  * @param lvl
  */
-static void s_find_splash(drs_t * a_drs, double*a_Y, unsigned int a_lvl, bool a_ch9_only)
+static void s_find_splash(drs_t * a_drs, double*a_Y, double a_lvl, bool a_ch9_only)
 {
-    unsigned int i = 0, j = 0;
     unsigned int * l_splash = a_drs->coeffs.splash;
-    for(j=0;j< DRS_CHANNELS_COUNT; j++) {
-        l_splash[j] = 1024;
-        for(i=1;i<1000;i++){
-            if(absf(a_Y[(i+1)*4+j]-a_Y[i*4+j])>a_lvl && absf(a_Y[(i-1)*4+j]-a_Y[i*4+j])>a_lvl){
-                log_it(L_DEBUG, "find splash for %d channel in %d cell\n",j+1,(i+ a_drs->shift)&1023);
-                l_splash[j] = ( i + a_drs->shift ) & 1023;
+    unsigned l_cells_proc_count =  a_ch9_only ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL ;
+
+    for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
+        l_splash[ch] = 1024;
+        for(unsigned l_cell_id=1;l_cell_id<l_cells_proc_count;l_cell_id++){
+
+            if(absf(a_Y[DRS_IDX(ch,l_cell_id + 1)] - a_Y[DRS_IDX(ch,l_cell_id)])>a_lvl &&
+               absf(a_Y[DRS_IDX(ch,l_cell_id-1)]  - a_Y[DRS_IDX(ch,l_cell_id)])>a_lvl){
+                log_it(L_DEBUG, "find splash for %d channel in %d cell\n",ch,(l_cell_id+ a_drs->shift)&1023);
+                l_splash[ch] = ( l_cell_id + a_drs->shift ) & 1023;
                 break;
             }
         }
-        if(absf(a_Y[1*4+j]-a_Y[j])>a_lvl && absf(a_Y[1023*4+j]-a_Y[j])>a_lvl){
-            l_splash[j] = 0;
-            log_it(L_DEBUG,"find splash for %u channel in %u cell",j+1,a_drs->shift);
+        if(   absf(a_Y[DRS_IDX(ch,1)]   - a_Y[DRS_IDX(ch,0)]    ) > a_lvl &&
+              absf(a_Y[DRS_IDX(ch,1023)] - a_Y[DRS_IDX(ch,1022)] ) > a_lvl){
+            l_splash[ch] = 0;
+            log_it(L_DEBUG,"find splash for %u channel in %u cell",ch+1,a_drs->shift);
         }
     }
 }

@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 #include <dap_common.h>
+#include <dap_time.h>
 
 #include "mem_ops.h"
 
@@ -68,6 +69,7 @@
 #define ADC_FAST_SIZE MAX_PAGE_COUNT*1024*8*8
 
 #define DRS_ADC_TOP_LEVEL 16384.0
+#define DRS_ADC_VOLTAGE_BASE 0.5
 
 typedef struct  {
   float offset;
@@ -93,6 +95,7 @@ typedef struct
 typedef struct 
 {
   fastadc_parameter_t fastadc;
+  dap_time_t init_on_start_timer_ms; // Не инициирует ничего, если 0
 } DAP_ALIGN_PACKED parameter_t;
 
 typedef struct
@@ -149,6 +152,7 @@ extern drs_t g_drs[DRS_COUNT];
 
 
 #define DRS_IDX(ch,n) ((n)*DRS_CHANNELS_COUNT+(ch))
+#define DRS_IDX_BANK(ch,b,n) ((n + b*DRS_CELLS_COUNT_BANK)*DRS_CHANNELS_COUNT+(ch))
 #define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_9,n)
 extern unsigned short tmasFast[SIZE_FAST];
 
@@ -157,12 +161,11 @@ extern "C" {
 #endif
 
 int drs_init();
-int drs_cmd_init(parameter_t *prm);
+int drs_cmd_init();
 bool drs_get_inited();
 
 
 void drs_deinit();
-int drs_ini_save(const char *inifile, parameter_t *prm);
 int drs_ini_load(const char *inifile, parameter_t *prm);
 
 

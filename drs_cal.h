@@ -41,6 +41,7 @@ typedef struct{
                                // при нуле будут выполняться два прохода для уровней BegServ и EndServ(о них ниже),
                                // при не нулевом значении, между  BegServ и EndServ будут включены count дополнительных уровней
                                // цапов для амплитудной калибровки
+        double splash_gauntlet; // Уровень отсечения всплесков
         double levels[DRS_DCA_COUNT_ALL+2];
     } ampl;
 
@@ -78,7 +79,8 @@ typedef struct drs_cal_args{
 #define DRS_CAL_FLAG_TO_REAL        0x00000008
 
 #define DRS_CAL_MAX_REPEATS_DEFAULT 10000
-
+#define DRS_CAL_MIN_REPEATS_DEFAULT 2
+#define DRS_CAL_SPLASH_GAUNTLET_DEFAULT 100.0
 
 #ifdef __cplusplus
 extern "C" {

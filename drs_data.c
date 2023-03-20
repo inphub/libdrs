@@ -126,7 +126,7 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
     a_drs->shift =s_get_shift( a_drs->id);
 
-    log_it(L_DEBUG, "Global shift: %u , local shift: %u",drs_get_shift(a_drs->id), a_drs->shift);
+    //log_it(L_DEBUG, "Global shift: %u , local shift: %u",drs_get_shift(a_drs->id), a_drs->shift);
 
 }
 
@@ -147,7 +147,7 @@ void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned shor
     unsigned int l_shift = DRS_CELLS_COUNT_BANK - a_drs->shift;
 
     unsigned int l_shift_global = drs_get_shift(a_drs->id);
-    log_it(L_DEBUG, "Global shift: %u , local shift: %u",l_shift_global, l_shift);
+    //log_it(L_DEBUG, "Global shift: %u , local shift: %u",l_shift_global, l_shift);
 
 
     size_t l_copy_size = (DRS_CELLS_COUNT_BANK * sizeof(unsigned short) * DRS_CHANNELS_COUNT);
