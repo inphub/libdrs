@@ -170,6 +170,9 @@ int drs_cmd_init()
     FILE * f = fopen(s_drs_check_file,"w");
     fclose(f);
 
+    // Init all DRS
+    drs_cmd(-1, DRS_CMD_INIT_DRS);
+
     log_it(L_NOTICE, "DRS settings are implemented");
     return 0;
 }
@@ -289,7 +292,7 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
     s_mode[a_drs_num] = a_mode;
     write_reg(DRS_MODE_REG, a_mode);
     usleep(100);
-    drs_cmd(a_drs_num, INIT_DRS);
+    drs_cmd(a_drs_num, DRS_CMD_INIT_DRS);
 }
 
 /**

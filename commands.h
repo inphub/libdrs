@@ -9,10 +9,10 @@
 
 #include "drs.h"
 
-#define INIT_DRS			1 //EN_WORK
-#define START_DRS			2
-#define ENABLE_EXT_PULSE	4
-#define RESET				8
+#define DRS_CMD_INIT_DRS			0x00000001 //EN_WORK
+#define DRS_CMD_START_DRS			0x00000002
+#define DRS_CMD_ENABLE_EXT_PULSE                0x00000004
+#define DRS_CMD_RESET				0x00000008
 
 #define EXTERNAL_CLK	0
 #define INTERNAL_CLK	1

@@ -54,21 +54,15 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     assert(a_drs);
     assert(a_buffer);
     unsigned int l_ret=0,i=0;
+    unsigned l_cmds = DRS_CMD_START_DRS;
 
-    drs_cmd(a_drs->id, INIT_DRS);
-    if(a_flags & DRS_OP_FLAG_EXT_START){
+    if (a_flags & DRS_OP_FLAG_EXT_START){
         log_it(L_INFO, "start ext DRS");
-        drs_cmd(a_drs->id, ENABLE_EXT_PULSE);
+        l_cmds |= DRS_CMD_ENABLE_EXT_PULSE;
     }
-    drs_cmd(a_drs->id, START_DRS);
-    /* else if (a_flags & DRS_OP_FLAG_CALIBRATE ){
-        drs_cmd(a_drs->id, INIT_DRS | START_DRS );
-        //drs_cmd(a_drs->id, START_DRS);
-    } else {
-        drs_cmd(a_drs->id, START_DRS);
-        //drs_cmd(a_drs->id, 1);
-    }*/
-    usleep(100);
+
+    drs_cmd( -1, l_cmds);
+    //usleep(100);
 
     bool l_is_ready = false;
     bool l_loop = true;
