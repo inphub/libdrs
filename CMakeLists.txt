@@ -21,7 +21,7 @@ file(GLOB DRS_HEADERS
 
 add_library(${PROJECT_NAME} STATIC ${DRS_SRCS} ${DRS_HEADERS})
 #add_library(${PROJECT_NAME} SHARED ${DRS_SRCS} ${DRS_HEADERS})
-target_link_libraries(${PROJECT_NAME} dap_core dap_io)
+target_link_libraries(${PROJECT_NAME} dap_core dap_io dap_cli_server)
 target_include_directories(${PROJECT_NAME} INTERFACE .)
 
 if(BUILD_DAP_TESTS)

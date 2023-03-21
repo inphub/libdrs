@@ -23,6 +23,7 @@
 #include "drs.h"
 #include "drs_ops.h"
 #include "drs_cal.h"
+#include "drs_cli.h"
 
 #include "minIni.h"
 #include "calibrate.h"
@@ -87,6 +88,15 @@ int drs_init()
 
     dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
                                        s_init_on_start_timer_callback, g_ini);
+
+    // Инициализация консоли
+    if (drs_cli_init() != 0){
+        log_it(L_CRITICAL, "Can't init drs cli");
+        return -14;
+    }
+
+    drs_calibrate_init();
+
     return 0;
 }
 
@@ -194,8 +204,11 @@ double drs_get_freq_value(enum drs_freq a_freq)
  */
 void drs_deinit()
 {
+   drs_calibrate_deinit();
+
    DAP_DELETE(g_ini);
    g_ini = NULL;
+
 }
 
 /**
