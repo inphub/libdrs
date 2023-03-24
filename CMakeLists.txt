@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project (drs)
+project (libdrs)
 
 add_definitions("-D_GNU_SOURCE") 
 
@@ -20,9 +20,11 @@ file(GLOB DRS_HEADERS
 #add_subdirectory(driver)
 
 add_library(${PROJECT_NAME} STATIC ${DRS_SRCS} ${DRS_HEADERS})
-#add_library(${PROJECT_NAME} SHARED ${DRS_SRCS} ${DRS_HEADERS})
+add_library(${PROJECT_NAME}_static STATIC ${DRS_SRCS} ${DRS_HEADERS})
 target_link_libraries(${PROJECT_NAME} dap_core dap_io dap_cli_server)
+target_link_libraries(${PROJECT_NAME}_static dap_sdk_static)
 target_include_directories(${PROJECT_NAME} INTERFACE .)
+target_include_directories(${PROJECT_NAME}_static INTERFACE .)
 
 if(BUILD_DAP_TESTS)
     enable_testing()

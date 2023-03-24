@@ -168,6 +168,7 @@ dap_timerfd_t* dap_timerfd_create(uint64_t a_timeout_ms, dap_timerfd_callback_t 
         DAP_DELETE(l_timerfd);
         return NULL;
     }
+
     // repeat never
     l_ts.it_interval.tv_sec = 0;
     l_ts.it_interval.tv_nsec = 0;
