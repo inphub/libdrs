@@ -216,6 +216,8 @@ static void s_exit_if_server_already_running( void )
     if ( (pid != 0 && is_process_running(pid)) || mf ) {
         log_it( L_WARNING, "Proccess %"DAP_UINT64_FORMAT_U" is running, don't allow "
                             "to run more than one copy of DapServer, exiting...", (uint64_t)pid );
+
+        sleep(1);
         exit( -2 );
     }
 }

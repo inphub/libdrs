@@ -31,19 +31,24 @@ set(DAP_SDK_MODULES_LIBS "dap_core")
 add_subdirectory(modules/core)
 
 add_library(${PROJECT_NAME} SHARED ${DAP_SDK_SRCS} ${DAP_SDK_SRC_EXT} ${DAP_SDK_HEADERS} ${DAP_SDK_HEADERS_EXT})
+add_library(${PROJECT_NAME}_static STATIC ${DAP_SDK_SRCS} ${DAP_SDK_SRC_EXT} ${DAP_SDK_HEADERS} ${DAP_SDK_HEADERS_EXT})
 target_link_libraries(${PROJECT_NAME} dap_core)
 target_include_directories(${PROJECT_NAME} INTERFACE . include/)
+target_link_libraries(${PROJECT_NAME}_static dap_core)
+target_include_directories(${PROJECT_NAME}_static INTERFACE . include/)
 
 if (DAPSDK_MODULES MATCHES "crypto")
     # Cryptography
     add_subdirectory(modules/crypto)
     target_link_libraries(${PROJECT_NAME} dap_crypto)
+    target_link_libraries(${PROJECT_NAME}_static dap_crypto)
 endif()
 
 if (DAPSDK_MODULES MATCHES "app-cli")
     add_subdirectory(modules/net/app-cli)
     add_subdirectory(modules/net/server/cli_server)
     target_link_libraries(${PROJECT_NAME} dap_cli_server)
+    target_link_libraries(${PROJECT_NAME}_static dap_cli_server)
 endif()
 
 if (DAPSDK_MODULES MATCHES "plugins")
@@ -55,6 +60,7 @@ endif()
 if (DAPSDK_MODULES MATCHES "io")
     add_subdirectory(modules/io)
     target_link_libraries(${PROJECT_NAME} dap_io)
+    target_link_libraries(${PROJECT_NAME}_static dap_io)
 endif()
 
 # Networking core
