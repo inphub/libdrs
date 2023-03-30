@@ -14,10 +14,11 @@
 
 #define LOG_TAG "drs_proto"
 
+
 const char g_inipath[]= "/media/card/config.ini";
 
 static dap_server_t * s_server = NULL;
-
+static bool s_debug_more = true;
 // Вызывается когда удаленная сторона прислала данные, доступные для чтения
 static void s_callback_new (dap_events_socket_t * a_es,void * a_arg );
 static void s_callback_delete (dap_events_socket_t * a_es,void * a_arg );
@@ -71,14 +72,16 @@ int drs_proto_proc()
  * @param a_proto
  * @param a_data
  * @param a_data_size
+ * @param a_flags
  */
-void drs_proto_out_add_mem(drs_proto_t * a_proto, const void * a_data, size_t a_data_size)
+void drs_proto_out_add_mem(drs_proto_t * a_proto, void * a_data, size_t a_data_size, int a_flags)
 {
     // Добавляем данные на отправку в очередь
     drs_proto_data_t * l_out = DAP_NEW_Z(drs_proto_data_t);
     l_out->type = DATA_TYPE_MEMORY;
     l_out->data.ptr = a_data;
     l_out->data.size = a_data_size;
+    l_out->data.flags = a_flags;
     s_proto_out_add(a_proto, l_out);
 }
 
@@ -120,6 +123,10 @@ static inline void s_proto_out_remove(drs_proto_t * a_proto, drs_proto_data_t * 
     dap_list_t * l_out_last_prev =  a_proto->out_last->prev;
     // Очищаем память элемента очереди
     dap_list_free1(a_proto->out_last);
+
+    // Если взведён флаг DRS_PROTO_DATA_MEM_FREE_AFTER то очищаем память
+    if (a_out->data.flags & DRS_PROTO_DATA_MEM_FREE_AFTER)
+        DAP_DELETE(a_out->data.ptr);
     DAP_DELETE(a_out);
 
     // Обновляем указатели на последний и, если нужно, первый элемент очереди
@@ -140,6 +147,8 @@ static void s_callback_new (dap_events_socket_t * a_es,void * a_arg )
     // Создаём экземпляр объекта-наследника
     drs_proto_t *l_proto = DAP_NEW_Z(drs_proto_t);
     l_proto->esocket = a_es;
+    pthread_rwlock_init(&l_proto->in_rwlock,NULL);
+    pthread_rwlock_init(&l_proto->out_rwlock,NULL);
     a_es->_inheritor = l_proto; // агрегируем его в родителя.
 }
 
@@ -191,7 +200,7 @@ static void s_callback_write (dap_events_socket_t * a_es,void * a_arg )
         assert(l_out);
         switch (l_out->type){
             case DATA_TYPE_MEMORY:
-                l_out->data.shift += dap_events_socket_write_unsafe(a_es, l_out->data.ptr+l_out->data.shift,
+                l_out->data.shift += dap_events_socket_write_unsafe(a_es, l_out->data.ptr_byte + l_out->data.shift,
                                                                        l_out->data.size - l_out->data.shift);
                 if (l_out->data.shift >= l_out->data.size ){ // Проверяем, отправили ли мы всё
                     log_it(L_DEBUG, "Have sent succeffuly memory region %zd size", l_out->data.size);
@@ -247,5 +256,8 @@ static void s_callback_delete (dap_events_socket_t * a_es,void * a_arg )
 
     drs_proto_t * l_proto = DRS_PROTO(a_es);
     dap_list_free_full(l_proto->out_first, NULL); // очищает очередь отправки
+    pthread_rwlock_destroy(&l_proto->in_rwlock);
+    pthread_rwlock_destroy(&l_proto->out_rwlock);
+
 }
 

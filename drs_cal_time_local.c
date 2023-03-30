@@ -93,7 +93,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
                 unsigned idx = n + b* DRS_CELLS_COUNT_BANK;
                 a_output[idx] = l_tmpX;
 
-                l_cell_id_shifted = ( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift+n)&1023 ) );
+                l_cell_id_shifted = ( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&1023 ) );
                 l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_shifted] * l_average[ch];
             }
         }
@@ -163,10 +163,10 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
         }
 
-        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY);
+        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY );
 
 
-        l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats,a_drs->shift);
+        l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats,a_drs->shift_bank);
         /*
         debug_if(s_debug_more, L_DEBUG, "l_value_min=%f",l_value_min);
         debug_if(s_debug_more, L_DEBUG, "l_page_buffer[]={0x%04X,0x%04X,0x%04X,0x%04X...}", l_page_buffer[0],

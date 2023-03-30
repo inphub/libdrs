@@ -9,7 +9,7 @@
 
 #include "drs.h"
 
-#define DRS_CMD_INIT_DRS			0x00000001 //EN_WORK
+#define DRS_CMD_INIT_SOFT_START			0x00000001 //EN_WORK
 #define DRS_CMD_START_DRS			0x00000002
 #define DRS_CMD_ENABLE_EXT_PULSE                0x00000004
 #define DRS_CMD_RESET				0x00000008

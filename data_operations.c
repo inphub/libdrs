@@ -12,7 +12,7 @@
 
 #include "data_operations.h"
 #include "commands.h"
-#include "mem_ops.h"
+#include "drs.h"
 #include "drs_ops.h"
 
 #define LOG_TAG "data_operations"

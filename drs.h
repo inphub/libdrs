@@ -14,8 +14,6 @@
 #include <dap_common.h>
 #include <dap_time.h>
 
-#include "mem_ops.h"
-
 #define DRS_COUNT 2
 
 // Канал с калибровочной синусоидой для временной калибровки
@@ -114,6 +112,7 @@ typedef struct
 
 typedef struct{
     short id;
+    unsigned int shift_bank;
     unsigned int shift;
     coefficients_t coeffs;
 } drs_t;
@@ -154,7 +153,6 @@ extern drs_t g_drs[DRS_COUNT];
 #define DRS_IDX(ch,n) ((n)*DRS_CHANNELS_COUNT+(ch))
 #define DRS_IDX_BANK(ch,b,n) ((n + b*DRS_CELLS_COUNT_BANK)*DRS_CHANNELS_COUNT+(ch))
 #define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_9,n)
-extern unsigned short tmasFast[SIZE_FAST];
 
 #ifdef __cplusplus
 extern "C" {
@@ -188,6 +186,21 @@ unsigned drs_dac_shift_input_get_ch9();
 void drs_dac_set( unsigned int onAH);
 void drs_set_freq(enum drs_freq a_freq);
 double drs_get_freq_value(enum drs_freq a_freq);
+
+void drs_reg_write(unsigned int reg_adr, unsigned int reg_data);
+unsigned int drs_reg_read(unsigned int reg_adr);
+
+#define SDRAM_BASE_DRS1 0x20000000 //536870912
+#define SDRAM_SPAN_DRS1 0x0FCFFFFF //253 page = 265289727
+
+#define SDRAM_BASE_DRS2 0x30000000 //805306368
+#define SDRAM_SPAN_DRS2 0x0FCFFFFF //253 page = 265289727
+
+#define MEMORY_BASE  	0x20000000
+#define MEMORY_SIZE  	0x20000000
+
+extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
+
 
 #ifdef __cplusplus
 }

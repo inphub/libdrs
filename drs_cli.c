@@ -250,13 +250,14 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                 l_limits = atoi(l_limits_str);
 
             if(l_drs_num!=-1){
-                memset(tmasFast, 0, sizeof(tmasFast));
+
+                unsigned short l_buf[DRS_CELLS_COUNT]={0};
                 dap_string_t * l_reply = dap_string_new("");
                 dap_string_append_printf(l_reply,"Page read for DRS %d\n", l_drs_num);
                 drs_t * l_drs = &g_drs[l_drs_num];
-                drs_data_get_all(l_drs, 0, tmasFast);
+                drs_data_get_all(l_drs, 0, l_buf);
                 for (size_t t = 0; t < l_limits; t++){
-                    dap_string_append_printf(l_reply, "0x%04X ", tmasFast[t]);
+                    dap_string_append_printf(l_reply, "0x%04X ", l_buf[t]);
                     if ( t % 30 == 0)
                         dap_string_append_printf(l_reply, "\n");
                 }
@@ -266,12 +267,12 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                 dap_string_t * l_reply = dap_string_new("");
 
                 for(size_t n = 0; n < DRS_COUNT ; n++){
-                    memset(tmasFast, 0, sizeof(tmasFast));
+                    unsigned short l_buf[DRS_CELLS_COUNT]={0};
                     dap_string_append_printf(l_reply,"Page read for DRS %d\n", n);
                     drs_t * l_drs = g_drs+ n;
-                    drs_data_get_all(l_drs, 0, tmasFast);
+                    drs_data_get_all(l_drs, 0, l_buf);
                     for (size_t t = 0; t < l_limits; t++){
-                        dap_string_append_printf(l_reply, "%04X ", tmasFast[t]);
+                        dap_string_append_printf(l_reply, "%04X ", l_buf[t]);
                         if ( t % 30 == 0)
                             dap_string_append_printf(l_reply, "\n");
                     }

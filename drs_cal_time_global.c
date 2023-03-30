@@ -231,7 +231,7 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_period[l_count] - l_period[l_count - 1];
             }
-            l_indexs[l_count] = a_drs->shift + n;
+            l_indexs[l_count] = a_drs->shift_bank + n;
             l_count++;
         }
 

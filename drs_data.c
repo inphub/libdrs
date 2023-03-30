@@ -16,8 +16,6 @@
 
 #define LOG_TAG "drs_data"
 
-static unsigned int s_get_shift(unsigned int a_drs_num);
-
 static bool s_debug_more=false;
 
 /**
@@ -54,7 +52,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a
     assert(a_drs);
     assert(a_buffer);
     unsigned int l_ret=0,i=0;
-    unsigned l_cmds = DRS_CMD_START_DRS;
+    unsigned l_cmds = DRS_CMD_INIT_SOFT_START | DRS_CMD_START_DRS;
 
     if (a_flags & DRS_OP_FLAG_EXT_START){
         log_it(L_INFO, "start ext DRS");
@@ -118,62 +116,56 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
         memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
     else
        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
-    a_drs->shift =s_get_shift( a_drs->id);
+    a_drs->shift =drs_get_shift( a_drs->id);
+    a_drs->shift_bank =a_drs->shift & 1023;
 
     //log_it(L_DEBUG, "Global shift: %u , local shift: %u",drs_get_shift(a_drs->id), a_drs->shift);
 
 }
 
-/**
- * @brief drs_read_page_rotated
- * @param a_drs
- * @param a_page_num
- * @param a_buffer
- * @param a_buffer_size
- */
-void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size)
+
+void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size)
 {
     assert(a_drs);
-    assert(a_buffer);
-    byte_t * a_drs_mem = a_drs->id == 0 ? (byte_t*)data_map_drs1 : (byte_t*)data_map_drs2;
-    unsigned short * a_drs_page =(unsigned short *) (a_drs_mem + a_page_num*DRS_PAGE_READ_SIZE);
-    a_drs->shift = s_get_shift( a_drs->id);
-    unsigned int l_shift = DRS_CELLS_COUNT_BANK - a_drs->shift;
+    assert(a_mem_in);
+    assert(a_mem_out);
+    assert(a_cell_size);
+    unsigned int l_shift_global = a_drs->shift;
+    unsigned int l_shift = DRS_CELLS_COUNT_BANK - a_drs->shift_bank;
 
-    unsigned int l_shift_global = drs_get_shift(a_drs->id);
-    //log_it(L_DEBUG, "Global shift: %u , local shift: %u",l_shift_global, l_shift);
+    log_it(L_DEBUG, "Global shift: %u , local shift: %u",l_shift_global, l_shift);
 
-
-    size_t l_copy_size = (DRS_CELLS_COUNT_BANK * sizeof(unsigned short) * DRS_CHANNELS_COUNT);
     size_t l_total_size = 0;
     size_t l_in_offset, l_out_offset;
 
-    byte_t * l_buf_in = (byte_t*) a_drs_page;
-    byte_t * l_buf_out =(byte_t*) a_buffer;
+    const byte_t * l_buf_in = (byte_t*) a_mem_in;
+    byte_t * l_buf_out =  DAP_NEW_STACK_SIZE(byte_t, a_mem_size);
+    memset(l_buf_out,0, a_mem_size);
 
     // Разворачиваем внутри банков
-    for(unsigned b = 0; b < DRS_BANK_COUNT && l_total_size < a_buffer_size; b++){
-        size_t l_bank_shift = b*DRS_CELLS_COUNT_BANK * DRS_CHANNELS_COUNT *sizeof (unsigned short); // смещение банка
+    for(unsigned b = 0; b < DRS_CHANNEL_BANK_COUNT && l_total_size < a_mem_size; b++){
+        size_t l_bank_shift = b*DRS_CELLS_COUNT_BANK * DRS_CHANNELS_COUNT *a_cell_size; // смещение банка
+        size_t l_copy_size = (DRS_CELLS_COUNT_BANK - l_shift) * a_cell_size * DRS_CHANNELS_COUNT;
 
-        l_copy_size = (DRS_CELLS_COUNT_BANK - l_shift) * sizeof(unsigned short) * DRS_CHANNELS_COUNT;
-
-        if (l_copy_size + l_total_size > a_buffer_size ) // Проверяем на предмет выхода за пределы буфера
-            l_copy_size = a_buffer_size - l_total_size;
+        if (l_copy_size + l_total_size > a_mem_size ) // Проверяем на предмет выхода за пределы буфера
+            l_copy_size = a_mem_size - l_total_size;
         // Копируем головной кусок
         l_out_offset = l_bank_shift;
-        l_in_offset = l_bank_shift + l_shift*DRS_CHANNELS_COUNT*sizeof (unsigned short);
-        memcpy( l_buf_out + l_out_offset,  l_buf_in + l_in_offset , l_copy_size ) ;
-        l_total_size += l_copy_size;
+        l_in_offset = l_bank_shift + l_shift*DRS_CHANNELS_COUNT*a_cell_size;
+        if(l_copy_size){
+            memcpy( l_buf_out + l_out_offset,  l_buf_in + l_in_offset , l_copy_size ) ;
+            l_total_size += l_copy_size;
+        }
 
         // проверяем, не всё ли это
-        if(l_total_size >= a_buffer_size)
+        if(l_total_size >= a_mem_size)
             break;
 
 
         // считаем размер хвостика
-        unsigned l_copy_size_tail = ( (DRS_CELLS_COUNT_BANK * sizeof(unsigned short)* DRS_CHANNELS_COUNT) - l_copy_size);
-        if ( (l_copy_size_tail + l_total_size) > a_buffer_size ) // Проверяем на предмет выхода за пределы буфера
-            l_copy_size_tail = a_buffer_size - l_total_size;
+        unsigned l_copy_size_tail = ( (DRS_CELLS_COUNT_BANK * a_cell_size* DRS_CHANNELS_COUNT) - l_copy_size);
+        if ( (l_copy_size_tail + l_total_size) > a_mem_size ) // Проверяем на предмет выхода за пределы буфера
+            l_copy_size_tail = a_mem_size - l_total_size;
         // копируем хвостик
         l_out_offset += l_copy_size ;
         l_in_offset = l_bank_shift;
@@ -183,6 +175,31 @@ void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned shor
         l_total_size += l_copy_size_tail;
 
     }
+
+    //memcpy(a_mem_out, l_buf_out, a_mem_size);
+    // Разворачиваем глобально всё
+    unsigned l_head_size = (DRS_CELLS_COUNT_CHANNEL - l_shift_global) * a_cell_size * DRS_CHANNELS_COUNT;
+    memcpy(a_mem_out, l_buf_out + l_shift_global* a_cell_size * DRS_CHANNELS_COUNT , l_head_size  );
+    memcpy(((byte_t*)a_mem_out) + l_head_size, l_buf_out, l_shift_global * a_cell_size * DRS_CHANNELS_COUNT );
+}
+
+
+
+/**
+ * @brief drs_read_page_rotated
+ * @param a_drs
+ * @param a_page_num
+ * @param a_buffer
+ * @param a_buffer_size
+ */
+void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer,const size_t a_buffer_size)
+{
+    assert(a_drs);
+    assert(a_buffer);
+    byte_t * a_drs_mem = a_drs->id == 0 ? (byte_t*)data_map_drs1 : (byte_t*)data_map_drs2;
+    unsigned short * a_drs_page =(unsigned short *) (a_drs_mem + a_page_num*DRS_PAGE_READ_SIZE);
+
+    drs_data_rotate(a_drs, a_drs_page, a_buffer, a_buffer_size, sizeof(unsigned short));
 }
 
 
@@ -219,7 +236,7 @@ void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_ste
  * unsigned int drsnum		номер drs для вычитывания сдвига
  * return 					индекс сдвига;
  */
-static unsigned int s_get_shift(unsigned int a_drs_num)//npage
+unsigned int drs_get_shift_bank(unsigned int a_drs_num)
 {
     return drs_get_shift(a_drs_num) &1023;
 }

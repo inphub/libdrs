@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
-set(DAP_SDK_NATIVE_VERSION "3.0-0")
 project (dap_sdk)
+set(DAP_SDK_NATIVE_VERSION "3.0-0")
+set(CMAKE_C_STANDARD 11)
 
 file(GLOB DAP_SDK_SRCS
       *.c

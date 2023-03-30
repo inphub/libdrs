@@ -398,6 +398,9 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     //double  **l_ki = a_drs->coeffs.k;
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
+    double * l_out = a_flags & DRS_CAL_ROTATE && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY)) ?
+          DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
+
     for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
         if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
             l_ch_id = DRS_CHANNEL_9;
@@ -408,9 +411,9 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             unsigned l_inout_id = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id;
 
             koefIndex=  a_flags & DRS_CAL_APPLY_CH9_ONLY ?
-                (a_drs->shift + l_cell_id ) & 1023
-                :(a_drs->shift + (l_cell_id&1023) ) & 1023 ;
-            a_out[l_inout_id] = a_in[l_inout_id];
+                (a_drs->shift_bank + l_cell_id ) & 1023
+                :(a_drs->shift_bank + (l_cell_id&1023) ) & 1023 ;
+            l_out[l_inout_id] = a_in[l_inout_id];
             if((a_flags & DRS_CAL_APPLY_Y_CELLS)!=0){
                 double l_bi, l_ki;
                 if (a_flags & DRS_CAL_APPLY_CH9_ONLY){
@@ -422,15 +425,15 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
                 }
 
 
-                a_out[l_inout_id] =  ( a_out[l_inout_id] - l_bi ) /
+                l_out[l_inout_id] =  ( l_out[l_inout_id] - l_bi ) /
                                                  (l_ki +1.0 );
             }
 
             if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
-                a_out[l_inout_id] = (a_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
+                l_out[l_inout_id] = (l_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
             }
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
-                a_out[l_inout_id]=(a_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
+                l_out[l_inout_id]=(l_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }
         }
         if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
@@ -438,22 +441,15 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     }
     if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
     {
-        s_remove_splash(a_drs, a_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
+        s_remove_splash(a_drs, l_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
     }
 
     // Разворачиваем всё вместе
 
 
-    if ( !(a_flags & DRS_CAL_APPLY_CH9_ONLY) ){
-        unsigned l_global_shift_count = drs_get_shift(a_drs->id) * DRS_CHANNELS_COUNT;
-        size_t l_global_shift_size = l_global_shift_count * sizeof (double) ;
-        size_t l_buffer_size = DRS_CELLS_COUNT_CHANNEL * sizeof (double);
-        byte_t * l_tmp = DAP_NEW_STACK_SIZE(byte_t, l_global_shift_size);
-        memcpy(l_tmp, a_out, l_global_shift_size  );
-        memmove(a_out, a_out + l_global_shift_count, l_buffer_size - l_global_shift_size);
-        memcpy(a_out + l_buffer_size - l_global_shift_size, l_tmp, l_global_shift_size  );
+    if (a_flags & DRS_CAL_ROTATE && ! (a_flags &DRS_CAL_APPLY_CH9_ONLY) ){
+        drs_data_rotate(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
     }
-
 }
 
 /**
@@ -527,8 +523,8 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigne
 static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
 {
     for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
-        for (unsigned b = 0; a_ch9_only ? b == 0 : b < DRS_BANK_COUNT ; b++){
-            unsigned l_cell_id = ( a_drs->coeffs.splash[ch] - a_drs->shift + DRS_CELLS_COUNT_BANK - 1) & (DRS_CELLS_COUNT_BANK-1 );
+        for (unsigned b = 0; a_ch9_only ? b == 0 : b < DRS_CHANNEL_BANK_COUNT ; b++){
+            unsigned l_cell_id = ( a_drs->coeffs.splash[ch] - a_drs->shift_bank + DRS_CELLS_COUNT_BANK - 1) & (DRS_CELLS_COUNT_BANK-1 );
             if((l_cell_id > 0) && (l_cell_id < (DRS_CELLS_COUNT_BANK - 1) )){
                 a_Y[DRS_IDX_BANK(ch,b,l_cell_id)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id + 1)] + a_Y[DRS_IDX_BANK(ch,b,l_cell_id - 1)]) / 2.0;
             }

@@ -10,6 +10,10 @@
 #include <dap_list.h>
 
 typedef enum drs_proto_data_type{ DATA_TYPE_MEMORY, DATA_TYPE_FILE } drs_proto_data_type_t;
+
+// Освобождает память после отправки
+#define DRS_PROTO_DATA_MEM_FREE_AFTER 0x00000001
+
 /**
   * @struct drs_proto_data
   * @brief Указатель на данные для приёма либо отправки
@@ -19,9 +23,13 @@ typedef struct drs_proto_data{
     drs_proto_data_type_t type;
     union{
         struct{
-            const void * ptr;     /** @brief Указатель на сами данные */
+            union{
+                void * ptr;     /** @brief Указатель на сами данные */
+                byte_t * ptr_byte;
+            };
             size_t size;  /** @brief Размер данных */
             size_t shift; /** @brief Смещение индекса чтении или записи относительно начала  */
+            int flags;
         } data;
         struct{
             int fd;
@@ -33,7 +41,7 @@ typedef struct drs_proto_data{
 
 /**
   * @enum drs_proto_state_in
-  * @brief Элементы машины состояний приёмаы
+  * @brief Элементы машины состояний приёма
   */
 typedef enum drs_proto_state_in{
     STATE_IN_DEFAULT,
@@ -63,9 +71,11 @@ typedef struct drs_proto{
         drs_proto_state_out_t in;
     } state;
 
+    pthread_rwlock_t out_rwlock;
     dap_list_t * out_first;  /** @brief Первый на очередь отправки **/
     dap_list_t * out_last;   /** @brief Последний на очередь отправки **/
 
+    pthread_rwlock_t in_rwlock;
     dap_list_t * in_first;   /** @brief Первый на очередь чтения **/
     dap_list_t * in_last;    /** @brief Последний на очередь отправки **/
 
@@ -77,6 +87,7 @@ extern const char g_inipath[];
 
 int drs_proto_init(dap_server_t * a_server);
 void drs_proto_deinit();
-void drs_proto_out_add_mem(drs_proto_t * a_proto, const void * a_data, size_t a_data_size);
+void drs_proto_out_add_mem(drs_proto_t * a_proto, void * a_data, size_t a_data_size, int a_flags);
+
 void drs_proto_out_add_file(drs_proto_t * a_proto, int a_fd, bool a_close_fd_after);
 

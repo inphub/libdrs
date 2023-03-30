@@ -27,7 +27,7 @@ int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  
 int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
 
 unsigned int drs_get_shift(unsigned int a_drs_num);
-
+unsigned int drs_get_shift_bank(unsigned int a_drs_num);
 
 
 void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size);
@@ -38,6 +38,8 @@ static inline void drs_read_page_all(drs_t * a_drs,unsigned int a_page_num,  uns
 }
 
 void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_step,  unsigned short *a_buffer, size_t a_buffer_size);
+
+void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size);
 
 #ifdef __cplusplus
 }

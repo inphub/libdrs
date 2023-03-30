@@ -29,7 +29,6 @@
 #include "calibrate.h"
 #include "commands.h"
 #include "data_operations.h"
-#include "mem_ops.h"
 
 #define inipath "/media/card/config.ini"
 #define DEBUG
@@ -43,7 +42,6 @@
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
 
-unsigned short tmasFast[SIZE_FAST];
 const unsigned int freqREG[]= {480, 240, 160, 120, 100};
 const char s_drs_check_file[]="/tmp/drs_init";
 
@@ -70,13 +68,129 @@ static const double c_freq_DRS[]= {
 enum drs_freq g_current_freq=DRS_FREQ_5GHz;
 
 static bool s_init_on_start_timer_callback(void* a_arg); // Init on start timeout callback
+static int s_init_mem(void);
+static uint32_t s_memr(off_t byte_addr);
+static void s_memw(off_t byte_addr, uint32_t data);
 
+#define PAGE_SIZE 8192
+#define HPS2FPGA_BRIDGE_BASE	0xC0000000 //данные быстрых АЦП
+#define LWHPS2FPGA_BRIDGE_BASE	0xff200000 //управление
+#define SHIFT_DRS1	0x2FD00000
+#define SHIFT_DRS2	0x3FD00000
+
+
+static int fd;
+volatile unsigned int *control_mem;
+void *control_map;
+void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
+
+#define MAP_SIZE           (4096)
+#define MAP_MASK           (MAP_SIZE-1)
+
+static bool s_debug_more = false;
+
+static int s_init_mem(void)
+{
+    int ret = EXIT_FAILURE;
+//	unsigned char value;
+    off_t control_base = LWHPS2FPGA_BRIDGE_BASE;
+    off_t data_base_drs1 = SDRAM_BASE_DRS1;
+    off_t data_base_drs2 = SDRAM_BASE_DRS2;
+    off_t data_shift_drs1 = SHIFT_DRS1;
+    off_t data_shift_drs2 = SHIFT_DRS2;
+    off_t data_base_map_offset = MEMORY_BASE;
+
+    /* open the memory device file */
+    fd = open("/dev/mem", O_RDWR|O_SYNC);
+    if (fd < 0) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+
+    /* map the LWHPS2FPGA bridge into process memory */
+    control_map = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, control_base);
+    if (control_map == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+
+    data_map_drs1 = mmap(NULL, SDRAM_SPAN_DRS1, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_base_drs1);
+    if (data_map_drs1 == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+
+    data_map = mmap(NULL, MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_base_map_offset);
+    if (data_map == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+
+    data_map_drs2 = mmap(NULL, SDRAM_SPAN_DRS2, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_base_drs2);
+    if (data_map_drs2 == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+
+    data_map_shift_drs1 = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs1);
+    if (data_map_shift_drs1 == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+
+    data_map_shift_drs2 = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs2);
+    if (data_map_shift_drs2 == MAP_FAILED) {
+        perror("mmap");
+        goto cleanup;
+    }
+    ret = 0;
+
+cleanup:
+    return ret;
+}
+
+static void s_deinit_mem(void)
+{
+    if (munmap(control_map, PAGE_SIZE) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+    if (munmap(data_map, MEMORY_SIZE) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+
+    if (munmap(data_map_drs1, SDRAM_SPAN_DRS1) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+    if (munmap(data_map_drs2, SDRAM_SPAN_DRS2) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+    if (munmap(data_map_shift_drs1, 0x1000) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+    if (munmap(data_map_shift_drs2, 0x1000) < 0)
+    {
+        perror("munmap");
+        goto cleanup;
+    }
+cleanup:
+    close(fd);
+}
 
 
 int drs_init()
 {
     // Инициализация DRS
-    init_mem();
+    s_init_mem();
 
     g_ini = DAP_NEW_Z(parameter_t);
     drs_ini_load("/media/card/config.ini", g_ini );
@@ -130,34 +244,34 @@ int drs_cmd_init()
         log_it(L_WARNING, "Already initialized");
         return -1;
     }
-    memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
+    s_memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
 
-    set_dma_addr_drs1(0x08000000);  		//    write_reg(0x00000017, 0x8000000);// DRS1
-    set_size_dma_drs1(0x00004000);  		//    write_reg(0x00000019, 0x4000);
-    set_dma_addr_drs2(0x0c000000);  		//    write_reg(0x00000018, 0xC000000);// DRS2
-    set_size_dma_drs2(0x00004000);  		//    write_reg(0x0000001a, 0x4000);
-    set_shift_addr_drs1(0x0bf40000);		//    write_reg(0x0000001c, 0xBF40000);
-    set_shift_addr_drs2(0x0ff40000);		//    write_reg(0x0000001d, 0xFF40000);
+    set_dma_addr_drs1(0x08000000);  		//    drs_reg_write(0x00000017, 0x8000000);// DRS1
+    set_size_dma_drs1(0x00004000);  		//    drs_reg_write(0x00000019, 0x4000);
+    set_dma_addr_drs2(0x0c000000);  		//    drs_reg_write(0x00000018, 0xC000000);// DRS2
+    set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
+    set_shift_addr_drs1(0x0bf40000);		//    drs_reg_write(0x0000001c, 0xBF40000);
+    set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
 
-    clk_select(INTERNAL_CLK);				//    write_reg(0x00000004, 0x00000001);//select_freq
-    clk_select_internal_value(480);			//    write_reg(0x0000001e, 0x00000064);//freqREG[curfreq]);
-    clk_phase(40);							//    write_reg(0x00000006, 0x00000028);
-    clk_start(1);							//    write_reg(0x00000005, 0x00000001);
-    set_dac_offs_drs1(30000, 30000);		//    write_reg(0x00000008, 0x83e683e6);
-    set_dac_offs_drs2(30000, 30000);		//    write_reg(0x00000009, 0x83e683e6);
-    start_dac(1);							//    write_reg(0x00000007, 0x00000001);
+    clk_select(INTERNAL_CLK);				//    drs_reg_write(0x00000004, 0x00000001);//select_freq
+    clk_select_internal_value(480);			//    drs_reg_write(0x0000001e, 0x00000064);//freqREG[curfreq]);
+    clk_phase(40);							//    drs_reg_write(0x00000006, 0x00000028);
+    clk_start(1);							//    drs_reg_write(0x00000005, 0x00000001);
+    set_dac_offs_drs1(30000, 30000);		//    drs_reg_write(0x00000008, 0x83e683e6);
+    set_dac_offs_drs2(30000, 30000);		//    drs_reg_write(0x00000009, 0x83e683e6);
+    start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
     //set_dac_rofs_O_ofs_drs1(35000, 30000);
-    write_reg(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
+    drs_reg_write(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    set_dac_speed_bias_drs1(0, 16350);		//    write_reg(0x0000000b, 0x3fde0000);
+    set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
 
-    //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    write_reg(0x0000000c, 0x7d009e98);
-    write_reg(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
+    //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    drs_reg_write(0x0000000c, 0x7d009e98);
+    drs_reg_write(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    set_dac_speed_bias_drs2(0, 16350);		//    write_reg(0x0000000d, 0x3fde0000);
-    set_dac_9ch_ofs(30000);					//    write_reg(0x0000001f, 0x00007530);
-    start_dac(1);							//    write_reg(0x00000007, 0x00000001);
+    set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
+    set_dac_9ch_ofs(30000);					//    drs_reg_write(0x0000001f, 0x00007530);
+    start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
 
 
@@ -169,19 +283,19 @@ int drs_cmd_init()
     set_starts_number_drs2(1);
     set_zap_delay_drs2(0);
 
-    set_mode_drss(MODE_SOFT_START);			//    write_reg(0x00000010, 0x00000000);
-    init_drs1();							//    write_reg(0x0000000e, 0x00000001);
-    init_drs2();							//    write_reg(0x0000000f, 0x00000001);
+    set_mode_drss(MODE_SOFT_START);			//    drs_reg_write(0x00000010, 0x00000000);
+    init_drs1();							//    drs_reg_write(0x0000000e, 0x00000001);
+    init_drs2();							//    drs_reg_write(0x0000000f, 0x00000001);
 
     // Start all
-    write_reg(0x00000001, 0x0000001);
+    drs_reg_write(0x00000001, 0x0000001);
 
     // Touch file
     FILE * f = fopen(s_drs_check_file,"w");
     fclose(f);
 
     // Init all DRS
-    drs_cmd(-1, DRS_CMD_INIT_DRS);
+    drs_cmd(-1, DRS_CMD_INIT_SOFT_START);
 
     log_it(L_NOTICE, "DRS settings are implemented");
     return 0;
@@ -190,8 +304,8 @@ int drs_cmd_init()
 void drs_set_freq(enum drs_freq a_freq)
 {
     g_current_freq = a_freq;
-    write_reg(0x4, 1);//select frequency (0 - external, 1 - internal
-    write_reg(30,   freqREG[g_current_freq]);//select ref frequency
+    drs_reg_write(0x4, 1);//select frequency (0 - external, 1 - internal
+    drs_reg_write(30,   freqREG[g_current_freq]);//select ref frequency
 }
 
 double drs_get_freq_value(enum drs_freq a_freq)
@@ -209,6 +323,8 @@ void drs_deinit()
    DAP_DELETE(g_ini);
    g_ini = NULL;
 
+   s_deinit_mem();
+
 }
 
 /**
@@ -218,21 +334,21 @@ void drs_deinit()
 void drs_init_old(parameter_t *a_params)
 {
 
-    write_reg(6, a_params->fastadc.CLK_PHASE);//clk_phase
+    drs_reg_write(6, a_params->fastadc.CLK_PHASE);//clk_phase
     printf("initialization\tprm->fastadc.OFS1=%u\tprm->fastadc.ROFS1=%u\n",a_params->fastadc.OFS1,a_params->fastadc.ROFS1);
     printf("              \tprm->fastadc.OFS2=%u\tprm->fastadc.ROFS2=%u\n",a_params->fastadc.OFS2,a_params->fastadc.ROFS2);
     printf("              \tprm->fastadc.CLK_PHASE=%u\n", a_params->fastadc.CLK_PHASE);
     usleep(3);
-    write_reg(10,((a_params->fastadc.OFS1<<16)&0xffff0000)|a_params->fastadc.ROFS1);// OFS&ROFS
+    drs_reg_write(10,((a_params->fastadc.OFS1<<16)&0xffff0000)|a_params->fastadc.ROFS1);// OFS&ROFS
     usleep(3);
-    write_reg(11,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
+    drs_reg_write(11,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
     usleep(3);
-    write_reg(12,((a_params->fastadc.OFS2<<16)&0xffff0000)|a_params->fastadc.ROFS2);// OFS&ROFS
+    drs_reg_write(12,((a_params->fastadc.OFS2<<16)&0xffff0000)|a_params->fastadc.ROFS2);// OFS&ROFS
     usleep(3);
-    write_reg(13,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
+    drs_reg_write(13,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
     usleep(3);
     drs_dac_set(1);
-//	write_reg(0x0,1<<3|0<<2|0<<1|0);//Start_DRS Reset_DRS Stop_DRS Soft reset
+//	drs_reg_write(0x0,1<<3|0<<2|0<<1|0);//Start_DRS Reset_DRS Stop_DRS Soft reset
 
 }
 
@@ -303,9 +419,9 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
 {
     assert(a_drs_num >= -1 && a_drs_num < DRS_COUNT );
     s_mode[a_drs_num] = a_mode;
-    write_reg(DRS_MODE_REG, a_mode);
+    drs_reg_write(DRS_MODE_REG, a_mode);
     usleep(100);
-    drs_cmd(a_drs_num, DRS_CMD_INIT_DRS);
+    drs_cmd(a_drs_num, DRS_CMD_INIT_SOFT_START);
 }
 
 /**
@@ -325,7 +441,7 @@ drs_mode_t drs_get_mode(int a_drs_num)
  */
 void drs_dac_shift_input_set(int a_drs_num,unsigned int a_value)
 {
-    write_reg(0x8+a_drs_num,a_value);
+    drs_reg_write(0x8+a_drs_num,a_value);
     usleep(100);
 }
 
@@ -335,7 +451,7 @@ void drs_dac_shift_input_set(int a_drs_num,unsigned int a_value)
  */
 void drs_dac_shift_input_set_ch9(unsigned int a_value)
 {
-    write_reg(DRS_REG_DATA_DAC_CH9 ,a_value);
+    drs_reg_write(DRS_REG_DATA_DAC_CH9 ,a_value);
     usleep(100);
 }
 
@@ -345,7 +461,7 @@ void drs_dac_shift_input_set_ch9(unsigned int a_value)
  */
 unsigned drs_dac_shift_input_get(int a_drs_num)
 {
-    return read_reg(0x8+a_drs_num);
+    return drs_reg_read(0x8+a_drs_num);
 }
 
 /**
@@ -353,7 +469,7 @@ unsigned drs_dac_shift_input_get(int a_drs_num)
  */
 unsigned drs_dac_shift_input_get_ch9()
 {
-    return read_reg(DRS_REG_DATA_DAC_CH9);
+    return drs_reg_read(DRS_REG_DATA_DAC_CH9);
 }
 
 /**
@@ -363,7 +479,7 @@ unsigned drs_dac_shift_input_get_ch9()
 void drs_dac_set(unsigned int onAH)//fix
 {
     //unsigned int onAH=1,dacSelect=2;
-    write_reg(0x07,(onAH&1));
+    drs_reg_write(0x07,(onAH&1));
     usleep(200);
 }
 
@@ -421,4 +537,60 @@ void drs_dac_shift_set_ch9(double a_shift,float a_gain,float a_offset)
 bool drs_get_inited()
 {
     return dap_file_test(s_drs_check_file);
+}
+
+void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)
+{
+    /* get the delay_ctrl peripheral's base address */
+    control_mem = (unsigned int *) (control_map + reg_adr*4);
+    debug_if(s_debug_more, L_DEBUG, "write: adr=0x%08x (%u), val=0x%08x", reg_adr, reg_adr, reg_data);
+
+    /* write the value */
+    *control_mem = reg_data;
+    usleep(100);
+}
+
+unsigned int drs_reg_read(unsigned int reg_adr)
+{
+    unsigned int reg_data;
+    control_mem = (unsigned int *) (control_map + reg_adr*4);
+    reg_data=(unsigned int)control_mem[0];
+//    printf("read: adr=0x%08x, val=0x%08x\n\r", reg_adr, reg_data), fflush(stdout);
+    usleep(100);
+    return(reg_data);
+}
+
+static void s_memw(off_t byte_addr, uint32_t data)
+{
+ void *map_page_addr, *map_byte_addr;
+  map_page_addr = mmap( 0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, byte_addr & ~MAP_MASK );
+  if( map_page_addr == MAP_FAILED ) {
+    perror( "mmap" );
+    return;
+  }
+  map_byte_addr = map_page_addr + (byte_addr & MAP_MASK);
+  *( ( uint32_t *) map_byte_addr ) = data;
+  if( munmap( map_page_addr, MAP_SIZE ) ) {
+    perror( "munmap" );
+    return;
+  }
+}
+
+static uint32_t s_memr(off_t byte_addr)
+{
+ void *map_page_addr, *map_byte_addr;
+ uint32_t data;
+  map_page_addr = mmap( 0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, byte_addr & ~MAP_MASK );
+  if( map_page_addr == MAP_FAILED ) {
+    perror( "mmap" );
+    return 0;
+  }
+  map_byte_addr = map_page_addr + (byte_addr & MAP_MASK);
+  data = *( ( uint32_t *) map_byte_addr );
+  printf( "data = 0x%08x\n", data );
+  if( munmap( map_page_addr, MAP_SIZE ) ) {
+    perror( "munmap" );
+    return 0;
+  }
+  return (data);
 }

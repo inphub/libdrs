@@ -238,7 +238,7 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
                 l_ret = -1;
                 goto lb_exit;
             }
-            if(a_drs->shift>1023){
+            if(a_drs->shift_bank>1023){
                log_it(L_ERROR, "shift index went beyond on %u::%u iteration", i,k);
                l_ret = -2;
                goto lb_exit;
@@ -348,7 +348,7 @@ static int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
             log_it(L_ERROR,"data not read on iteration %u", t);
             return -1;
         }
-        if(a_drs->shift>1023){
+        if(a_drs->shift_bank>1023){
             log_it(L_ERROR,"shift index went beyond on iteration %u", t);
             return -2;
         }
@@ -436,9 +436,9 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
             l_ch_id = DRS_CHANNEL_9;
         for(unsigned l_cell_id=0; l_cell_id < l_cells_proc_count ;l_cell_id++){
 
-            l_rotate_index=a_ch9_only? (a_drs->shift + l_cell_id) & 1023:
-                                       (a_drs->shift + (l_cell_id&1023)) & 1023 ;
-            assert( a_drs->shift < l_cells_proc_count);
+            l_rotate_index=a_ch9_only? (a_drs->shift_bank + l_cell_id) & 1023:
+                                       (a_drs->shift_bank + (l_cell_id&1023)) & 1023 ;
+            assert( a_drs->shift_bank < l_cells_proc_count);
 
             unsigned l_acc_index =  a_ch9_only?  l_rotate_index :
                                                 (l_cell_id&3072) | l_rotate_index;
@@ -512,15 +512,15 @@ static void s_find_splash(drs_t * a_drs, double*a_Y, double a_lvl, bool a_ch9_on
 
             if(absf(a_Y[DRS_IDX(ch,l_cell_id + 1)] - a_Y[DRS_IDX(ch,l_cell_id)])>a_lvl &&
                absf(a_Y[DRS_IDX(ch,l_cell_id-1)]  - a_Y[DRS_IDX(ch,l_cell_id)])>a_lvl){
-                log_it(L_DEBUG, "find splash for %d channel in %d cell\n",ch,(l_cell_id+ a_drs->shift)&1023);
-                l_splash[ch] = ( l_cell_id + a_drs->shift ) & 1023;
+                log_it(L_DEBUG, "find splash for %d channel in %d cell\n",ch,(l_cell_id+ a_drs->shift_bank)&1023);
+                l_splash[ch] = ( l_cell_id + a_drs->shift_bank ) & 1023;
                 break;
             }
         }
         if(   absf(a_Y[DRS_IDX(ch,1)]   - a_Y[DRS_IDX(ch,0)]    ) > a_lvl &&
               absf(a_Y[DRS_IDX(ch,1023)] - a_Y[DRS_IDX(ch,1022)] ) > a_lvl){
             l_splash[ch] = 0;
-            log_it(L_DEBUG,"find splash for %u channel in %u cell",ch+1,a_drs->shift);
+            log_it(L_DEBUG,"find splash for %u channel in %u cell",ch+1,a_drs->shift_bank);
         }
     }
 }
