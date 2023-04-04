@@ -9,6 +9,7 @@
 
 #include <dap_common.h>
 #include <dap_string.h>
+#include <dap_time.h>
 
 #include "drs.h"
 #include "drs_data.h"

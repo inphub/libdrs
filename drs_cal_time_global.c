@@ -8,6 +8,7 @@
 #include <math.h>
 
 #include <dap_common.h>
+#include <dap_time.h>
 
 #include "data_operations.h"
 

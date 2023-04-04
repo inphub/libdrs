@@ -7,6 +7,8 @@
 #include <assert.h>
 #include <math.h>
 
+#include <dap_time.h>
+
 #include "data_operations.h"
 
 #include "drs.h"
