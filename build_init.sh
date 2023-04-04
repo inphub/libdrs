@@ -8,11 +8,11 @@ CMAKE_CMD=cmake
 mkdir -p build.debug
 cd build.debug
 rm -rf *
-$CMAKE_CMD -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE -DCMAKE_INSTALL_PREFIX=/opt/dap-sdk -DCMAKE_BUILD_TYPE=Debug ../
+$CMAKE_CMD -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE -DCMAKE_INSTALL_PREFIX=/opt/cyclone_5_devices/adc105000_4/ -DCMAKE_BUILD_TYPE=Debug ../
 cd ..
 
 mkdir -p build.release
 cd build.release
 rm -rf *
-$CMAKE_CMD -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE -DCMAKE_INSTALL_PREFIX=/opt/dap-sdk ../
+$CMAKE_CMD -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE -DCMAKE_INSTALL_PREFIX=/opt/cyclone_5_devices/adc105000_4/ ../
 cd ..
