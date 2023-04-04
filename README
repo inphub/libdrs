@@ -1,0 +1,140 @@
+НАЧАЛО РАБОТЫ С БИБЛИОТЕКОЙ
+
+Сначала должна быть проинициализированна dap_sdk
+
+#include <dap_sdk.h>
+#include <drs.h>
+// Устанавливаем имя ДАП СДК приложения как example. Все его пути после этого будут читаться из /opt/example/
+dap_set_appname("example");
+// Инициализируем DAP SDK. Со временем сюда переедет и имя приложения тоже, а так же параметры инициализации
+dap_sdk_init(NULL);
+
+
+Затем инициализируется сама библиотека, а так же, если надо, её сетевой протокол и CLI команды
+
+#include <drs_proto.h>
+// Инициируем сетевой протокол для дефолтного TCP сервера
+drs_proto_init( g_dap_vars.io.server.tcp );
+
+
+Добавляем кастомную CLI команду (если нужно)
+#include <dap_cli_server.h>
+
+static int s_callback_example(int a_argc, char ** a_argv, char **a_str_reply)
+{
+    UNUSED(a_argc);
+    UNUSED(a_argv);
+    dap_cli_server_cmd_set_reply_text(a_str_reply, "DRS Server");
+    return 0;
+}
+
+dap_cli_server_cmd_add ("example", s_callback_example, "example brief",
+            "example detailed output\n"
+            "with multiple lines output"
+         );
+
+
+После чего можно пользоваться всеми возможностями libdrs.
+При желании "зависнуть" на ожидании окончания бесконечного цикла следует вызвать dap_events_wait()
+
+Перед выходом желательно провести штатную деинициализацию
+
+// Деинициализация
+dap_sdk_deinit();
+drs_proto_deinit();
+drs_deinit();
+
+
+ПОРЯДОК РАБОТЫ С УСТРОЙСТВОМ
+
+Сначала необходимо провести калибровку, функции для которой находятся в drs_cal.h
+
+int drs_calibrate_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params )
+
+Запускает калибровку для DRS за номером a_drs_num (-1 для всех сразу ), с набором флагов a_cal_flags и параметрами калибровки a_params
+
+Флаги:
+DRS_CAL_FLAG_AMPL           Амплитудная калибровка
+DRS_CAL_FLAG_TIME_LOCAL     Временная локальная
+DRS_CAL_FLAG_TIME_GLOBAL    Временная глобальная
+
+Параметры задаются экземпляром структуры drs_calibrate_params_t со следующими полями:
+ ampl.repeats               количество проходов амплитудной калибровки для каждого уровня цапов
+ ampl.N                     количество уровней у амплитудной калибровки
+ ampl.splash_gauntlet       уровень отсечения всплесков
+ ampl.levels                значения уровней плюс начало и конец
+ time_local.minN            Min N с клиента, минимальное число набора статистики для каждой ячейки в локальной калибровке
+ time_local.max_repeats     Максимальное количество повторов при наборе статистики
+
+Можно задать некие дефолтные значения с помощью функции drs_calibrate_params_set_defaults()
+
+Затем либо ждём результатов через
+
+drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec)
+
+a_drs_num - номер DRS, a_wait_msec количество микросекунд максимального ожидания, -1 для бесконечного
+
+Получить состояние калибровки можно через
+drs_calibrate_t* drs_calibrate_get_state(int a_drs_num)
+
+a_drs_num - номер DRS, возвращает объект состояния калибровки DRS
+
+После чего считать можно сырые даные Y массива через drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
+
+a_drs - объект DRS, может быть получен через глобальную переменную g_drs[<номер DRS>]
+
+a_flags - флаги чтения
+DRS_OP_FLAG_CALIBRATE - читать в режиме калибровки
+DRS_OP_FLAG_EXT_START - индикатор внешнего запуска
+DRS_OP_FLAG_ROTATE    - делать ли разворот данных по их смещениям внутри банков и глобально
+
+a_buffer  - буфер, куда пишется всё, должен быть размером DRS_CELLS_COUNT
+
+А затем применить к ним калибровки для Y массива
+
+drs_cal_y_apply(drs_t * a_drs, unsigned short *buffer,double *dBuf, int a_flags)
+a_drs     - объект DRS, может быть получен через глобальную переменную g_drs[<номер DRS>]
+a_buffer  - буфер с сырыми данными размером DRS_CELLS_COUNT. ВАЖНО!!! Данные должны быть БЕЗ разворота!
+a_flags   - флаги применения калибровки
+DRS_CAL_APPLY_Y_CELLS           - применение калибровки для ячеек
+DRS_CAL_APPLY_Y_INTERCHANNEL    - межканальная калибровка
+DRS_CAL_APPLY_Y_SPLASHS         - избавление от всплесков
+DRS_CAL_APPLY_PHYS              - приведение к физическим величинам
+DRS_CAL_ROTATE                  - Развернуть итоговые результаты
+
+
+Для массива Х (заполняемым сначала самостоятельно, 0, 1.0, 2.0, 3.0 и так далее) применить калибровки можно так:
+drs_cal_x_apply (drs_t * a_drs, double*a_x, int a_flags)
+a_drs     - объект DRS, может быть получен через глобальную переменную g_drs[<номер DRS>]
+a_buffer  - буфер размером DRS_CELLS_COUNT_CHANNEL с последовательностью чисел от 0.0 до DRS_CELLS_COUNT_CHANNEL с шагом в 1.0
+a_flags   - флаги применения калибровки
+DRS_CAL_APPLY_X_TIME_LOCAL      - Временная локальная калибровка
+DRS_CAL_APPLY_X_TIME_GLOBAL     - Временная глобальная калибровка
+DRS_CAL_APPLY_PHYS              - приведение к физическим величинам
+
+Пример:
+
+// Калибруем
+dap_calibrate_params_t l_params;
+drs_calibrate_params_set_defaults(&l_params);
+drs_calibrate_run(0, DRS_CAL_FLAG_AMPL | DRS_CAL_FLAG_TIME_LOCAL | DRS_CAL_FLAG_TIME_GLOBAL, &l_params );
+drs_calibrate_wait_for_finished(0, -1);
+
+// Выводим один из коэфициентов калибровки по приколу
+drs_calibrate_t* l_results = drs_calibrate_get_state(0);
+printf ("Coeff B[0][0] = %f\n", l_results->drs->coeffs.b[0][0] );
+
+// Читаем массив Y и применяем к нему калибровку
+unsigned short *l_raw_y = DAP_NEW_SIZE(unsigned short,DRS_CELLS_COUNT*sizeof(unsigned short));
+double *l_y = DAP_NEW_SIZE(double,DRS_CELLS_COUNT*sizeof(double));
+drs_data_get_all(g_drs[0], 0, l_raw_y);
+drs_cal_y_apply(g_drs[0], l_raw_y, l_y ,DRS_CAL_ROTATE |DRS_CAL_APPLY_Y_CELLS );
+
+// Создаём массив X и применяем к нему калибровку
+
+double * l_x = DAP_NEW_SIZE(double, DRS_CELLS_COUNT_CHANNEL*sizeof(double) );
+
+for (unsigned n =0; n <DRS_CELLS_COUNT_CHANNEL; n++){
+    l_x[n] = n;
+}
+drs_cal_x_apply(l_drs, l_x ,DRS_CAL_APPLY_X_TIME_LOCAL | DRS_CAL_APPLY_X_TIME_GLOBAL);

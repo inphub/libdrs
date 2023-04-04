@@ -76,7 +76,6 @@ typedef struct drs_cal_args{
 #define DRS_CAL_FLAG_AMPL           0x00000001
 #define DRS_CAL_FLAG_TIME_LOCAL     0x00000002
 #define DRS_CAL_FLAG_TIME_GLOBAL    0x00000004
-#define DRS_CAL_FLAG_TO_REAL        0x00000008
 
 #define DRS_CAL_MAX_REPEATS_DEFAULT 10000
 #define DRS_CAL_MIN_REPEATS_DEFAULT 2
@@ -92,6 +91,8 @@ void drs_calibrate_deinit(); // ƒенициализирует модуль
 int drs_calibrate_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
 int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec);
 
+void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params);
+
 bool drs_calibrate_is_running(int a_drs_num);
 int drs_calibrate_progress(int a_drs_num);
 
@@ -100,6 +101,8 @@ drs_calibrate_t* drs_calibrate_get_state(int a_drs_num);
 int drs_calibrate_abort(int a_drs_num);
 
 void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags);
+
+void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params);
 
 // применение калибровки дл€ €чеек
 #define DRS_CAL_APPLY_Y_CELLS  BIT(0)
@@ -110,12 +113,12 @@ void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags);
 
 // ¬ременна€ локальна€ калибровка
 #define DRS_CAL_APPLY_X_TIME_LOCAL  BIT(8)
-// ¬ременна€ локальна€ калибровка
+// ¬ременна€ глобальна€ калибровка
 #define DRS_CAL_APPLY_X_TIME_GLOBAL  BIT(9)
 
 // –азвернуть итоговые результаты
 #define DRS_CAL_ROTATE  BIT(30)
-// приведение к физическим виличинам
+// приведение к физическим величинам
 #define DRS_CAL_APPLY_PHYS  BIT(31)
 
 // “олько 9ый канал

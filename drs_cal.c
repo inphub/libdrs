@@ -539,3 +539,18 @@ static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
         }
     }
 }
+
+/**
+ * @brief drs_calibrate_params_set_defaults
+ * @param a_params
+ */
+void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params)
+{
+    memset(a_params,0, sizeof(*a_params));
+    a_params->ampl.N = 100;
+    a_params->ampl.repeats = 1;
+    a_params->ampl.splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
+    a_params->time_local.min_N = 50;
+    a_params->time_local.max_repeats = 10000;
+    a_params->time_global.num_cycle = 1000;
+}
