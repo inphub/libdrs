@@ -14,8 +14,9 @@ endif()
 
 message("DAP SDK path: ${DAP_SDK_PATH}")
 
-include(${DAP_SDK_PATH}/share/cmake/OS_Detection.cmake)
-
+if ( NOT DAP_RELEASE AND NOT DAP_DEBUG)
+        include(${DAP_SDK_PATH}/share/cmake/OS_Detection.cmake)
+endif()
 
 if (DRS_OPT_DATA_GET_NODELAYS)
     add_definitions("-DDRS_OPT_DATA_GET_NODELAYS")
@@ -40,7 +41,7 @@ include_directories(${DAP_SDK_PATH}/include)
 
 #add_subdirectory(driver)
 
-if(ADC_BUILD_STATIC)
+if(ADC_BUILD_STATIC OR BUILD_STATIC)
         message("Build static library ${PROJECT_NAME}")
         add_library(${PROJECT_NAME} STATIC ${DRS_SRCS} ${DRS_HEADERS})
 else()

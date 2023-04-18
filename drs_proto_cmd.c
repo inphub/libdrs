@@ -430,7 +430,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 break;
 
                 case 4: //04 - external start and read (one page)
-                    printf("04 - external start and read");
+                    log_it(L_DEBUG, "04 - external start and read");
                     drs_set_num_pages(l_drs, a_cmd_args[2]);
                     printf("write: adr=0x%08x, val=0x%08x\n", 0x00000025, 1), fflush(stdout);
                     setSizeSamples(1024);
