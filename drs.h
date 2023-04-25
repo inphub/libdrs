@@ -59,6 +59,22 @@
 // Задержка после чтения, в микросекундах
 #define DRS_PAGE_READ_DELAY             50000
 
+#define DRS_COEF_SPLASH           0x00000001
+#define DRS_COEF_DELTA_TIME       0x00000002
+#define DRS_COEF_CHAN_K           0x00000004
+#define DRS_COEF_CHAN_B           0x00000008
+#define DRS_COEF_K_TIME           0x00000010
+#define DRS_COEF_K                0x00000020
+#define DRS_COEF_B                0x00000040
+#define DRS_COEF_K9               0x00000080
+#define DRS_COEF_B9               0x00000100
+
+
+#define DRS_IDX(ch,n) ((n)*DRS_CHANNELS_COUNT+(ch))
+#define DRS_IDX_BANK(ch,b,n) ((n + b*DRS_CELLS_COUNT_BANK)*DRS_CHANNELS_COUNT+(ch))
+#define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_9,n)
+
+
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
 
@@ -68,6 +84,18 @@
 
 #define DRS_ADC_TOP_LEVEL 16384.0
 #define DRS_ADC_VOLTAGE_BASE 0.5
+
+#define SIZE_FAST MAX_PAGE_COUNT*1024*8*4*4
+
+#define SDRAM_BASE_DRS1 0x20000000 //536870912
+#define SDRAM_SPAN_DRS1 0x0FCFFFFF //253 page = 265289727
+
+#define SDRAM_BASE_DRS2 0x30000000 //805306368
+#define SDRAM_SPAN_DRS2 0x0FCFFFFF //253 page = 265289727
+
+#define MEMORY_BASE  	0x20000000
+#define MEMORY_SIZE  	0x20000000
+
 
 typedef struct  {
   float offset;
@@ -130,36 +158,18 @@ typedef enum {
 enum drs_freq{DRS_FREQ_1GHz,DRS_FREQ_2GHz,DRS_FREQ_3GHz,DRS_FREQ_4GHz,DRS_FREQ_5GHz};
 
 extern enum drs_freq g_current_freq;
-
 extern parameter_t * g_ini;
 extern drs_dac_ch_params_t g_ini_ch9;
-
 extern drs_t g_drs[DRS_COUNT];
+extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
+extern int g_drs_flags;
 
-
-#define SIZE_FAST MAX_PAGE_COUNT*1024*8*4*4
-
-#define DRS_COEF_SPLASH           0x00000001
-#define DRS_COEF_DELTA_TIME       0x00000002
-#define DRS_COEF_CHAN_K           0x00000004
-#define DRS_COEF_CHAN_B           0x00000008
-#define DRS_COEF_K_TIME           0x00000010
-#define DRS_COEF_K                0x00000020
-#define DRS_COEF_B                0x00000040
-#define DRS_COEF_K9               0x00000080
-#define DRS_COEF_B9               0x00000100
-
-
-#define DRS_IDX(ch,n) ((n)*DRS_CHANNELS_COUNT+(ch))
-#define DRS_IDX_BANK(ch,b,n) ((n + b*DRS_CELLS_COUNT_BANK)*DRS_CHANNELS_COUNT+(ch))
-#define DRS_IDX_CAL(n) DRS_IDX(DRS_CHANNEL_9,n)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int drs_init();
-int drs_cmd_init();
+int drs_init(int a_drs_flags);
 bool drs_get_inited();
 
 
@@ -189,18 +199,6 @@ double drs_get_freq_value(enum drs_freq a_freq);
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data);
 unsigned int drs_reg_read(unsigned int reg_adr);
-
-#define SDRAM_BASE_DRS1 0x20000000 //536870912
-#define SDRAM_SPAN_DRS1 0x0FCFFFFF //253 page = 265289727
-
-#define SDRAM_BASE_DRS2 0x30000000 //805306368
-#define SDRAM_SPAN_DRS2 0x0FCFFFFF //253 page = 265289727
-
-#define MEMORY_BASE  	0x20000000
-#define MEMORY_SIZE  	0x20000000
-
-extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
-
 
 #ifdef __cplusplus
 }

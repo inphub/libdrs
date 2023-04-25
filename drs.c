@@ -25,15 +25,9 @@
 #include "drs_cal.h"
 #include "drs_cli.h"
 
-#include "minIni.h"
-#include "calibrate.h"
 #include "commands.h"
 #include "data_operations.h"
 
-#define inipath "/media/card/config.ini"
-#define DEBUG
-#define SERVER_NAME "test_server"
-#define PORT 3000
 #define MAX_SLOWBLOCK_SIZE 1024*1024
 #define SIZE_BUF_IN 128
 #define MAX_PAGE_COUNT 1000
@@ -42,9 +36,14 @@
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
 
-const unsigned int freqREG[]= {480, 240, 160, 120, 100};
-const char s_drs_check_file[]="/tmp/drs_init";
+#define PAGE_SIZE 8192
+#define HPS2FPGA_BRIDGE_BASE	0xC0000000 //данные быстрых АЦП
+#define LWHPS2FPGA_BRIDGE_BASE	0xff200000 //управление
+#define SHIFT_DRS1	0x2FD00000
+#define SHIFT_DRS2	0x3FD00000
 
+#define MAP_SIZE           (4096)
+#define MAP_MASK           (MAP_SIZE-1)
 
 parameter_t * g_ini = NULL;
 drs_dac_ch_params_t g_ini_ch9;
@@ -57,6 +56,13 @@ drs_t g_drs[DRS_COUNT]={
         .id = 1
     }
 };
+enum drs_freq g_current_freq=DRS_FREQ_5GHz;
+void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
+
+int g_drs_flags = 0;
+
+static const unsigned int freqREG[]= {480, 240, 160, 120, 100};
+static const char s_drs_check_file[]="/tmp/drs_init";
 
 static const double c_freq_DRS[]= {
   [DRS_FREQ_1GHz] = 1.024,
@@ -65,30 +71,64 @@ static const double c_freq_DRS[]= {
   [DRS_FREQ_4GHz] = 4.096,
   [DRS_FREQ_5GHz]=  4.915200};
 
-enum drs_freq g_current_freq=DRS_FREQ_5GHz;
+
+static int fd;
+static volatile unsigned int *control_mem;
+static void *control_map;
 
 static bool s_init_on_start_timer_callback(void* a_arg); // Init on start timeout callback
 static int s_init_mem(void);
 static uint32_t s_memr(off_t byte_addr);
 static void s_memw(off_t byte_addr, uint32_t data);
+static void s_post_init();
 
-#define PAGE_SIZE 8192
-#define HPS2FPGA_BRIDGE_BASE	0xC0000000 //данные быстрых АЦП
-#define LWHPS2FPGA_BRIDGE_BASE	0xff200000 //управление
-#define SHIFT_DRS1	0x2FD00000
-#define SHIFT_DRS2	0x3FD00000
-
-
-static int fd;
-volatile unsigned int *control_mem;
-void *control_map;
-void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
-
-#define MAP_SIZE           (4096)
-#define MAP_MASK           (MAP_SIZE-1)
 
 static bool s_debug_more = false;
 
+static bool s_initalized = false;
+/**
+ * @brief drs_init
+ * @param a_drs_flags
+ * @return
+ */
+int drs_init(int a_drs_flags)
+{
+    // Проверка на инициализацию
+    if( s_initalized ) {
+        log_it(L_WARNING, "DRS is already initialized, pls check your code for double call");
+        return -1000;
+    }
+    s_initalized = true;
+    g_drs_flags = a_drs_flags;
+    // Инициализация DRS
+    s_init_mem();
+
+    g_ini = DAP_NEW_Z(parameter_t);
+    drs_ini_load("/media/card/config.ini", g_ini );
+
+    drs_set_freq(g_current_freq);
+
+    // Инициализация параметров DRS по таймеру
+    log_it(L_NOTICE,"DRS config and memory are initialized");
+
+    dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
+                                       s_init_on_start_timer_callback, g_ini);
+
+    // Инициализация консоли
+    if (drs_cli_init() != 0){
+        log_it(L_CRITICAL, "Can't init drs cli");
+        return -14;
+    }
+    // Инициализация калибровочных модулей
+    drs_calibrate_init();
+
+    return 0;
+}
+
+/**
+ * @brief s_init_mem
+ * @return
+ */
 static int s_init_mem(void)
 {
     int ret = EXIT_FAILURE;
@@ -149,6 +189,9 @@ cleanup:
     return ret;
 }
 
+/**
+ * @brief s_deinit_mem
+ */
 static void s_deinit_mem(void)
 {
     if (munmap(control_map, PAGE_SIZE) < 0)
@@ -186,34 +229,6 @@ cleanup:
     close(fd);
 }
 
-
-int drs_init()
-{
-    // Инициализация DRS
-    s_init_mem();
-
-    g_ini = DAP_NEW_Z(parameter_t);
-    drs_ini_load("/media/card/config.ini", g_ini );
-
-    drs_set_freq(g_current_freq);
-
-    // Инициализация параметров DRS по таймеру
-    log_it(L_NOTICE,"DRS config and memory are initialized");
-
-    dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
-                                       s_init_on_start_timer_callback, g_ini);
-
-    // Инициализация консоли
-    if (drs_cli_init() != 0){
-        log_it(L_CRITICAL, "Can't init drs cli");
-        return -14;
-    }
-
-    drs_calibrate_init();
-
-    return 0;
-}
-
 /**
  * @brief s_init_on_start_timer_callback
  * @details Callback for timer. If return true,
@@ -226,7 +241,7 @@ static bool s_init_on_start_timer_callback(void* a_arg)
     UNUSED(a_arg);
     if( ! drs_get_inited() ){
         log_it(L_INFO,"Timeout for init on start passed, initializing DRS...");
-        drs_cmd_init();
+        s_post_init();
     }else{
         log_it(L_DEBUG,"DRS is already initialized so lets just pass this stage");
     }
@@ -236,40 +251,53 @@ static bool s_init_on_start_timer_callback(void* a_arg)
 
 /**
  * @brief drs_init
- * @param a_params
+ * @param a_drs_flags
  */
-int drs_cmd_init()
+static void s_post_init()
 {
     if( drs_get_inited() ){
         log_it(L_WARNING, "Already initialized");
-        return -1;
+        return;
     }
     s_memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
 
-    set_dma_addr_drs1(0x08000000);  		//    drs_reg_write(0x00000017, 0x8000000);// DRS1
-    set_size_dma_drs1(0x00004000);  		//    drs_reg_write(0x00000019, 0x4000);
-    set_dma_addr_drs2(0x0c000000);  		//    drs_reg_write(0x00000018, 0xC000000);// DRS2
-    set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
-    set_shift_addr_drs1(0x0bf40000);		//    drs_reg_write(0x0000001c, 0xBF40000);
-    set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
+    if(g_drs_flags & 0x1){
+        set_dma_addr_drs1(0x08000000);  		//    drs_reg_write(0x00000017, 0x8000000);// DRS1
+        set_size_dma_drs1(0x00004000);  		//    drs_reg_write(0x00000019, 0x4000);
+    }
+
+    if(g_drs_flags & 0x2){
+        set_dma_addr_drs2(0x0c000000);  		//    drs_reg_write(0x00000018, 0xC000000);// DRS2
+        set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
+    }
+
+    if(g_drs_flags & 0x1)
+        set_shift_addr_drs1(0x0bf40000);		//    drs_reg_write(0x0000001c, 0xBF40000);
+    if(g_drs_flags & 0x2)
+        set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
 
     clk_select(INTERNAL_CLK);				//    drs_reg_write(0x00000004, 0x00000001);//select_freq
     clk_select_internal_value(480);			//    drs_reg_write(0x0000001e, 0x00000064);//freqREG[curfreq]);
     clk_phase(40);							//    drs_reg_write(0x00000006, 0x00000028);
     clk_start(1);							//    drs_reg_write(0x00000005, 0x00000001);
-    set_dac_offs_drs1(30000, 30000);		//    drs_reg_write(0x00000008, 0x83e683e6);
-    set_dac_offs_drs2(30000, 30000);		//    drs_reg_write(0x00000009, 0x83e683e6);
+
+    if(g_drs_flags & 0x1)
+        set_dac_offs_drs1(30000, 30000);		//    drs_reg_write(0x00000008, 0x83e683e6);
+    if(g_drs_flags & 0x2)
+        set_dac_offs_drs2(30000, 30000);		//    drs_reg_write(0x00000009, 0x83e683e6);
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
     //set_dac_rofs_O_ofs_drs1(35000, 30000);
     drs_reg_write(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
+    if(g_drs_flags & 0x1)
+        set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
 
     //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    drs_reg_write(0x0000000c, 0x7d009e98);
     drs_reg_write(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
+    if(g_drs_flags & 0x2)
+        set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
     set_dac_9ch_ofs(30000);					//    drs_reg_write(0x0000001f, 0x00007530);
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
@@ -278,14 +306,20 @@ int drs_cmd_init()
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
 
-    set_starts_number_drs1(1);
-    set_zap_delay_drs1(0);
-    set_starts_number_drs2(1);
-    set_zap_delay_drs2(0);
+    if(g_drs_flags & 0x1){
+        set_starts_number_drs1(1);
+        set_zap_delay_drs1(0);
+    }
+    if(g_drs_flags & 0x2){
+        set_starts_number_drs2(1);
+        set_zap_delay_drs2(0);
+    }
 
     set_mode_drss(MODE_SOFT_START);			//    drs_reg_write(0x00000010, 0x00000000);
-    init_drs1();							//    drs_reg_write(0x0000000e, 0x00000001);
-    init_drs2();							//    drs_reg_write(0x0000000f, 0x00000001);
+    if(g_drs_flags & 0x1)
+        init_drs1();							//    drs_reg_write(0x0000000e, 0x00000001);
+    if(g_drs_flags & 0x2)
+        init_drs2();							//    drs_reg_write(0x0000000f, 0x00000001);
 
     // Start all
     drs_reg_write(0x00000001, 0x0000001);
@@ -298,7 +332,10 @@ int drs_cmd_init()
     drs_cmd(-1, DRS_CMD_INIT_SOFT_START);
 
     log_it(L_NOTICE, "DRS settings are implemented");
-    return 0;
+    if(g_drs_flags & 0x1)
+        log_it(L_NOTICE, "--DRS #0 initialized");
+    if(g_drs_flags & 0x2)
+        log_it(L_NOTICE, "--DRS #1 initialized");
 }
 
 void drs_set_freq(enum drs_freq a_freq)

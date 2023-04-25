@@ -305,7 +305,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
 
             l_value=4*(1+((a_cmd_args[3]&24)!=0));
             log_it(L_INFO, "Read Y cmd: drs_num=%u,npages=%u,flags=0x%08X (%d )",
-                   a_cmd_args[0],a_cmd_args[1],a_cmd_args[2],l_flags, l_flags);
+                   a_cmd_args[0],a_cmd_args[1],l_flags, l_flags);
 
             unsigned short *l_buf = DAP_NEW_STACK_SIZE(unsigned short,DRS_CELLS_COUNT*sizeof(unsigned short));
 

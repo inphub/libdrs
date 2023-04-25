@@ -201,9 +201,11 @@ int drs_calibrate_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_
     if (a_drs_num == -1 ){
         int l_ret = 0;
         for (size_t n = 0; n < DRS_COUNT; n ++){
-            l_ret = s_run(a_drs_num, a_cal_flags, a_params);
-            if(l_ret != 0)
-                break;
+            if( g_drs_flags & (0x1 << n) ){
+                l_ret = s_run(n, a_cal_flags, a_params);
+                if(l_ret != 0)
+                    break;
+            }
         }
         return l_ret;
     }else if (a_drs_num >=0 ){

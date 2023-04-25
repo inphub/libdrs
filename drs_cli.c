@@ -18,7 +18,6 @@
 
 #define LOG_TAG "drs_cli"
 
-static int s_callback_init(int a_argc, char ** a_argv, char **a_str_reply);
 static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply);
 static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply);
 static int s_callback_calibrate(int argc, char ** argv, char **str_reply);
@@ -43,12 +42,6 @@ int drs_cli_init()
     // Exit
     dap_cli_server_cmd_add ("exit", s_callback_exit, "Stop application and exit",
                 "exit\n" );
-
-    // Init DRS
-    dap_cli_server_cmd_add ("init", s_callback_init, "Init DRS. Don't need it by default",
-                "init\n"
-                "\tInit DRS if it wasn't initialized on start (thats by default in COMMON section)\n"
-             );
 
 
     // Start DRS
@@ -146,32 +139,6 @@ static int s_parse_drs_and_check(int a_arg_index, int a_argc, char ** a_argv, ch
         return l_drs_num;
     }
     return -1;
-}
-
-/**
- * @brief s_callback_init
- * @param a_argc
- * @param a_argv
- * @param a_str_reply
- * @return
- */
-static int s_callback_init(int a_argc, char ** a_argv, char **a_str_reply)
-{
-    UNUSED(a_argc);
-    UNUSED(a_argv);
-    // Инициализация DRS
-    int l_ret;
-    if( (l_ret = drs_cmd_init(NULL)) != 0){
-        if (l_ret == -1 ){
-            dap_cli_server_cmd_set_reply_text(a_str_reply, "Already initialized, passing this step");
-            return -1;
-        }
-
-        dap_cli_server_cmd_set_reply_text(a_str_reply,  "Can't init drs protocol, code %d", l_ret);
-        return l_ret;
-    }
-    dap_cli_server_cmd_set_reply_text(a_str_reply, "DRS initialized");
-    return 0;
 }
 
 /**
