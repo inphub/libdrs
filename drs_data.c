@@ -20,7 +20,7 @@ static bool s_debug_more=false;
 
 /**
  * @brief drs_data_get_all
- * @param a_drs    Если NULL то он копирует для всех DRS
+ * @param a_drs    Р•СЃР»Рё NULL С‚Рѕ РѕРЅ РєРѕРїРёСЂСѓРµС‚ РґР»СЏ РІСЃРµС… DRS
  * @param a_flags
  * @param a_buffer
  * @return
@@ -42,10 +42,10 @@ int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
 
 /**
  * @brief drs_data_get
- * @param a_drs                  Указатель на объект DRS
- * @param a_flags                Флаги операции
- * @param a_buffer               буфер данных, минимум DRS_PAGE_READ_SIZE размера
- * @param a_buffer_size          максимальный размер данных для буфера (его размер)
+ * @param a_drs                  РЈРєР°Р·Р°С‚РµР»СЊ РЅР° РѕР±СЉРµРєС‚ DRS
+ * @param a_flags                Р¤Р»Р°РіРё РѕРїРµСЂР°С†РёРё
+ * @param a_buffer               Р±СѓС„РµСЂ РґР°РЅРЅС‹С…, РјРёРЅРёРјСѓРј DRS_PAGE_READ_SIZE СЂР°Р·РјРµСЂР°
+ * @param a_buffer_size          РјР°РєСЃРёРјР°Р»СЊРЅС‹Р№ СЂР°Р·РјРµСЂ РґР°РЅРЅС‹С… РґР»СЏ Р±СѓС„РµСЂР° (РµРіРѕ СЂР°Р·РјРµСЂ)
  */
 int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a_buffer_size )
 {
@@ -142,14 +142,14 @@ void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, siz
     byte_t * l_buf_out =  DAP_NEW_STACK_SIZE(byte_t, a_mem_size);
     memset(l_buf_out,0, a_mem_size);
 
-    // Разворачиваем внутри банков
+    // Р Р°Р·РІРѕСЂР°С‡РёРІР°РµРј РІРЅСѓС‚СЂРё Р±Р°РЅРєРѕРІ
     for(unsigned b = 0; b < DRS_CHANNEL_BANK_COUNT && l_total_size < a_mem_size; b++){
-        size_t l_bank_shift = b*DRS_CELLS_COUNT_BANK * DRS_CHANNELS_COUNT *a_cell_size; // смещение банка
+        size_t l_bank_shift = b*DRS_CELLS_COUNT_BANK * DRS_CHANNELS_COUNT *a_cell_size; // СЃРјРµС‰РµРЅРёРµ Р±Р°РЅРєР°
         size_t l_copy_size = (DRS_CELLS_COUNT_BANK - l_shift) * a_cell_size * DRS_CHANNELS_COUNT;
 
-        if (l_copy_size + l_total_size > a_mem_size ) // Проверяем на предмет выхода за пределы буфера
+        if (l_copy_size + l_total_size > a_mem_size ) // РџСЂРѕРІРµСЂСЏРµРј РЅР° РїСЂРµРґРјРµС‚ РІС‹С…РѕРґР° Р·Р° РїСЂРµРґРµР»С‹ Р±СѓС„РµСЂР°
             l_copy_size = a_mem_size - l_total_size;
-        // Копируем головной кусок
+        // РљРѕРїРёСЂСѓРµРј РіРѕР»РѕРІРЅРѕР№ РєСѓСЃРѕРє
         l_out_offset = l_bank_shift;
         l_in_offset = l_bank_shift + l_shift*DRS_CHANNELS_COUNT*a_cell_size;
         if(l_copy_size){
@@ -157,16 +157,16 @@ void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, siz
             l_total_size += l_copy_size;
         }
 
-        // проверяем, не всё ли это
+        // РїСЂРѕРІРµСЂСЏРµРј, РЅРµ РІСЃС‘ Р»Рё СЌС‚Рѕ
         if(l_total_size >= a_mem_size)
             break;
 
 
-        // считаем размер хвостика
+        // СЃС‡РёС‚Р°РµРј СЂР°Р·РјРµСЂ С…РІРѕСЃС‚РёРєР°
         unsigned l_copy_size_tail = ( (DRS_CELLS_COUNT_BANK * a_cell_size* DRS_CHANNELS_COUNT) - l_copy_size);
-        if ( (l_copy_size_tail + l_total_size) > a_mem_size ) // Проверяем на предмет выхода за пределы буфера
+        if ( (l_copy_size_tail + l_total_size) > a_mem_size ) // РџСЂРѕРІРµСЂСЏРµРј РЅР° РїСЂРµРґРјРµС‚ РІС‹С…РѕРґР° Р·Р° РїСЂРµРґРµР»С‹ Р±СѓС„РµСЂР°
             l_copy_size_tail = a_mem_size - l_total_size;
-        // копируем хвостик
+        // РєРѕРїРёСЂСѓРµРј С…РІРѕСЃС‚РёРє
         l_out_offset += l_copy_size ;
         l_in_offset = l_bank_shift;
         //memset( l_buf_out + l_out_offset, 0, l_copy_size_tail ) ;
@@ -177,7 +177,7 @@ void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, siz
     }
 
     //memcpy(a_mem_out, l_buf_out, a_mem_size);
-    // Разворачиваем глобально всё
+    // Р Р°Р·РІРѕСЂР°С‡РёРІР°РµРј РіР»РѕР±Р°Р»СЊРЅРѕ РІСЃС‘
     unsigned l_head_size = (DRS_CELLS_COUNT_CHANNEL - l_shift_global) * a_cell_size * DRS_CHANNELS_COUNT;
     memcpy(a_mem_out, l_buf_out + l_shift_global* a_cell_size * DRS_CHANNELS_COUNT , l_head_size  );
     memcpy(((byte_t*)a_mem_out) + l_head_size, l_buf_out, l_shift_global * a_cell_size * DRS_CHANNELS_COUNT );
@@ -233,8 +233,8 @@ void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_ste
 
 
 /**
- * unsigned int drsnum		номер drs для вычитывания сдвига
- * return 					индекс сдвига;
+ * unsigned int drsnum		РЅРѕРјРµСЂ drs РґР»СЏ РІС‹С‡РёС‚С‹РІР°РЅРёСЏ СЃРґРІРёРіР°
+ * return 					РёРЅРґРµРєСЃ СЃРґРІРёРіР°;
  */
 unsigned int drs_get_shift_bank(unsigned int a_drs_num)
 {

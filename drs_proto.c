@@ -19,7 +19,7 @@ const char g_inipath[]= "/media/card/config.ini";
 
 static dap_server_t * s_server = NULL;
 static bool s_debug_more = true;
-// Âûçûâàåòñÿ êîãäà óäàëåííàÿ ñòîðîíà ïðèñëàëà äàííûå, äîñòóïíûå äëÿ ÷òåíèÿ
+// Ð’Ñ‹Ð·Ñ‹Ð²Ð°ÐµÑ‚ÑÑ ÐºÐ¾Ð³Ð´Ð° ÑƒÐ´Ð°Ð»ÐµÐ½Ð½Ð°Ñ ÑÑ‚Ð¾Ñ€Ð¾Ð½Ð° Ð¿Ñ€Ð¸ÑÐ»Ð°Ð»Ð° Ð´Ð°Ð½Ð½Ñ‹Ðµ, Ð´Ð¾ÑÑ‚ÑƒÐ¿Ð½Ñ‹Ðµ Ð´Ð»Ñ Ñ‡Ñ‚ÐµÐ½Ð¸Ñ
 static void s_callback_new (dap_events_socket_t * a_es,void * a_arg );
 static void s_callback_delete (dap_events_socket_t * a_es,void * a_arg );
 static void s_callback_read (dap_events_socket_t * a_es,void * a_arg );
@@ -29,8 +29,8 @@ static void s_callback_write_finished(dap_events_socket_t * a_es, void * a_arg, 
 static inline void s_proto_out_add( drs_proto_t * a_proto, drs_proto_data_t * a_out);
 static inline void s_proto_out_remove(drs_proto_t * a_proto, drs_proto_data_t * a_out);
 /**
- * @brief Èíèöèàëèçàöèÿ ïðîòîêîëà
- * @param a_server Óêàçàòåëü íà åñîêåò ñåðâåð, ÷òè âõîäÿùèå ñîåäèíåíèÿ ìû áóäåì îáðàáàòûâàòü
+ * @brief Ð˜Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ Ð¿Ñ€Ð¾Ñ‚Ð¾ÐºÐ¾Ð»Ð°
+ * @param a_server Ð£ÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° ÐµÑÐ¾ÐºÐµÑ‚ ÑÐµÑ€Ð²ÐµÑ€, Ñ‡Ñ‚Ð¸ Ð²Ñ…Ð¾Ð´ÑÑ‰Ð¸Ðµ ÑÐ¾ÐµÐ´Ð¸Ð½ÐµÐ½Ð¸Ñ Ð¼Ñ‹ Ð±ÑƒÐ´ÐµÐ¼ Ð¾Ð±Ñ€Ð°Ð±Ð°Ñ‚Ñ‹Ð²Ð°Ñ‚ÑŒ
  * @return
  */
 int drs_proto_init(dap_server_t * a_server)
@@ -68,7 +68,7 @@ int drs_proto_proc()
 }
 
 /**
- * @brief Äîáàâëÿåì ó÷àñòîê ïàìÿòè â î÷åðåäü îòïðàâêè
+ * @brief Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ ÑƒÑ‡Ð°ÑÑ‚Ð¾Ðº Ð¿Ð°Ð¼ÑÑ‚Ð¸ Ð² Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸
  * @param a_proto
  * @param a_data
  * @param a_data_size
@@ -76,7 +76,7 @@ int drs_proto_proc()
  */
 void drs_proto_out_add_mem(drs_proto_t * a_proto, void * a_data, size_t a_data_size, int a_flags)
 {
-    // Äîáàâëÿåì äàííûå íà îòïðàâêó â î÷åðåäü
+    // Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð½Ð° Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÑƒ Ð² Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ
     drs_proto_data_t * l_out = DAP_NEW_Z(drs_proto_data_t);
     l_out->type = DATA_TYPE_MEMORY;
     l_out->data.ptr = a_data;
@@ -86,7 +86,7 @@ void drs_proto_out_add_mem(drs_proto_t * a_proto, void * a_data, size_t a_data_s
 }
 
 /**
- * @brief Äîáàâëÿåì ôàéëîâûé äåñêðèïòîð â î÷åðåäü îòïðàâêè
+ * @brief Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ñ„Ð°Ð¹Ð»Ð¾Ð²Ñ‹Ð¹ Ð´ÐµÑÐºÑ€Ð¸Ð¿Ñ‚Ð¾Ñ€ Ð² Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸
  * @param a_proto
  * @param a_fd
  * @param a_close_fd_after
@@ -111,7 +111,7 @@ static inline void s_proto_out_add( drs_proto_t * a_proto, drs_proto_data_t * a_
     if(a_proto->out_last == NULL)
         a_proto->out_last = a_proto->out_first;
 
-    dap_events_socket_set_writable_unsafe(a_proto->esocket, true); // Âûñòàâëÿåì ôëàã ãîòîâíîñòè îòïðàâêè äàííûõ
+    dap_events_socket_set_writable_unsafe(a_proto->esocket, true); // Ð’Ñ‹ÑÑ‚Ð°Ð²Ð»ÑÐµÐ¼ Ñ„Ð»Ð°Ð³ Ð³Ð¾Ñ‚Ð¾Ð²Ð½Ð¾ÑÑ‚Ð¸ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸ Ð´Ð°Ð½Ð½Ñ‹Ñ…
 }
 
 /**
@@ -121,15 +121,15 @@ static inline void s_proto_out_add( drs_proto_t * a_proto, drs_proto_data_t * a_
 static inline void s_proto_out_remove(drs_proto_t * a_proto, drs_proto_data_t * a_out)
 {
     dap_list_t * l_out_last_prev =  a_proto->out_last->prev;
-    // Î÷èùàåì ïàìÿòü ýëåìåíòà î÷åðåäè
+    // ÐžÑ‡Ð¸Ñ‰Ð°ÐµÐ¼ Ð¿Ð°Ð¼ÑÑ‚ÑŒ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚Ð° Ð¾Ñ‡ÐµÑ€ÐµÐ´Ð¸
     dap_list_free1(a_proto->out_last);
 
-    // Åñëè âçâåä¸í ôëàã DRS_PROTO_DATA_MEM_FREE_AFTER òî î÷èùàåì ïàìÿòü
+    // Ð•ÑÐ»Ð¸ Ð²Ð·Ð²ÐµÐ´Ñ‘Ð½ Ñ„Ð»Ð°Ð³ DRS_PROTO_DATA_MEM_FREE_AFTER Ñ‚Ð¾ Ð¾Ñ‡Ð¸Ñ‰Ð°ÐµÐ¼ Ð¿Ð°Ð¼ÑÑ‚ÑŒ
     if (a_out->data.flags & DRS_PROTO_DATA_MEM_FREE_AFTER)
         DAP_DELETE(a_out->data.ptr);
     DAP_DELETE(a_out);
 
-    // Îáíîâëÿåì óêàçàòåëè íà ïîñëåäíèé è, åñëè íóæíî, ïåðâûé ýëåìåíò î÷åðåäè
+    // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ ÑƒÐºÐ°Ð·Ð°Ñ‚ÐµÐ»Ð¸ Ð½Ð° Ð¿Ð¾ÑÐ»ÐµÐ´Ð½Ð¸Ð¹ Ð¸, ÐµÑÐ»Ð¸ Ð½ÑƒÐ¶Ð½Ð¾, Ð¿ÐµÑ€Ð²Ñ‹Ð¹ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚ Ð¾Ñ‡ÐµÑ€ÐµÐ´Ð¸
     a_proto->out_last = l_out_last_prev ;
     if ( a_proto->out_last == NULL)
         a_proto->out_first = NULL;
@@ -137,64 +137,64 @@ static inline void s_proto_out_remove(drs_proto_t * a_proto, drs_proto_data_t * 
 
 
 /**
- * @brief Âûçûâàåòñÿ ïðè ñîçäàíèè âõîäÿùåãî ñîåäèíåíèÿ
- * @param a_es Åñîêåò óäàëåííîãî êëèåíòà
- * @param a_arg íå èñïîëüçóåòñÿ
+ * @brief Ð’Ñ‹Ð·Ñ‹Ð²Ð°ÐµÑ‚ÑÑ Ð¿Ñ€Ð¸ ÑÐ¾Ð·Ð´Ð°Ð½Ð¸Ð¸ Ð²Ñ…Ð¾Ð´ÑÑ‰ÐµÐ³Ð¾ ÑÐ¾ÐµÐ´Ð¸Ð½ÐµÐ½Ð¸Ñ
+ * @param a_es Ð•ÑÐ¾ÐºÐµÑ‚ ÑƒÐ´Ð°Ð»ÐµÐ½Ð½Ð¾Ð³Ð¾ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ð°
+ * @param a_arg Ð½Ðµ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÑ‚ÑÑ
  */
 static void s_callback_new (dap_events_socket_t * a_es,void * a_arg )
 {
     UNUSED(a_arg);
-    // Ñîçäà¸ì ýêçåìïëÿð îáúåêòà-íàñëåäíèêà
+    // Ð¡Ð¾Ð·Ð´Ð°Ñ‘Ð¼ ÑÐºÐ·ÐµÐ¼Ð¿Ð»ÑÑ€ Ð¾Ð±ÑŠÐµÐºÑ‚Ð°-Ð½Ð°ÑÐ»ÐµÐ´Ð½Ð¸ÐºÐ°
     drs_proto_t *l_proto = DAP_NEW_Z(drs_proto_t);
     l_proto->esocket = a_es;
     pthread_rwlock_init(&l_proto->in_rwlock,NULL);
     pthread_rwlock_init(&l_proto->out_rwlock,NULL);
-    a_es->_inheritor = l_proto; // àãðåãèðóåì åãî â ðîäèòåëÿ.
+    a_es->_inheritor = l_proto; // Ð°Ð³Ñ€ÐµÐ³Ð¸Ñ€ÑƒÐµÐ¼ ÐµÐ³Ð¾ Ð² Ñ€Ð¾Ð´Ð¸Ñ‚ÐµÐ»Ñ.
 }
 
 /**
  * @brief s_callback_read
- * @param a_es Åñîêåò óäàëåííîãî êëèåíòà
+ * @param a_es Ð•ÑÐ¾ÐºÐµÑ‚ ÑƒÐ´Ð°Ð»ÐµÐ½Ð½Ð¾Ð³Ð¾ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ð°
  * @param a_arg
  */
 static void s_callback_read (dap_events_socket_t * a_es,void * a_arg )
 {
     uint32_t l_cmd, * l_cmd_args;
     UNUSED(a_arg);
-    if (a_es->buf_in_size < sizeof(uint32_t)) // Ïðîâåðÿåì, äîñòàòî÷íî ëè ó íàñ äàííûõ íàêîïèëîñü õîòÿ áû äëÿ íîìåðà êîìàíäû
-        return; // âåðí¸ìñÿ ñþäà òîãäà, êîãäà êëèåíò âûøëåò åù¸ äàííûõ
+    if (a_es->buf_in_size < sizeof(uint32_t)) // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, Ð´Ð¾ÑÑ‚Ð°Ñ‚Ð¾Ñ‡Ð½Ð¾ Ð»Ð¸ Ñƒ Ð½Ð°Ñ Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð½Ð°ÐºÐ¾Ð¿Ð¸Ð»Ð¾ÑÑŒ Ñ…Ð¾Ñ‚Ñ Ð±Ñ‹ Ð´Ð»Ñ Ð½Ð¾Ð¼ÐµÑ€Ð° ÐºÐ¾Ð¼Ð°Ð½Ð´Ñ‹
+        return; // Ð²ÐµÑ€Ð½Ñ‘Ð¼ÑÑ ÑÑŽÐ´Ð° Ñ‚Ð¾Ð³Ð´Ð°, ÐºÐ¾Ð³Ð´Ð° ÐºÐ»Ð¸ÐµÐ½Ñ‚ Ð²Ñ‹ÑˆÐ»ÐµÑ‚ ÐµÑ‰Ñ‘ Ð´Ð°Ð½Ð½Ñ‹Ñ…
 
-    l_cmd = *((uint32_t*) a_es->buf_in); // ×èòàåì êîìàíäó
+    l_cmd = *((uint32_t*) a_es->buf_in); // Ð§Ð¸Ñ‚Ð°ÐµÐ¼ ÐºÐ¾Ð¼Ð°Ð½Ð´Ñƒ
 
     if (l_cmd >= DRS_PROTO_CMD_MAX){
-            a_es->buf_in_size = 0; // Ñáðàñûâàåì ñ÷åò÷èê äàííûõ â áóôåðå è ñ÷èòàåì åãî öåëèêîì ïðî÷èòàíûì
+            a_es->buf_in_size = 0; // Ð¡Ð±Ñ€Ð°ÑÑ‹Ð²Ð°ÐµÐ¼ ÑÑ‡ÐµÑ‚Ñ‡Ð¸Ðº Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð² Ð±ÑƒÑ„ÐµÑ€Ðµ Ð¸ ÑÑ‡Ð¸Ñ‚Ð°ÐµÐ¼ ÐµÐ³Ð¾ Ñ†ÐµÐ»Ð¸ÐºÐ¾Ð¼ Ð¿Ñ€Ð¾Ñ‡Ð¸Ñ‚Ð°Ð½Ñ‹Ð¼
             log_it(L_ERROR, "Unrecognized command 0x%08X", l_cmd);
             return;
     }
 
     size_t l_cmd_size = sizeof(l_cmd) + g_drs_proto_args_size[l_cmd];
     if( a_es->buf_in_size < l_cmd_size )
-        return; // âåðí¸ìñÿ ñþäà òîãäà, êîãäà êëèåíò âûøëåò åù¸ äàííûõ
+        return; // Ð²ÐµÑ€Ð½Ñ‘Ð¼ÑÑ ÑÑŽÐ´Ð° Ñ‚Ð¾Ð³Ð´Ð°, ÐºÐ¾Ð³Ð´Ð° ÐºÐ»Ð¸ÐµÐ½Ñ‚ Ð²Ñ‹ÑˆÐ»ÐµÑ‚ ÐµÑ‰Ñ‘ Ð´Ð°Ð½Ð½Ñ‹Ñ…
 
-    l_cmd_args = (uint32_t*) (a_es->buf_in + sizeof(uint32_t)); // Òóò íàøè àðãóìåíòû êîìàíäû
+    l_cmd_args = (uint32_t*) (a_es->buf_in + sizeof(uint32_t)); // Ð¢ÑƒÑ‚ Ð½Ð°ÑˆÐ¸ Ð°Ñ€Ð³ÑƒÐ¼ÐµÐ½Ñ‚Ñ‹ ÐºÐ¾Ð¼Ð°Ð½Ð´Ñ‹
 
-    // èñïîëíÿåì êîìàíäó
+    // Ð¸ÑÐ¿Ð¾Ð»Ð½ÑÐµÐ¼ ÐºÐ¾Ð¼Ð°Ð½Ð´Ñƒ
     drs_proto_cmd( a_es, (drs_proto_cmd_t) l_cmd, l_cmd_args);
 
-    // ñäâèãàåì áóôåð íà l_cmd_size ÷åðåç memmove()
+    // ÑÐ´Ð²Ð¸Ð³Ð°ÐµÐ¼ Ð±ÑƒÑ„ÐµÑ€ Ð½Ð° l_cmd_size Ñ‡ÐµÑ€ÐµÐ· memmove()
     dap_events_socket_shrink_buf_in(a_es, l_cmd_size );
 }
 
 /**
- * @brief Âûçûâàåòñÿ ïðè îòïðàâêå äàííûõ
- * @param a_es Åñîêåò óäàëåííîãî êëèåíòà
- * @param a_arg íå èñïîëüçóåòñÿ
+ * @brief Ð’Ñ‹Ð·Ñ‹Ð²Ð°ÐµÑ‚ÑÑ Ð¿Ñ€Ð¸ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐµ Ð´Ð°Ð½Ð½Ñ‹Ñ…
+ * @param a_es Ð•ÑÐ¾ÐºÐµÑ‚ ÑƒÐ´Ð°Ð»ÐµÐ½Ð½Ð¾Ð³Ð¾ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ð°
+ * @param a_arg Ð½Ðµ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÑ‚ÑÑ
  */
 static void s_callback_write (dap_events_socket_t * a_es,void * a_arg )
 {
     UNUSED(a_arg);
 
-    // Åñëè íàì âîîáùå ÷òî-òî åñòü îòïðàâèòü èç î÷åðåäè, òî íà÷èíàåì
+    // Ð•ÑÐ»Ð¸ Ð½Ð°Ð¼ Ð²Ð¾Ð¾Ð±Ñ‰Ðµ Ñ‡Ñ‚Ð¾-Ñ‚Ð¾ ÐµÑÑ‚ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²Ð¸Ñ‚ÑŒ Ð¸Ð· Ð¾Ñ‡ÐµÑ€ÐµÐ´Ð¸, Ñ‚Ð¾ Ð½Ð°Ñ‡Ð¸Ð½Ð°ÐµÐ¼
     if( DRS_PROTO(a_es)->out_last ){
         drs_proto_data_t * l_out = (drs_proto_data_t*) DRS_PROTO(a_es)->out_last->data;
         assert(l_out);
@@ -202,7 +202,7 @@ static void s_callback_write (dap_events_socket_t * a_es,void * a_arg )
             case DATA_TYPE_MEMORY:
                 l_out->data.shift += dap_events_socket_write_unsafe(a_es, l_out->data.ptr_byte + l_out->data.shift,
                                                                        l_out->data.size - l_out->data.shift);
-                if (l_out->data.shift >= l_out->data.size ){ // Ïðîâåðÿåì, îòïðàâèëè ëè ìû âñ¸
+                if (l_out->data.shift >= l_out->data.size ){ // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, Ð¾Ñ‚Ð¿Ñ€Ð°Ð²Ð¸Ð»Ð¸ Ð»Ð¸ Ð¼Ñ‹ Ð²ÑÑ‘
                     log_it(L_DEBUG, "Have sent succeffuly memory region %zd size", l_out->data.size);
                     s_proto_out_remove(DRS_PROTO(a_es), l_out);
                 }
@@ -215,8 +215,8 @@ static void s_callback_write (dap_events_socket_t * a_es,void * a_arg )
                 } else if( l_res == EAGAIN || l_res == EWOULDBLOCK ){
                     break;
                 } else if (l_res < 0){
-                    // íåáëîêèðóþùèé ñîêåò íå ãîòîâ ñåé÷àñ ê òàêîìó, âåðí¸ìñÿ ê íåìó íà ñëåäóþùåì öèêëå
-                    // âñå îñòàëüíûå êîäû îøèáîê
+                    // Ð½ÐµÐ±Ð»Ð¾ÐºÐ¸Ñ€ÑƒÑŽÑ‰Ð¸Ð¹ ÑÐ¾ÐºÐµÑ‚ Ð½Ðµ Ð³Ð¾Ñ‚Ð¾Ð² ÑÐµÐ¹Ñ‡Ð°Ñ Ðº Ñ‚Ð°ÐºÐ¾Ð¼Ñƒ, Ð²ÐµÑ€Ð½Ñ‘Ð¼ÑÑ Ðº Ð½ÐµÐ¼Ñƒ Ð½Ð° ÑÐ»ÐµÐ´ÑƒÑŽÑ‰ÐµÐ¼ Ñ†Ð¸ÐºÐ»Ðµ
+                    // Ð²ÑÐµ Ð¾ÑÑ‚Ð°Ð»ÑŒÐ½Ñ‹Ðµ ÐºÐ¾Ð´Ñ‹ Ð¾ÑˆÐ¸Ð±Ð¾Ðº
                     char l_errstr[255];
                     int l_errno = errno;
                     l_errstr[0] = '\0';
@@ -238,24 +238,24 @@ static void s_callback_write_finished(dap_events_socket_t * a_es, void * a_arg, 
 {
     UNUSED (a_arg);
     log_it(L_DEBUG, "Write finished with errno %d", a_errno);
-    if(a_errno == 0) { // ýòî íå åñòü çàâåðøåíèå ïî êîäó îøèáêè
-        if (DRS_PROTO(a_es)->out_last) // Åñëè íàì âñ¸ åù¸ åñòü ÷òî îòïðàâèòü èç î÷åðåäè îòïðàâêè, òî âîçâðàùàåì ôëàã ãîòîâíîñòè ê çàïèñè
+    if(a_errno == 0) { // ÑÑ‚Ð¾ Ð½Ðµ ÐµÑÑ‚ÑŒ Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¸Ðµ Ð¿Ð¾ ÐºÐ¾Ð´Ñƒ Ð¾ÑˆÐ¸Ð±ÐºÐ¸
+        if (DRS_PROTO(a_es)->out_last) // Ð•ÑÐ»Ð¸ Ð½Ð°Ð¼ Ð²ÑÑ‘ ÐµÑ‰Ñ‘ ÐµÑÑ‚ÑŒ Ñ‡Ñ‚Ð¾ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²Ð¸Ñ‚ÑŒ Ð¸Ð· Ð¾Ñ‡ÐµÑ€ÐµÐ´Ð¸ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸, Ñ‚Ð¾ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‰Ð°ÐµÐ¼ Ñ„Ð»Ð°Ð³ Ð³Ð¾Ñ‚Ð¾Ð²Ð½Ð¾ÑÑ‚Ð¸ Ðº Ð·Ð°Ð¿Ð¸ÑÐ¸
             dap_events_socket_set_writable_unsafe(a_es, true);
     }
 }
 
 /**
- * @brief Âûçûâàåòñÿ ïðè óäàëåíèè åñîêåòà. Óäàëÿåò íàñëåäóåìûé îáúåêò drs_proto
- * @param a_es Åñîêåò óäàëåííîãî êëèåíòà
- * @param a_arg íå èñïîëüçóåòñÿ
+ * @brief Ð’Ñ‹Ð·Ñ‹Ð²Ð°ÐµÑ‚ÑÑ Ð¿Ñ€Ð¸ ÑƒÐ´Ð°Ð»ÐµÐ½Ð¸Ð¸ ÐµÑÐ¾ÐºÐµÑ‚Ð°. Ð£Ð´Ð°Ð»ÑÐµÑ‚ Ð½Ð°ÑÐ»ÐµÐ´ÑƒÐµÐ¼Ñ‹Ð¹ Ð¾Ð±ÑŠÐµÐºÑ‚ drs_proto
+ * @param a_es Ð•ÑÐ¾ÐºÐµÑ‚ ÑƒÐ´Ð°Ð»ÐµÐ½Ð½Ð¾Ð³Ð¾ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ð°
+ * @param a_arg Ð½Ðµ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÑ‚ÑÑ
  */
 static void s_callback_delete (dap_events_socket_t * a_es,void * a_arg )
 {
     UNUSED(a_arg);
-    // Î÷èùåíèå a_es->_inheritor ïðîèçîéä¸ò àâòîìàòè÷åñêè
+    // ÐžÑ‡Ð¸Ñ‰ÐµÐ½Ð¸Ðµ a_es->_inheritor Ð¿Ñ€Ð¾Ð¸Ð·Ð¾Ð¹Ð´Ñ‘Ñ‚ Ð°Ð²Ñ‚Ð¾Ð¼Ð°Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¸
 
     drs_proto_t * l_proto = DRS_PROTO(a_es);
-    dap_list_free_full(l_proto->out_first, NULL); // î÷èùàåò î÷åðåäü îòïðàâêè
+    dap_list_free_full(l_proto->out_first, NULL); // Ð¾Ñ‡Ð¸Ñ‰Ð°ÐµÑ‚ Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸
     pthread_rwlock_destroy(&l_proto->in_rwlock);
     pthread_rwlock_destroy(&l_proto->out_rwlock);
 

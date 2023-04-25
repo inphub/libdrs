@@ -16,7 +16,7 @@
 
 #define DRS_COUNT 2
 
-// Канал с калибровочной синусоидой для временной калибровки
+// РљР°РЅР°Р» СЃ РєР°Р»РёР±СЂРѕРІРѕС‡РЅРѕР№ СЃРёРЅСѓСЃРѕРёРґРѕР№ РґР»СЏ РІСЂРµРјРµРЅРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё
 #define DRS_CHANNEL_9 0
 
 #define DRS_CHANNELS_COUNT 2
@@ -56,7 +56,7 @@
 
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
 
-// Задержка после чтения, в микросекундах
+// Р—Р°РґРµСЂР¶РєР° РїРѕСЃР»Рµ С‡С‚РµРЅРёСЏ, РІ РјРёРєСЂРѕСЃРµРєСѓРЅРґР°С…
 #define DRS_PAGE_READ_DELAY             50000
 
 #define DRS_COEF_SPLASH           0x00000001
@@ -121,7 +121,7 @@ typedef struct
 typedef struct 
 {
   fastadc_parameter_t fastadc;
-  dap_time_t init_on_start_timer_ms; // Не инициирует ничего, если 0
+  dap_time_t init_on_start_timer_ms; // РќРµ РёРЅРёС†РёРёСЂСѓРµС‚ РЅРёС‡РµРіРѕ, РµСЃР»Рё 0
 } DAP_ALIGN_PACKED parameter_t;
 
 typedef struct

@@ -206,10 +206,10 @@ lb_exit:
 }
 
 /**
- * double *buffer			массив с данными;
- * double *sumDeltaRef			массив дельт;
- * double *statistic			массив статистики по дельтам;
- * unsigned int shift			двиг в данных;
+ * double *buffer			РјР°СЃСЃРёРІ СЃ РґР°РЅРЅС‹РјРё;
+ * double *sumDeltaRef			РјР°СЃСЃРёРІ РґРµР»СЊС‚;
+ * double *statistic			РјР°СЃСЃРёРІ СЃС‚Р°С‚РёСЃС‚РёРєРё РїРѕ РґРµР»СЊС‚Р°Рј;
+ * unsigned int shift			РґРІРёРі РІ РґР°РЅРЅС‹С…;
  */
 static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a_stats,unsigned int a_shift)
 {

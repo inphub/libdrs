@@ -16,17 +16,17 @@
 typedef struct{
     pthread_rwlock_t rwlock;
 
-    bool is_running; // Запущен ли прямо сейчас
+    bool is_running; // Р—Р°РїСѓС‰РµРЅ Р»Рё РїСЂСЏРјРѕ СЃРµР№С‡Р°СЃ
 
     atomic_uint_fast32_t progress; // Progress between 0 and 100
 
-    pthread_t thread_id; // Айди потока
-    drs_t * drs; // Объект DRS
+    pthread_t thread_id; // РђР№РґРё РїРѕС‚РѕРєР°
+    drs_t * drs; // РћР±СЉРµРєС‚ DRS
 
     dap_nanotime_t ts_start;
     dap_nanotime_t ts_end;
 
-    // Сигнализирует завершение калибровки
+    // РЎРёРіРЅР°Р»РёР·РёСЂСѓРµС‚ Р·Р°РІРµСЂС€РµРЅРёРµ РєР°Р»РёР±СЂРѕРІРєРё
     pthread_cond_t  finished_cond;
     pthread_mutex_t finished_mutex;
 } drs_calibrate_t;
@@ -34,33 +34,33 @@ typedef struct{
 
 
 typedef struct{
-    // Амплитудная калибровка
+    // РђРјРїР»РёС‚СѓРґРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
     struct {
-        unsigned repeats; // (N) количество проходов амплитудной калибровки для каждого уровня цапов
+        unsigned repeats; // (N) РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕС…РѕРґРѕРІ Р°РјРїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё РґР»СЏ РєР°Р¶РґРѕРіРѕ СѓСЂРѕРІРЅСЏ С†Р°РїРѕРІ
 
-        unsigned N; // (count) количество уровней у амплитудной калибровки levels_count,
-                               // для каждого будет N (из repeats_count) проходов,
-                               // при нуле будут выполняться два прохода для уровней BegServ и EndServ(о них ниже),
-                               // при не нулевом значении, между  BegServ и EndServ будут включены count дополнительных уровней
-                               // цапов для амплитудной калибровки
-        double splash_gauntlet; // Уровень отсечения всплесков
+        unsigned N; // (count) РєРѕР»РёС‡РµСЃС‚РІРѕ СѓСЂРѕРІРЅРµР№ Сѓ Р°РјРїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё levels_count,
+                               // РґР»СЏ РєР°Р¶РґРѕРіРѕ Р±СѓРґРµС‚ N (РёР· repeats_count) РїСЂРѕС…РѕРґРѕРІ,
+                               // РїСЂРё РЅСѓР»Рµ Р±СѓРґСѓС‚ РІС‹РїРѕР»РЅСЏС‚СЊСЃСЏ РґРІР° РїСЂРѕС…РѕРґР° РґР»СЏ СѓСЂРѕРІРЅРµР№ BegServ Рё EndServ(Рѕ РЅРёС… РЅРёР¶Рµ),
+                               // РїСЂРё РЅРµ РЅСѓР»РµРІРѕРј Р·РЅР°С‡РµРЅРёРё, РјРµР¶РґСѓ  BegServ Рё EndServ Р±СѓРґСѓС‚ РІРєР»СЋС‡РµРЅС‹ count РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹С… СѓСЂРѕРІРЅРµР№
+                               // С†Р°РїРѕРІ РґР»СЏ Р°РјРїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё
+        double splash_gauntlet; // РЈСЂРѕРІРµРЅСЊ РѕС‚СЃРµС‡РµРЅРёСЏ РІСЃРїР»РµСЃРєРѕРІ
         double levels[DRS_DCA_COUNT_ALL+2];
     } ampl;
 
-    // Временная локальная
+    // Р’СЂРµРјРµРЅРЅР°СЏ Р»РѕРєР°Р»СЊРЅР°СЏ
     struct {
-        unsigned min_N; // Min N с клиента, минимальное число набора статистики для каждой ячейки в локальной калибровке
-        unsigned max_repeats; // Максимальное количество повторов при наборе статистики
+        unsigned min_N; // Min N СЃ РєР»РёРµРЅС‚Р°, РјРёРЅРёРјР°Р»СЊРЅРѕРµ С‡РёСЃР»Рѕ РЅР°Р±РѕСЂР° СЃС‚Р°С‚РёСЃС‚РёРєРё РґР»СЏ РєР°Р¶РґРѕР№ СЏС‡РµР№РєРё РІ Р»РѕРєР°Р»СЊРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРµ
+        unsigned max_repeats; // РњР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕРІС‚РѕСЂРѕРІ РїСЂРё РЅР°Р±РѕСЂРµ СЃС‚Р°С‚РёСЃС‚РёРєРё
     } time_local;
 
-    // Временная глобальная
+    // Р’СЂРµРјРµРЅРЅР°СЏ РіР»РѕР±Р°Р»СЊРЅР°СЏ
     struct {
-        unsigned num_cycle; //  numCylce, число проходов в глобальной колибровке
+        unsigned num_cycle; //  numCylce, С‡РёСЃР»Рѕ РїСЂРѕС…РѕРґРѕРІ РІ РіР»РѕР±Р°Р»СЊРЅРѕР№ РєРѕР»РёР±СЂРѕРІРєРµ
     } time_global;
 } drs_calibrate_params_t;
 
 
-// Аргументы калибровки
+// РђСЂРіСѓРјРµРЅС‚С‹ РєР°Р»РёР±СЂРѕРІРєРё
 typedef struct drs_cal_args{
     union{
         struct{
@@ -69,7 +69,7 @@ typedef struct drs_cal_args{
             bool do_time_global:1;
             unsigned padding:29;
         } DAP_ALIGN_PACKED;
-        uint32_t raw; //  ключи калибровки, 1 бит амплитудная,2 локальная временная,3 глобальная временная
+        uint32_t raw; //  РєР»СЋС‡Рё РєР°Р»РёР±СЂРѕРІРєРё, 1 Р±РёС‚ Р°РјРїР»РёС‚СѓРґРЅР°СЏ,2 Р»РѕРєР°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ,3 РіР»РѕР±Р°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ
     } keys;
     drs_calibrate_params_t param;
     drs_calibrate_t * cal;
@@ -87,8 +87,8 @@ typedef struct drs_cal_args{
 extern "C" {
 #endif
 
-int drs_calibrate_init(); // Инициализирует модуль
-void drs_calibrate_deinit(); // Денициализирует модуль
+int drs_calibrate_init(); // РРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ РјРѕРґСѓР»СЊ
+void drs_calibrate_deinit(); // Р”РµРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ РјРѕРґСѓР»СЊ
 
 int drs_calibrate_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
 int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec);
@@ -106,24 +106,24 @@ void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags);
 
 void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params);
 
-// применение калибровки для ячеек
+// РїСЂРёРјРµРЅРµРЅРёРµ РєР°Р»РёР±СЂРѕРІРєРё РґР»СЏ СЏС‡РµРµРє
 #define DRS_CAL_APPLY_Y_CELLS  BIT(0)
-// межканальная калибровка
+// РјРµР¶РєР°РЅР°Р»СЊРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
 #define DRS_CAL_APPLY_Y_INTERCHANNEL  BIT(1)
-// избавление от всплесков
+// РёР·Р±Р°РІР»РµРЅРёРµ РѕС‚ РІСЃРїР»РµСЃРєРѕРІ
 #define DRS_CAL_APPLY_Y_SPLASHS  BIT(2)
 
-// Временная локальная калибровка
+// Р’СЂРµРјРµРЅРЅР°СЏ Р»РѕРєР°Р»СЊРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
 #define DRS_CAL_APPLY_X_TIME_LOCAL  BIT(8)
-// Временная глобальная калибровка
+// Р’СЂРµРјРµРЅРЅР°СЏ РіР»РѕР±Р°Р»СЊРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
 #define DRS_CAL_APPLY_X_TIME_GLOBAL  BIT(9)
 
-// Развернуть итоговые результаты
+// Р Р°Р·РІРµСЂРЅСѓС‚СЊ РёС‚РѕРіРѕРІС‹Рµ СЂРµР·СѓР»СЊС‚Р°С‚С‹
 #define DRS_CAL_ROTATE  BIT(30)
-// приведение к физическим величинам
+// РїСЂРёРІРµРґРµРЅРёРµ Рє С„РёР·РёС‡РµСЃРєРёРј РІРµР»РёС‡РёРЅР°Рј
 #define DRS_CAL_APPLY_PHYS  BIT(31)
 
-// Только 9ый канал
+// РўРѕР»СЊРєРѕ 9С‹Р№ РєР°РЅР°Р»
 #define DRS_CAL_APPLY_CH9_ONLY           BIT(31)
 
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *buffer,double *dBuf, int a_flags);

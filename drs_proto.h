@@ -11,12 +11,12 @@
 
 typedef enum drs_proto_data_type{ DATA_TYPE_MEMORY, DATA_TYPE_FILE } drs_proto_data_type_t;
 
-// Îñâîáîæäàåò ïàìÿòü ïîñëå îòïðàâêè
+// ÐžÑÐ²Ð¾Ð±Ð¾Ð¶Ð´Ð°ÐµÑ‚ Ð¿Ð°Ð¼ÑÑ‚ÑŒ Ð¿Ð¾ÑÐ»Ðµ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸
 #define DRS_PROTO_DATA_MEM_FREE_AFTER 0x00000001
 
 /**
   * @struct drs_proto_data
-  * @brief Óêàçàòåëü íà äàííûå äëÿ ïðè¸ìà ëèáî îòïðàâêè
+  * @brief Ð£ÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð´Ð»Ñ Ð¿Ñ€Ð¸Ñ‘Ð¼Ð° Ð»Ð¸Ð±Ð¾ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸
   *
   */
 typedef struct drs_proto_data{
@@ -24,11 +24,11 @@ typedef struct drs_proto_data{
     union{
         struct{
             union{
-                void * ptr;     /** @brief Óêàçàòåëü íà ñàìè äàííûå */
+                void * ptr;     /** @brief Ð£ÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° ÑÐ°Ð¼Ð¸ Ð´Ð°Ð½Ð½Ñ‹Ðµ */
                 byte_t * ptr_byte;
             };
-            size_t size;  /** @brief Ðàçìåð äàííûõ */
-            size_t shift; /** @brief Ñìåùåíèå èíäåêñà ÷òåíèè èëè çàïèñè îòíîñèòåëüíî íà÷àëà  */
+            size_t size;  /** @brief Ð Ð°Ð·Ð¼ÐµÑ€ Ð´Ð°Ð½Ð½Ñ‹Ñ… */
+            size_t shift; /** @brief Ð¡Ð¼ÐµÑ‰ÐµÐ½Ð¸Ðµ Ð¸Ð½Ð´ÐµÐºÑÐ° Ñ‡Ñ‚ÐµÐ½Ð¸Ð¸ Ð¸Ð»Ð¸ Ð·Ð°Ð¿Ð¸ÑÐ¸ Ð¾Ñ‚Ð½Ð¾ÑÐ¸Ñ‚ÐµÐ»ÑŒÐ½Ð¾ Ð½Ð°Ñ‡Ð°Ð»Ð°  */
             int flags;
         } data;
         struct{
@@ -41,7 +41,7 @@ typedef struct drs_proto_data{
 
 /**
   * @enum drs_proto_state_in
-  * @brief Ýëåìåíòû ìàøèíû ñîñòîÿíèé ïðè¸ìà
+  * @brief Ð­Ð»ÐµÐ¼ÐµÐ½Ñ‚Ñ‹ Ð¼Ð°ÑˆÐ¸Ð½Ñ‹ ÑÐ¾ÑÑ‚Ð¾ÑÐ½Ð¸Ð¹ Ð¿Ñ€Ð¸Ñ‘Ð¼Ð°
   */
 typedef enum drs_proto_state_in{
     STATE_IN_DEFAULT,
@@ -49,7 +49,7 @@ typedef enum drs_proto_state_in{
 
 /**
   * @enum drs_proto_state_out
-  * @brief Ýëåìåíòû ìàøèíû ñîñòîÿíèé îòïðàâêè
+  * @brief Ð­Ð»ÐµÐ¼ÐµÐ½Ñ‚Ñ‹ Ð¼Ð°ÑˆÐ¸Ð½Ñ‹ ÑÐ¾ÑÑ‚Ð¾ÑÐ½Ð¸Ð¹ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸
   */
 typedef enum drs_proto_state_out{
     STATE_OUT_DEFAULT,
@@ -58,13 +58,13 @@ typedef enum drs_proto_state_out{
 
 /**
   * @struct drs_proto
-  * @brief Äàííûå, ñïåöèôè÷íûå äëÿ âõîäÿùåãî ñîåäèíåíèÿ
+  * @brief Ð”Ð°Ð½Ð½Ñ‹Ðµ, ÑÐ¿ÐµÑ†Ð¸Ñ„Ð¸Ñ‡Ð½Ñ‹Ðµ Ð´Ð»Ñ Ð²Ñ…Ð¾Ð´ÑÑ‰ÐµÐ³Ð¾ ÑÐ¾ÐµÐ´Ð¸Ð½ÐµÐ½Ð¸Ñ
   */
 typedef struct drs_proto{
-    dap_events_socket_t * esocket; /** @brief Ðîäèòåëü **/
+    dap_events_socket_t * esocket; /** @brief Ð Ð¾Ð´Ð¸Ñ‚ÐµÐ»ÑŒ **/
 
     /**
-     * @brief Ñîñòîÿíèÿ èñõîäÿùèå/âõîäÿùèå
+     * @brief Ð¡Ð¾ÑÑ‚Ð¾ÑÐ½Ð¸Ñ Ð¸ÑÑ…Ð¾Ð´ÑÑ‰Ð¸Ðµ/Ð²Ñ…Ð¾Ð´ÑÑ‰Ð¸Ðµ
      */
     struct{
         drs_proto_state_out_t out;
@@ -72,12 +72,12 @@ typedef struct drs_proto{
     } state;
 
     pthread_rwlock_t out_rwlock;
-    dap_list_t * out_first;  /** @brief Ïåðâûé íà î÷åðåäü îòïðàâêè **/
-    dap_list_t * out_last;   /** @brief Ïîñëåäíèé íà î÷åðåäü îòïðàâêè **/
+    dap_list_t * out_first;  /** @brief ÐŸÐµÑ€Ð²Ñ‹Ð¹ Ð½Ð° Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸ **/
+    dap_list_t * out_last;   /** @brief ÐŸÐ¾ÑÐ»ÐµÐ´Ð½Ð¸Ð¹ Ð½Ð° Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸ **/
 
     pthread_rwlock_t in_rwlock;
-    dap_list_t * in_first;   /** @brief Ïåðâûé íà î÷åðåäü ÷òåíèÿ **/
-    dap_list_t * in_last;    /** @brief Ïîñëåäíèé íà î÷åðåäü îòïðàâêè **/
+    dap_list_t * in_first;   /** @brief ÐŸÐµÑ€Ð²Ñ‹Ð¹ Ð½Ð° Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ñ‡Ñ‚ÐµÐ½Ð¸Ñ **/
+    dap_list_t * in_last;    /** @brief ÐŸÐ¾ÑÐ»ÐµÐ´Ð½Ð¸Ð¹ Ð½Ð° Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¾Ñ‚Ð¿Ñ€Ð°Ð²ÐºÐ¸ **/
 
 } drs_proto_t;
 #define DRS_PROTO(a) ((drs_proto_t *) (a)->_inheritor)

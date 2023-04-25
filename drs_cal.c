@@ -26,21 +26,21 @@
 
 
 #define GeneratorFrequency 50 //MHz
-#define periodLength 38.912 //4.9152/2.4*19 || periodLength-длинна в отсчетах одного периода 4.9152 ГГц-частота ацп, 2400/19-МГц частота синуса
-#define maxPeriodsCount 28//26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
+#define periodLength 38.912 //4.9152/2.4*19 || periodLength-РґР»РёРЅРЅР° РІ РѕС‚СЃС‡РµС‚Р°С… РѕРґРЅРѕРіРѕ РїРµСЂРёРѕРґР° 4.9152 Р“Р“С†-С‡Р°СЃС‚РѕС‚Р° Р°С†Рї, 2400/19-РњР“С† С‡Р°СЃС‚РѕС‚Р° СЃРёРЅСѓСЃР°
+#define maxPeriodsCount 28//26,315789473684210526315789473684- РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРµСЂРёРѕРґРѕРІ РІ 1024 РѕС‚СЃС‡РµС‚Р°С…->27, +1 РґР»СЏ РЅСѓР»СЏ;
 //#define freqDRS 4915200.0/1000000000.0
 //extern const double freqDRS[];
 
 /**
- * double*x -массив под знчаения X
- * unsigned int shift - сдвиг ячеек
- * coefficients *coef - струтурка с коэффициентами
- * unsigned int key - ключ применения калибровок 4 бит-локальная временная, 5 бит-глобальная временная, 6 бит-приведение к физическим величинам
+ * double*x -РјР°СЃСЃРёРІ РїРѕРґ Р·РЅС‡Р°РµРЅРёСЏ X
+ * unsigned int shift - СЃРґРІРёРі СЏС‡РµРµРє
+ * coefficients *coef - СЃС‚СЂСѓС‚СѓСЂРєР° СЃ РєРѕСЌС„С„РёС†РёРµРЅС‚Р°РјРё
+ * unsigned int key - РєР»СЋС‡ РїСЂРёРјРµРЅРµРЅРёСЏ РєР°Р»РёР±СЂРѕРІРѕРє 4 Р±РёС‚-Р»РѕРєР°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ, 5 Р±РёС‚-РіР»РѕР±Р°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ, 6 Р±РёС‚-РїСЂРёРІРµРґРµРЅРёРµ Рє С„РёР·РёС‡РµСЃРєРёРј РІРµР»РёС‡РёРЅР°Рј
  */
 
-// Состояния калибровки (текущие )
+// РЎРѕСЃС‚РѕСЏРЅРёСЏ РєР°Р»РёР±СЂРѕРІРєРё (С‚РµРєСѓС‰РёРµ )
 drs_calibrate_t s_state[DRS_COUNT] = {};
-// Поток калибровки
+// РџРѕС‚РѕРє РєР°Р»РёР±СЂРѕРІРєРё
 static void *     s_thread_routine(void * a_arg);
 static inline int s_run           (int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
 
@@ -134,7 +134,7 @@ static void * s_thread_routine(void * a_arg)
 
 
 /**
- * @brief  Инициализирует модуль
+ * @brief  РРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ РјРѕРґСѓР»СЊ
  * @return
  */
 int drs_calibrate_init()
@@ -147,7 +147,7 @@ int drs_calibrate_init()
 }
 
 /**
- * @brief Денициализирует модуль
+ * @brief Р”РµРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ РјРѕРґСѓР»СЊ
  */
 void drs_calibrate_deinit()
 {
@@ -166,7 +166,7 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
 {
     drs_calibrate_t * l_cal = &s_state[a_drs_num];
 
-    // Проверяем, запущена ли уже калибровка
+    // РџСЂРѕРІРµСЂСЏРµРј, Р·Р°РїСѓС‰РµРЅР° Р»Рё СѓР¶Рµ РєР°Р»РёР±СЂРѕРІРєР°
     pthread_rwlock_rdlock(&l_cal->rwlock);
     if ( l_cal->is_running){
         log_it(L_WARNING, "DRS #%d is already running calibration (%u%% done)", a_drs_num, l_cal->progress );
@@ -175,7 +175,7 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
     }
     pthread_rwlock_unlock(&l_cal->rwlock);
 
-    // Запускаем поток с калибровкой
+    // Р—Р°РїСѓСЃРєР°РµРј РїРѕС‚РѕРє СЃ РєР°Р»РёР±СЂРѕРІРєРѕР№
     pthread_rwlock_wrlock(&l_cal->rwlock);
 
     struct drs_cal_args * l_args  = DAP_NEW_Z(struct drs_cal_args);
@@ -234,10 +234,10 @@ int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec)
     }
     drs_calibrate_t * l_cal = &s_state[a_drs_num];
 
-    // Блокируем вызов сигнала о том, что запущены
+    // Р‘Р»РѕРєРёСЂСѓРµРј РІС‹Р·РѕРІ СЃРёРіРЅР°Р»Р° Рѕ С‚РѕРј, С‡С‚Рѕ Р·Р°РїСѓС‰РµРЅС‹
     pthread_mutex_lock(& l_cal->finished_mutex);
 
-    // Проверяем, не запущен ли
+    // РџСЂРѕРІРµСЂСЏРµРј, РЅРµ Р·Р°РїСѓС‰РµРЅ Р»Рё
     pthread_rwlock_rdlock(&l_cal->rwlock);
     bool l_is_running = l_cal->is_running;
     pthread_rwlock_rdlock(&l_cal->rwlock);
@@ -246,7 +246,7 @@ int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec)
         return 0;
     }
 
-    // Встаём в ожидание срабатывания события
+    // Р’СЃС‚Р°С‘Рј РІ РѕР¶РёРґР°РЅРёРµ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ СЃРѕР±С‹С‚РёСЏ
     if (a_wait_msec < 0){
         pthread_cond_wait( &l_cal->finished_cond, &l_cal->finished_mutex );
     }else{
@@ -316,7 +316,7 @@ bool drs_calibrate_is_running(int a_drs_num)
  */
 int drs_calibrate_abort(int a_drs_num)
 {
-    // Проверка на номер DRS
+    // РџСЂРѕРІРµСЂРєР° РЅР° РЅРѕРјРµСЂ DRS
     if(a_drs_num >= DRS_COUNT){
         log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
         return -2;
@@ -324,18 +324,18 @@ int drs_calibrate_abort(int a_drs_num)
 
     pthread_rwlock_rdlock(&s_state[a_drs_num].rwlock);
 
-    // Калибровка вообще идёт?
+    // РљР°Р»РёР±СЂРѕРІРєР° РІРѕРѕР±С‰Рµ РёРґС‘С‚?
     if( !s_state[a_drs_num].is_running){
         log_it(L_WARNING, "DRS #%d is not running, nothing to abort", a_drs_num);
         return -1;
     }
 
-    // Грохаем поток
+    // Р“СЂРѕС…Р°РµРј РїРѕС‚РѕРє
     pthread_cancel( s_state[a_drs_num].thread_id);
 
     pthread_rwlock_unlock(&s_state[a_drs_num].rwlock);
 
-    // Обнуляем состояния
+    // РћР±РЅСѓР»СЏРµРј СЃРѕСЃС‚РѕСЏРЅРёСЏ
     pthread_rwlock_rdlock(&s_state[a_drs_num].rwlock);
     s_state[a_drs_num].is_running = false;
     s_state[a_drs_num].thread_id  = 0;
@@ -377,20 +377,20 @@ void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags)
 
 
 /*
- * Применяет амплитудную калибровку к данным
- * unsigned short *buffer			массив данных;
- * double *dBuf 					массив данных с результатом применения амплитудной калибровки
- * unsigned int shift 				сдвиг получаемый через getShiftIndex;
- * coefficients *coef				структура с кэффициентами;
- * unsigned int chanalLength		длинна массива для 1 канала;
- * unsigned int chanalCount			количество каналов
- * unsigned int a_flags	    		0 бит- применение калибровки для ячеек, 1 бит- межканальная калибровка,2 бит- избавление от всплесков, 3 бит- приведение к физическим виличинам
+ * РџСЂРёРјРµРЅСЏРµС‚ Р°РјРїР»РёС‚СѓРґРЅСѓСЋ РєР°Р»РёР±СЂРѕРІРєСѓ Рє РґР°РЅРЅС‹Рј
+ * unsigned short *buffer			РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…;
+ * double *dBuf 					РјР°СЃСЃРёРІ РґР°РЅРЅС‹С… СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј РїСЂРёРјРµРЅРµРЅРёСЏ Р°РјРїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё
+ * unsigned int shift 				СЃРґРІРёРі РїРѕР»СѓС‡Р°РµРјС‹Р№ С‡РµСЂРµР· getShiftIndex;
+ * coefficients *coef				СЃС‚СЂСѓРєС‚СѓСЂР° СЃ РєСЌС„С„РёС†РёРµРЅС‚Р°РјРё;
+ * unsigned int chanalLength		РґР»РёРЅРЅР° РјР°СЃСЃРёРІР° РґР»СЏ 1 РєР°РЅР°Р»Р°;
+ * unsigned int chanalCount			РєРѕР»РёС‡РµСЃС‚РІРѕ РєР°РЅР°Р»РѕРІ
+ * unsigned int a_flags	    		0 Р±РёС‚- РїСЂРёРјРµРЅРµРЅРёРµ РєР°Р»РёР±СЂРѕРІРєРё РґР»СЏ СЏС‡РµРµРє, 1 Р±РёС‚- РјРµР¶РєР°РЅР°Р»СЊРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°,2 Р±РёС‚- РёР·Р±Р°РІР»РµРЅРёРµ РѕС‚ РІСЃРїР»РµСЃРєРѕРІ, 3 Р±РёС‚- РїСЂРёРІРµРґРµРЅРёРµ Рє С„РёР·РёС‡РµСЃРєРёРј РІРёР»РёС‡РёРЅР°Рј
  * */
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
 {
     unsigned int l_ch_id,l_cell_id,koefIndex;
 
-    // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
+    // Р•СЃР»Рё РјС‹ СЃРµР№С‡Р°СЃ РІ СЂРµР¶РёРјРµ 9РѕРіРѕ РєР°РЅР°Р»Р°, С‚Рѕ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РІР·РІРѕРґРёРј СЌС‚РѕС‚ С„Р»Р°Рі
     if (drs_get_mode(a_drs->id) == DRS_MODE_CAL_TIME)
         a_flags |= DRS_CAL_APPLY_CH9_ONLY;
 
@@ -447,7 +447,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         s_remove_splash(a_drs, l_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
     }
 
-    // Разворачиваем всё вместе
+    // Р Р°Р·РІРѕСЂР°С‡РёРІР°РµРј РІСЃС‘ РІРјРµСЃС‚Рµ
 
 
     if (a_flags & DRS_CAL_ROTATE && ! (a_flags &DRS_CAL_APPLY_CH9_ONLY) ){

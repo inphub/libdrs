@@ -99,10 +99,14 @@ int drs_cli_init()
                             "read page [-drs <DRS num>] [-limit <Limit cells number for output>]"
                             "\t Call getOnce() and read one raw page at once for target DRS or for all"
                             "\n"
+                            "read status [-drs <DRS num>] "
+                            "\t Show the current read status - is it complete and how many pages are ready"
+                            "\n"
                             ""
                             "\n"
                             ""
                             );
+
 
     return 0;
 }
@@ -111,6 +115,18 @@ int drs_cli_init()
  * @brief drs_cli_deinit
  */
 void drs_cli_deinit()
+{
+
+}
+
+/**
+ * @brief s_callback_read_status
+ * @param a_argc
+ * @param a_argv
+ * @param a_str_reply
+ * @return
+ */
+static int s_callback_read_status(int a_argc, char ** a_argv, char ** a_str_reply)
 {
 
 }
@@ -130,7 +146,7 @@ static int s_parse_drs_and_check(int a_arg_index, int a_argc, char ** a_argv, ch
 
     if (l_arg_drs){
         int l_drs_num = atoi( l_arg_drs);
-        // Проверяем корректность ввода
+        // РџСЂРѕРІРµСЂСЏРµРј РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ РІРІРѕРґР°
         if (l_drs_num <0 || l_drs_num >= DRS_COUNT){
             dap_cli_server_cmd_set_reply_text(a_str_reply, "Wrong drs num %u, shoudn't be more than 0 and less than %u",
                                               l_drs_num, DRS_COUNT);
@@ -184,7 +200,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
     enum {
         CMD_NONE =0,
         CMD_WRITE_READY,
-        CMD_PAGE
+        CMD_PAGE,
+        CMD_STATUS
     };
     int l_arg_index = 1;
     int l_cmd_num = CMD_NONE;
@@ -194,11 +211,13 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
         l_cmd_num = CMD_WRITE_READY;
     }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "page", NULL)) {
         l_cmd_num = CMD_PAGE;
+    }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "status", NULL)) {
+        l_cmd_num = CMD_STATUS;
     }
 
     l_arg_index++;
 
-    // Получаем номер DRS
+    // РџРѕР»СѓС‡Р°РµРј РЅРѕРјРµСЂ DRS
     int l_drs_num = s_parse_drs_and_check(l_arg_index, a_argc, a_argv, a_str_reply);
     if (l_drs_num < -1 ) // Wrong DRS num
         return -1;
@@ -207,6 +226,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
         case CMD_WRITE_READY:{
                 bool l_flag_ready=drs_get_flag_write_ready(l_drs_num);
                 dap_cli_server_cmd_set_reply_text( a_str_reply, "DRS #%d is %s", l_flag_ready? "ready": "not ready");
+        }break;
+        case CMD_STATUS:{
         }break;
         case CMD_PAGE:{
             const char * l_limits_str;
@@ -291,11 +312,11 @@ int dap_cli_server_cmd_parse_list_doubles(char ** a_str_reply,  const char * a_s
         DAP_DELETE(l_shift_str);
     }
 
-    // Сохраняем количество записанных элементов
+    // РЎРѕС…СЂР°РЅСЏРµРј РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃР°РЅРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ
     if (a_array_size)
         *a_array_size = n;
 
-    // Если мы прошли корректно весь список, то удаляем исходный массив
+    // Р•СЃР»Рё РјС‹ РїСЂРѕС€Р»Рё РєРѕСЂСЂРµРєС‚РЅРѕ РІРµСЃСЊ СЃРїРёСЃРѕРє, С‚Рѕ СѓРґР°Р»СЏРµРј РёСЃС…РѕРґРЅС‹Р№ РјР°СЃСЃРёРІ
     if(! l_strs[n] )
         DAP_DEL_Z(l_strs);
 
@@ -333,27 +354,27 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
 {
     if(a_argc > 1) {
         int l_arg_index = 1;
-        // Читаем доп аргумент (если есть)
-        int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 значит для всех
+        // Р§РёС‚Р°РµРј РґРѕРї Р°СЂРіСѓРјРµРЅС‚ (РµСЃР»Рё РµСЃС‚СЊ)
+        int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 Р·РЅР°С‡РёС‚ РґР»СЏ РІСЃРµС…
         if (l_drs_num < -1)
             return l_drs_num;
 
         if (strcmp(a_argv[1], "run") == 0 ){ // Subcommand "run"
 
-            // Читаем аргументы к команде
+            // Р§РёС‚Р°РµРј Р°СЂРіСѓРјРµРЅС‚С‹ Рє РєРѕРјР°РЅРґРµ
             const char * l_flags_str = NULL;
 
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-flags",        &l_flags_str);
 
-            // Проверяем наличие флагов
+            // РџСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ С„Р»Р°РіРѕРІ
             if ( ! (l_flags_str)  ){
                 dap_cli_server_cmd_set_reply_text(a_str_reply, "Flags arguments is missed, check help for the command");
                 return -2;
             }
 
-            // Конверстируем аргументы и проверяем их корректность
+            // РљРѕРЅРІРµСЂСЃС‚РёСЂСѓРµРј Р°СЂРіСѓРјРµРЅС‚С‹ Рё РїСЂРѕРІРµСЂСЏРµРј РёС… РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ
 
-            // Конвертируем флаги
+            // РљРѕРЅРІРµСЂС‚РёСЂСѓРµРј С„Р»Р°РіРё
             char ** l_flags_strs = dap_strsplit(l_flags_str, ",",3);
             if (l_flags_strs == NULL){
                 dap_cli_server_cmd_set_reply_text(a_str_reply, "Flags argument is empty");
@@ -370,7 +391,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             unsigned l_N = 0;
 
             for (size_t i = 0; l_flags_strs[i]; i ++){
-                // Подготавливаем флаги
+                // РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј С„Р»Р°РіРё
                 if ( dap_strcmp(l_flags_strs[i], "AMPL") == 0)
                     l_flags |= DRS_CAL_FLAG_AMPL;
                 if ( dap_strcmp(l_flags_strs[i], "TIME_LOCAL") == 0)
@@ -379,7 +400,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     l_flags |= DRS_CAL_FLAG_TIME_GLOBAL;
             }
 
-            // Амплитудная калибровка
+            // РђРјРїР»РёС‚СѓРґРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
             if (l_flags & DRS_CAL_FLAG_AMPL){
                 int l_ret;
                 const char * l_repeats_str = NULL;
@@ -393,20 +414,20 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-shifts",       &l_shifts_str);
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-N", &l_N_str);
 
-                // Проверяем наличие всех аргументов
+                // РџСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ РІСЃРµС… Р°СЂРіСѓРјРµРЅС‚РѕРІ
                 if ( ! (l_repeats_str && l_N_str && l_begin_str && l_end_str && l_shifts_str && l_N_str)  ){
                     dap_cli_server_cmd_set_reply_text(a_str_reply, "Amplitude arguments is missed, check help for the command");
                     return -2;
                 }
 
-                // Конвертируем смещения
+                // РљРѕРЅРІРµСЂС‚РёСЂСѓРµРј СЃРјРµС‰РµРЅРёСЏ
 
                 if ( (l_ret = dap_cli_server_cmd_parse_list_double(a_str_reply,l_shifts_str,l_shifts,DRS_CHANNELS_COUNT,DRS_CHANNELS_COUNT,NULL)) < 0 ){
                     return l_ret;
                 }
 
 
-                // конвертируем begin
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј begin
                 char * l_begin_str_endptr = NULL;
                 l_begin = strtod( l_begin_str, & l_begin_str_endptr);
                 if (l_begin_str_endptr == l_begin_str){
@@ -414,7 +435,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     return -26;
                 }
 
-                // конвертируем end
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј end
                 char * l_end_str_endptr = NULL;
                 l_end = strtod( l_end_str, & l_end_str_endptr);
                 if (l_end_str_endptr == l_end_str){
@@ -422,7 +443,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     return -27;
                 }
 
-                // конвертируем repeats
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј repeats
                 char * l_repeats_str_endptr = NULL;
                 l_repeats = strtoul( l_repeats_str, & l_repeats_str_endptr, 10);
                 if (l_repeats_str_endptr == l_repeats_str){
@@ -430,7 +451,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     return -28;
                 }
 
-                // конвертируем N
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј N
                 char * l_N_str_endptr = NULL;
                 l_N = strtoul( l_N_str, & l_N_str_endptr, 10);
                 if (l_N_str_endptr == l_N_str){
@@ -439,9 +460,9 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 }
             }
 
-            // Локальная временная калибровка
+            // Р›РѕРєР°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
             if (l_flags & DRS_CAL_FLAG_TIME_LOCAL){
-                // конвертируем min_N
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј min_N
                 const char * l_min_N_str = NULL;
                 const char * l_max_repeats_str = NULL;
                 char * l_tmp_endptr = NULL;
@@ -463,11 +484,11 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 }
 
             }
-            // Глобальная временная калибровка
+            // Р“Р»РѕР±Р°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ РєР°Р»РёР±СЂРѕРІРєР°
             if (l_flags & DRS_CAL_FLAG_TIME_GLOBAL){
                 const char * l_num_cycle_str = NULL;
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-num_cycle",    &l_num_cycle_str);
-                // конвертируем num_cycle
+                // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј num_cycle
                 char * l_num_cycle_str_endptr = NULL;
                 l_num_cycle = strtoul( l_num_cycle_str, & l_num_cycle_str_endptr, 10);
                 if (l_num_cycle_str_endptr == l_num_cycle_str){
@@ -476,7 +497,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 }
             }
 
-            // Подготавливаем параметры калибровки
+            // РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј РїР°СЂР°РјРµС‚СЂС‹ РєР°Р»РёР±СЂРѕРІРєРё
             drs_calibrate_params_t l_params = {
                 .ampl = {
                     .repeats = l_repeats,
@@ -498,7 +519,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             dap_string_t * l_reply = dap_string_new("");
 
             int l_ret;
-            if (l_drs_num == -1) // Если не указан DRS канал, то фигачим все
+            if (l_drs_num == -1) // Р•СЃР»Рё РЅРµ СѓРєР°Р·Р°РЅ DRS РєР°РЅР°Р», С‚Рѕ С„РёРіР°С‡РёРј РІСЃРµ
                 for (size_t i = 0; i < DRS_COUNT; i++){
                     l_ret = drs_calibrate_run(i, l_flags, &l_params);
                     if (l_ret == 0)
@@ -506,7 +527,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     else
                         dap_string_append_printf( l_reply, "DRS #u calibration start error, code %d\n", l_ret);
                 }
-            else{ // Если указан, то только конкретный
+            else{ // Р•СЃР»Рё СѓРєР°Р·Р°РЅ, С‚Рѕ С‚РѕР»СЊРєРѕ РєРѕРЅРєСЂРµС‚РЅС‹Р№
                 l_ret = drs_calibrate_run(l_drs_num, l_flags, &l_params);
                 if (l_ret == 0)
                     dap_string_append_printf( l_reply, "DRS #u calibration started\n");
@@ -562,13 +583,13 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     DAP_DELETE(l_coeffs_strs);
                 }
             }
-            if (l_drs_num == -1){ // Если не указан DRS канал, то фигачим все
+            if (l_drs_num == -1){ // Р•СЃР»Рё РЅРµ СѓРєР°Р·Р°РЅ DRS РєР°РЅР°Р», С‚Рѕ С„РёРіР°С‡РёРј РІСЃРµ
                 for (int i = 0; i < DRS_COUNT; i++){
                     drs_calibrate_t *l_cal = drs_calibrate_get_state(i);
                     dap_string_append_printf(l_reply, "--== DRS %d ==--\n", i);
                     drs_cal_state_print(l_reply, l_cal, l_limits, l_coeffs_flags);
                 }
-            }else{ // Если указан, то только конкретный
+            }else{ // Р•СЃР»Рё СѓРєР°Р·Р°РЅ, С‚Рѕ С‚РѕР»СЊРєРѕ РєРѕРЅРєСЂРµС‚РЅС‹Р№
                 drs_calibrate_t * l_cal = drs_calibrate_get_state(l_drs_num);
                 dap_string_append_printf(l_reply, "--== DRS %d ==--\n", l_drs_num);
                 drs_cal_state_print(l_reply, l_cal, l_limits, l_coeffs_flags);
@@ -576,7 +597,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             *a_str_reply = dap_string_free(l_reply, false);
         } else if ( dap_strcmp( a_argv[1], "abort") == 0){
             dap_string_t * l_reply = dap_string_new("Abort drs calibration:\n");
-            if (l_drs_num == -1){ // Если не указан DRS канал, то фигачим все
+            if (l_drs_num == -1){ // Р•СЃР»Рё РЅРµ СѓРєР°Р·Р°РЅ DRS РєР°РЅР°Р», С‚Рѕ С„РёРіР°С‡РёРј РІСЃРµ
                 for (int i = 0; i < DRS_COUNT; i++){
                     int l_ret = drs_calibrate_abort(i);
                     if (l_ret == 0)
@@ -584,7 +605,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     else
                         dap_string_append_printf(l_reply, "DRS #%d calibration abort error, code %d\n", i, l_ret);
                 }
-            }else{ // Если указан, то только конкретный
+            }else{ // Р•СЃР»Рё СѓРєР°Р·Р°РЅ, С‚Рѕ С‚РѕР»СЊРєРѕ РєРѕРЅРєСЂРµС‚РЅС‹Р№
                 int l_ret = drs_calibrate_abort(l_drs_num);
                 if (l_ret == 0)
                     dap_string_append_printf(l_reply, "DRS #%d calibration aborted\n", l_drs_num);
@@ -615,10 +636,10 @@ static int s_cli_sinus(int a_argc, char ** a_argv, char **a_str_reply)
       dap_cli_server_cmd_set_reply_text(a_str_reply, "No required argument off|on " );
       return -2;
   }
-  if (dap_strcmp(a_argv[1],"on") == 0 ){ // Включаем синус
+  if (dap_strcmp(a_argv[1],"on") == 0 ){ // Р’РєР»СЋС‡Р°РµРј СЃРёРЅСѓСЃ
       drs_set_sinus_signal(true);
       dap_cli_server_cmd_set_reply_text(a_str_reply,"Sinus switched on\n");
-  } else if (dap_strcmp(a_argv[1],"off") == 0 ) { // Выключаем синус
+  } else if (dap_strcmp(a_argv[1],"off") == 0 ) { // Р’С‹РєР»СЋС‡Р°РµРј СЃРёРЅСѓСЃ
       drs_set_sinus_signal(false);
       dap_cli_server_cmd_set_reply_text(a_str_reply,"Sinus switched off\n");
   }else{
@@ -638,7 +659,7 @@ static int s_cli_sinus(int a_argc, char ** a_argv, char **a_str_reply)
  */
 static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
 {
-    // Описываем субкомманды
+    // РћРїРёСЃС‹РІР°РµРј СЃСѓР±РєРѕРјРјР°РЅРґС‹
     enum {
         CMD_NONE =0,
         CMD_MODE,
@@ -656,9 +677,9 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         return -2;
     }
 
-    const char * l_cmd = a_argv[1]; // Строка с субкоммандой
+    const char * l_cmd = a_argv[1]; // РЎС‚СЂРѕРєР° СЃ СЃСѓР±РєРѕРјРјР°РЅРґРѕР№
 
-    // Парсим субкоманды
+    // РџР°СЂСЃРёРј СЃСѓР±РєРѕРјР°РЅРґС‹
     int l_cmd_num = CMD_NONE;
     for(int idx = 0; (size_t) idx < sizeof (l_cmd_str_c) / sizeof(typeof (*l_cmd_str_c)); idx ++ ){
         if( dap_strcmp(l_cmd, l_cmd_str_c[idx]) == 0 ) {
@@ -667,11 +688,11 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         }
     }
 
-    // Сдвигаемся после сабкоманнды до следующего индекса после неё, чтобы распарсить её аргументы
+    // РЎРґРІРёРіР°РµРјСЃСЏ РїРѕСЃР»Рµ СЃР°Р±РєРѕРјР°РЅРЅРґС‹ РґРѕ СЃР»РµРґСѓСЋС‰РµРіРѕ РёРЅРґРµРєСЃР° РїРѕСЃР»Рµ РЅРµС‘, С‡С‚РѕР±С‹ СЂР°СЃРїР°СЂСЃРёС‚СЊ РµС‘ Р°СЂРіСѓРјРµРЅС‚С‹
     int l_arg_index = 1;
 
-    // Читаем общие аргументы
-    int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 значит для всех
+    // Р§РёС‚Р°РµРј РѕР±С‰РёРµ Р°СЂРіСѓРјРµРЅС‚С‹
+    int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 Р·РЅР°С‡РёС‚ РґР»СЏ РІСЃРµС…
     if (l_drs_num < -1){
         return -100;
     }
@@ -690,7 +711,7 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             }
             int l_mode = -1;
 
-            //  Парсим режимы ДРСки
+            //  РџР°СЂСЃРёРј СЂРµР¶РёРјС‹ Р”Р РЎРєРё
             const char *l_mode_str_c[]={
                 [DRS_MODE_SOFT_START] = "SOFT_START", [DRS_MODE_EXT_START]  = "EXT_START", [DRS_MODE_PAGE_MODE]  = "PAGE_MODE",
                 [DRS_MODE_CAL_AMPL]   = "CAL_AMPL",   [DRS_MODE_CAL_TIME]   = "CAL_TIME",  [DRS_MODE_OFF_INPUTS] = "OFF_INPUTS"

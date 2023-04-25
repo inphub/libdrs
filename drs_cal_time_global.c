@@ -28,13 +28,13 @@
 //#define freqDRS 4915200.0/1000000000.0
 //extern const double freqDRS[];
 
-//4.9152/2.4*19 || periodLength-длинна в отсчетах одного периода 4.9152 ГГц-частота ацп, 2400/19-МГц частота синуса
+//4.9152/2.4*19 || periodLength-РґР»РёРЅРЅР° РІ РѕС‚СЃС‡РµС‚Р°С… РѕРґРЅРѕРіРѕ РїРµСЂРёРѕРґР° 4.9152 Р“Р“С†-С‡Р°СЃС‚РѕС‚Р° Р°С†Рї, 2400/19-РњР“С† С‡Р°СЃС‚РѕС‚Р° СЃРёРЅСѓСЃР°
 static const double s_period_length[] = {
     //[DRS_FREQ_5GHz] = 38.912
     [DRS_FREQ_5GHz] = (4.9152 * 1000.0 )/50.0
 };
 
-//26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
+//26,315789473684210526315789473684- РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРµСЂРёРѕРґРѕРІ РІ 1024 РѕС‚СЃС‡РµС‚Р°С…->27, +1 РґР»СЏ РЅСѓР»СЏ;
 static const unsigned s_period_max_count[] = {
     [DRS_FREQ_5GHz] = 1024/( ( 4.9152 * 1000.0 )/50.0 ) + 2
     //[DRS_FREQ_5GHz] = 28
@@ -80,10 +80,10 @@ int drs_cal_time_global( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fas
 
 
 /**
- * @brief drs_cal_time_global_apply  Применяет амплитудную калибровку к данным
- * @param a_drs                      Объект DRS
- * @param a_x                        Массив входящих значений
- * @param a_result                  Массив с результатами
+ * @brief drs_cal_time_global_apply  РџСЂРёРјРµРЅСЏРµС‚ Р°РјРїР»РёС‚СѓРґРЅСѓСЋ РєР°Р»РёР±СЂРѕРІРєСѓ Рє РґР°РЅРЅС‹Рј
+ * @param a_drs                      РћР±СЉРµРєС‚ DRS
+ * @param a_x                        РњР°СЃСЃРёРІ РІС…РѕРґСЏС‰РёС… Р·РЅР°С‡РµРЅРёР№
+ * @param a_result                  РњР°СЃСЃРёРІ СЃ СЂРµР·СѓР»СЊС‚Р°С‚Р°РјРё
  */
 void drs_cal_time_global_apply( drs_t * a_drs,  double *a_in,   double *a_out )
 {
@@ -117,14 +117,14 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         l_x[DRS_CELLS_COUNT_CHANNEL]={0}, l_y[DRS_CELLS_COUNT]={0};
     unsigned short l_y_raw[DRS_CELLS_COUNT]={0};
 
-    // Выставляем прогресс
+    // Р’С‹СЃС‚Р°РІР»СЏРµРј РїСЂРѕРіСЂРµСЃСЃ
     unsigned l_progress_old = 0;
     const double l_progress_total = 30.0;
     if (a_progress)
       l_progress_old = *a_progress;
 
-    // Проверяем на предмет того, что была сделана предыдущая калибровка
-    if(( a_drs->coeffs.indicator&3)!=3){// TODO заменить на что-то более вменяемое
+    // РџСЂРѕРІРµСЂСЏРµРј РЅР° РїСЂРµРґРјРµС‚ С‚РѕРіРѕ, С‡С‚Рѕ Р±С‹Р»Р° СЃРґРµР»Р°РЅР° РїСЂРµРґС‹РґСѓС‰Р°СЏ РєР°Р»РёР±СЂРѕРІРєР°
+    if(( a_drs->coeffs.indicator&3)!=3){// TODO Р·Р°РјРµРЅРёС‚СЊ РЅР° С‡С‚Рѕ-С‚Рѕ Р±РѕР»РµРµ РІРјРµРЅСЏРµРјРѕРµ
         log_it(L_WARNING,"before global timer calibration you need to do the timer calibration and amplitude calibration");
         return -1;
     }
@@ -132,7 +132,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
 
 
-    // Включаем режим таймерной калибровки и генератор синуса
+    // Р’РєР»СЋС‡Р°РµРј СЂРµР¶РёРј С‚Р°Р№РјРµСЂРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё Рё РіРµРЅРµСЂР°С‚РѕСЂ СЃРёРЅСѓСЃР°
     drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
     drs_set_sinus_signal(true);
@@ -147,7 +147,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS |
                                                    DRS_CAL_APPLY_Y_INTERCHANNEL );
 
-        // Заполняем массив X
+        // Р—Р°РїРѕР»РЅСЏРµРј РјР°СЃСЃРёРІ X
         for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
             l_x[n] = n;
         }
@@ -157,11 +157,11 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     }
 
 
-    // Выключаем режим синуса и возвращаемся в обычный режим
+    // Р’С‹РєР»СЋС‡Р°РµРј СЂРµР¶РёРј СЃРёРЅСѓСЃР° Рё РІРѕР·РІСЂР°С‰Р°РµРјСЃСЏ РІ РѕР±С‹С‡РЅС‹Р№ СЂРµР¶РёРј
     drs_set_sinus_signal(false);
     drs_set_mode(a_drs->id, l_mode_old);
 
-    // Считаем коэфициенты
+    // РЎС‡РёС‚Р°РµРј РєРѕСЌС„РёС†РёРµРЅС‚С‹
     for(unsigned n = 0; n < DRS_CELLS_COUNT_BANK; n++) {
         if(l_stats[n] == 0.0){
             l_stats[n] = 1.0;
@@ -172,11 +172,11 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         a_drs->coeffs.kTime[n] = l_sum_delta_ref[n] / l_stats[n];
     }
 
-    // Вычисляем время работы калибровки
+    // Р’С‹С‡РёСЃР»СЏРµРј РІСЂРµРјСЏ СЂР°Р±РѕС‚С‹ РєР°Р»РёР±СЂРѕРІРєРё
     double l_ts_diff  =  ((double) (dap_nanotime_now() - l_ts_start))/ 1000000000.0  ;
     log_it(L_NOTICE,"Finished local time calibration in %.3f seconds", l_ts_diff);
 
-    // Обновляем прогресс бар
+    // РћР±РЅРѕРІР»СЏРµРј РїСЂРѕРіСЂРµСЃСЃ Р±Р°СЂ
     if (a_progress)
       *a_progress = l_progress_old +l_progress_total;
 
@@ -201,25 +201,25 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
 
     unsigned int pz,l_count=0;
 
-    // Запоминаем максимальное число периодов и длину отдельного периода для данной выбранной частоты
+    // Р—Р°РїРѕРјРёРЅР°РµРј РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ С‡РёСЃР»Рѕ РїРµСЂРёРѕРґРѕРІ Рё РґР»РёРЅСѓ РѕС‚РґРµР»СЊРЅРѕРіРѕ РїРµСЂРёРѕРґР° РґР»СЏ РґР°РЅРЅРѕР№ РІС‹Р±СЂР°РЅРЅРѕР№ С‡Р°СЃС‚РѕС‚С‹
     const unsigned l_max_period_count = s_period_max_count [g_current_freq];
     const double l_period_length = s_period_length [g_current_freq];
 
-    // TODO заменить с выделения кучи на выделение стека и сравнить скорость
+    // TODO Р·Р°РјРµРЅРёС‚СЊ СЃ РІС‹РґРµР»РµРЅРёСЏ РєСѓС‡Рё РЅР° РІС‹РґРµР»РµРЅРёРµ СЃС‚РµРєР° Рё СЃСЂР°РІРЅРёС‚СЊ СЃРєРѕСЂРѕСЃС‚СЊ
     double * l_period = DAP_NEW_Z_SIZE(double, sizeof(double) * l_max_period_count );
     double * l_period_delt = DAP_NEW_Z_SIZE(double, sizeof(double) * l_max_period_count );
     unsigned *l_indexs = DAP_NEW_Z_SIZE(unsigned, sizeof(unsigned) * l_max_period_count );
 
-    // Подготавливаем прогресс бар
+    // РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј РїСЂРѕРіСЂРµСЃСЃ Р±Р°СЂ
     double l_progress_step = 27.0 / ((double) (DRS_CHANNEL_BANK_COUNT * DRS_CELLS_COUNT_BANK)) ;
     unsigned l_progress_old = 0;
     if (a_progress)
       l_progress_old = *a_progress;
     double l_progress = 0.0;
 
-    // Считаем среднее по y
+    // РЎС‡РёС‚Р°РµРј СЃСЂРµРґРЅРµРµ РїРѕ y
     average = drs_ch_get_average(a_y,DRS_CELLS_COUNT_BANK,DRS_CHANNEL_9 );
-    // Бежим по ячейкам
+    // Р‘РµР¶РёРј РїРѕ СЏС‡РµР№РєР°Рј
     for(unsigned n=0;n< DRS_CELLS_COUNT_BANK && l_count < l_max_period_count; n++){
         unsigned n2 = n* DRS_CHANNELS_COUNT;
         if( (average >= l_last_y) && (average < a_y[n2] ) && (n != 0) ) {
@@ -239,13 +239,13 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
         l_last_y = a_y[n2];
         l_last_x = a_x[n];
 
-        // Обновляем прогресс бар
+        // РћР±РЅРѕРІР»СЏРµРј РїСЂРѕРіСЂРµСЃСЃ Р±Р°СЂ
         l_progress += l_progress_step;
         if (a_progress)
             *a_progress = l_progress_old + floor(l_progress);
     }
 
-    // Бежим по подсчитанному количеству
+    // Р‘РµР¶РёРј РїРѕ РїРѕРґСЃС‡РёС‚Р°РЅРЅРѕРјСѓ РєРѕР»РёС‡РµСЃС‚РІСѓ
     for(unsigned n = 1; n < l_count; n++) {
         for(unsigned l = l_indexs[n-1]; l < l_indexs[n]; l++){
             pz=l&1023;
@@ -261,7 +261,7 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
         }
     }
 
-    // Очищаем память
+    // РћС‡РёС‰Р°РµРј РїР°РјСЏС‚СЊ
     DAP_DELETE(l_period);
     DAP_DELETE(l_period_delt);
     DAP_DELETE(l_indexs);

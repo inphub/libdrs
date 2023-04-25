@@ -43,13 +43,13 @@ typedef enum drs_proto_cmd{
 
     CMD_SHIFT_DAC_SET      = 0xD , // Set ShiftDAC
     CMD_FF                 = 0xE , // ??? Sends 15 always back
-    CMD_GET_SHIFT          = 0xF, //получение массива сдвигов ячеек
+    CMD_GET_SHIFT          = 0xF, //РїРѕР»СѓС‡РµРЅРёРµ РјР°СЃСЃРёРІР° СЃРґРІРёРіРѕРІ СЏС‡РµРµРє
 
-    CMD_START              = 0x10, // старт
+    CMD_START              = 0x10, // СЃС‚Р°СЂС‚
     CMD_READ_STATUS_N_PAGE = 0x12 //read status and page
 } drs_proto_cmd_t;
 
-// Максимальный номер команды
+// РњР°РєСЃРёРјР°Р»СЊРЅС‹Р№ РЅРѕРјРµСЂ РєРѕРјР°РЅРґС‹
 #define DRS_PROTO_CMD_MAX 0xFF
 
 extern size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX];

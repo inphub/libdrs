@@ -9,9 +9,9 @@
 #include <dap_common.h>
 #include "drs.h"
 
-// режим калибровки
+// СЂРµР¶РёРј РєР°Р»РёР±СЂРѕРІРєРё
 #define DRS_OP_FLAG_CALIBRATE     BIT(0)
-//индикатор внешнего запуска;
+//РёРЅРґРёРєР°С‚РѕСЂ РІРЅРµС€РЅРµРіРѕ Р·Р°РїСѓСЃРєР°;
 #define DRS_OP_FLAG_EXT_START     BIT(1)
 
 #define DRS_OP_FLAG_ROTATE        BIT(3)
@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size);
-int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
+int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Р•СЃР»Рё a_drs NULL С‚Рѕ РѕРЅ РєРѕРїРёСЂСѓРµС‚ РґР»СЏ РІСЃРµС… DRS
 
 unsigned int drs_get_shift(unsigned int a_drs_num);
 unsigned int drs_get_shift_bank(unsigned int a_drs_num);

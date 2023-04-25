@@ -167,24 +167,24 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
         case CMD_CALIBRATE_RUN:{/**
             calibrate
 
-            a_cmd_args[0] - Номер DRS
-            a_cmd_args[1] - ключи калибровки, 1 бит амплитудная,2 локальная временная,3 глобальная временная
-            a_cmd_args[2] - N c клиента, количество проходов аплитудной калибровки для каждого уровня цапов
-            a_cmd_args[3] - Min N с клиента, минимальное число набора статистики для каждой ячейки в локальной калибровке
-            a_cmd_args[4] - numCylce, число проходов в глобальной колибровке
-            a_cmd_args[5] - количество уровней у амплитудной калибровки count,
-            для каждого будет N(из a_cmd_args[2]) проходов,
-            при нуле будут выполняться два прохода для уровней BegServ и EndServ(о них ниже),
-            при не нулевом значении, между  BegServ и EndServ будут включены count дополнительных уровней цапов для амплитудной калибровки
-            с a_cmd_args[6] идет массив даблов, первые 2 элемента BegServ и EndServ
-            остальные 8 сдвиги цапов
+            a_cmd_args[0] - РќРѕРјРµСЂ DRS
+            a_cmd_args[1] - РєР»СЋС‡Рё РєР°Р»РёР±СЂРѕРІРєРё, 1 Р±РёС‚ Р°РјРїР»РёС‚СѓРґРЅР°СЏ,2 Р»РѕРєР°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ,3 РіР»РѕР±Р°Р»СЊРЅР°СЏ РІСЂРµРјРµРЅРЅР°СЏ
+            a_cmd_args[2] - N c РєР»РёРµРЅС‚Р°, РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕС…РѕРґРѕРІ Р°РїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё РґР»СЏ РєР°Р¶РґРѕРіРѕ СѓСЂРѕРІРЅСЏ С†Р°РїРѕРІ
+            a_cmd_args[3] - Min N СЃ РєР»РёРµРЅС‚Р°, РјРёРЅРёРјР°Р»СЊРЅРѕРµ С‡РёСЃР»Рѕ РЅР°Р±РѕСЂР° СЃС‚Р°С‚РёСЃС‚РёРєРё РґР»СЏ РєР°Р¶РґРѕР№ СЏС‡РµР№РєРё РІ Р»РѕРєР°Р»СЊРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРµ
+            a_cmd_args[4] - numCylce, С‡РёСЃР»Рѕ РїСЂРѕС…РѕРґРѕРІ РІ РіР»РѕР±Р°Р»СЊРЅРѕР№ РєРѕР»РёР±СЂРѕРІРєРµ
+            a_cmd_args[5] - РєРѕР»РёС‡РµСЃС‚РІРѕ СѓСЂРѕРІРЅРµР№ Сѓ Р°РјРїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё count,
+            РґР»СЏ РєР°Р¶РґРѕРіРѕ Р±СѓРґРµС‚ N(РёР· a_cmd_args[2]) РїСЂРѕС…РѕРґРѕРІ,
+            РїСЂРё РЅСѓР»Рµ Р±СѓРґСѓС‚ РІС‹РїРѕР»РЅСЏС‚СЊСЃСЏ РґРІР° РїСЂРѕС…РѕРґР° РґР»СЏ СѓСЂРѕРІРЅРµР№ BegServ Рё EndServ(Рѕ РЅРёС… РЅРёР¶Рµ),
+            РїСЂРё РЅРµ РЅСѓР»РµРІРѕРј Р·РЅР°С‡РµРЅРёРё, РјРµР¶РґСѓ  BegServ Рё EndServ Р±СѓРґСѓС‚ РІРєР»СЋС‡РµРЅС‹ count РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹С… СѓСЂРѕРІРЅРµР№ С†Р°РїРѕРІ РґР»СЏ Р°РјРїР»РёС‚СѓРґРЅРѕР№ РєР°Р»РёР±СЂРѕРІРєРё
+            СЃ a_cmd_args[6] РёРґРµС‚ РјР°СЃСЃРёРІ РґР°Р±Р»РѕРІ, РїРµСЂРІС‹Рµ 2 СЌР»РµРјРµРЅС‚Р° BegServ Рё EndServ
+            РѕСЃС‚Р°Р»СЊРЅС‹Рµ 8 СЃРґРІРёРіРё С†Р°РїРѕРІ
 
-            Возврат: 4 байта (int), 0 если всё хорошо, код ошибки, если нет
+            Р’РѕР·РІСЂР°С‚: 4 Р±Р°Р№С‚Р° (int), 0 РµСЃР»Рё РІСЃС‘ С…РѕСЂРѕС€Рѕ, РєРѕРґ РѕС€РёР±РєРё, РµСЃР»Рё РЅРµС‚
               */
 
             int l_drs_num = a_cmd_args[0];
 
-            // Подготавливаем параметры калибровки
+            // РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј РїР°СЂР°РјРµС‚СЂС‹ РєР°Р»РёР±СЂРѕРІРєРё
             double * l_levels=(double *)(&a_cmd_args[6]);
             drs_calibrate_params_t l_params = {
                 .ampl = {
@@ -202,7 +202,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             };
             memcpy(l_params.ampl.levels, l_levels,sizeof (l_params.ampl.levels) );
 
-            // Подготавливаем флаги
+            // РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј С„Р»Р°РіРё
             uint32_t l_flags = 0;
             if ( a_cmd_args[1] & 1)
                 l_flags |= DRS_CAL_FLAG_AMPL;
@@ -217,18 +217,18 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
 
         case CMD_CALIBRATE_PROGRESS:{
             /*
-             * a_cmd_arg[0]  - Номер проверяемой DRS
+             * a_cmd_arg[0]  - РќРѕРјРµСЂ РїСЂРѕРІРµСЂСЏРµРјРѕР№ DRS
              *
-             * Возвращает прогресс калибровки от 0 до 100 либо -1 если калибровка не проходила
+             * Р’РѕР·РІСЂР°С‰Р°РµС‚ РїСЂРѕРіСЂРµСЃСЃ РєР°Р»РёР±СЂРѕРІРєРё РѕС‚ 0 РґРѕ 100 Р»РёР±Рѕ -1 РµСЃР»Рё РєР°Р»РёР±СЂРѕРІРєР° РЅРµ РїСЂРѕС…РѕРґРёР»Р°
              */
             int l_ret = drs_calibrate_progress( a_cmd_args[0]);
             dap_events_socket_write_unsafe(a_es, &l_ret, sizeof(l_ret));
         }break;
         case CMD_CALIBRATE_RESULTS :{
             /*
-             * a_cmd_arg[0]  - Номер проверяемой DRS
+             * a_cmd_arg[0]  - РќРѕРјРµСЂ РїСЂРѕРІРµСЂСЏРµРјРѕР№ DRS
              *
-             * Возвращает коэфициенты, 327'764 байт ( sizeof(coefficients_t) )
+             * Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕСЌС„РёС†РёРµРЅС‚С‹, 327'764 Р±Р°Р№С‚ ( sizeof(coefficients_t) )
              * */
             if(a_cmd_args[0]>= DRS_COUNT ){
                 log_it(L_ERROR, "Wrong drs number %u that should be smaller than %u", a_cmd_args[0], DRS_COUNT);
@@ -238,9 +238,9 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
         } break;
         case CMD_CALIBRATE_ABORT:{
             /*
-             * a_cmd_arg[0]  - Номер проверяемой DRS
+             * a_cmd_arg[0]  - РќРѕРјРµСЂ РїСЂРѕРІРµСЂСЏРµРјРѕР№ DRS
              *
-             * Возвращает код состояния от 0 до 1 либо -1 если калибровка уже не идёт, -2 если неверно задан номер DRS
+             * Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕРґ СЃРѕСЃС‚РѕСЏРЅРёСЏ РѕС‚ 0 РґРѕ 1 Р»РёР±Рѕ -1 РµСЃР»Рё РєР°Р»РёР±СЂРѕРІРєР° СѓР¶Рµ РЅРµ РёРґС‘С‚, -2 РµСЃР»Рё РЅРµРІРµСЂРЅРѕ Р·Р°РґР°РЅ РЅРѕРјРµСЂ DRS
              */
             int l_ret = drs_calibrate_abort( a_cmd_args[0]);
             dap_events_socket_write_unsafe(a_es, &l_ret, sizeof(l_ret));
@@ -249,10 +249,10 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
         case CMD_READ:{
             /*
             read
-            a_cmd_args[0]- номер DRS
-            a_cmd_args[1]- число страниц для чтения
-            a_cmd_args[2]- флаг для soft start
-            a_cmd_args[3]- флаги для передачи массивов Y и X
+            a_cmd_args[0]- РЅРѕРјРµСЂ DRS
+            a_cmd_args[1]- С‡РёСЃР»Рѕ СЃС‚СЂР°РЅРёС† РґР»СЏ С‡С‚РµРЅРёСЏ
+            a_cmd_args[2]- С„Р»Р°Рі РґР»СЏ soft start
+            a_cmd_args[3]- С„Р»Р°РіРё РґР»СЏ РїРµСЂРµРґР°С‡Рё РјР°СЃСЃРёРІРѕРІ Y Рё X
             */
             int a_drs_num = a_cmd_args[0];
             int l_flags = a_cmd_args[3];
@@ -288,14 +288,14 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
         case CMD_READ_Y:{
             /*
             read
-            a_cmd_args[0]- номер DRS
-            a_cmd_args[1]- число страниц для чтения
-            a_cmd_args[2]- флаги
+            a_cmd_args[0]- РЅРѕРјРµСЂ DRS
+            a_cmd_args[1]- С‡РёСЃР»Рѕ СЃС‚СЂР°РЅРёС† РґР»СЏ С‡С‚РµРЅРёСЏ
+            a_cmd_args[2]- С„Р»Р°РіРё
             */
             int a_drs_num = a_cmd_args[0];
 
-            // TODO убрать после исправлений бага в Ui
-            // тут мы просто отфильтровываем корректные флаги
+            // TODO СѓР±СЂР°С‚СЊ РїРѕСЃР»Рµ РёСЃРїСЂР°РІР»РµРЅРёР№ Р±Р°РіР° РІ Ui
+            // С‚СѓС‚ РјС‹ РїСЂРѕСЃС‚Рѕ РѕС‚С„РёР»СЊС‚СЂРѕРІС‹РІР°РµРј РєРѕСЂСЂРµРєС‚РЅС‹Рµ С„Р»Р°РіРё
             int l_flags =  a_cmd_args[2]|DRS_CAL_ROTATE ;
             if(a_drs_num <0 || a_drs_num >=DRS_COUNT){
                 log_it(L_ERROR, "Can't get DRS #%d", a_drs_num);
@@ -325,8 +325,8 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
         case CMD_READ_X:{
             /*
             read
-            a_cmd_args[0]- номер DRS
-            a_cmd_args[1]- флаги
+            a_cmd_args[0]- РЅРѕРјРµСЂ DRS
+            a_cmd_args[1]- С„Р»Р°РіРё
             */
             int a_drs_num = a_cmd_args[0];
             int l_flags = a_cmd_args[1];
@@ -371,7 +371,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
         break;
 
         case CMD_GET_SHIFT:{
-            //получение массива сдвигов ячеек
+            //РїРѕР»СѓС‡РµРЅРёРµ РјР°СЃСЃРёРІР° СЃРґРІРёРіРѕРІ СЏС‡РµРµРє
             //memcpy(tmasFast,shift,sizeof(unsigned int)*a_cmd_args[0]);
             int a_drs_num = a_cmd_args[0];
             if(a_drs_num <0 || a_drs_num >=DRS_COUNT){
@@ -389,7 +389,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 break;
             }
             drs_t * l_drs = g_drs + l_drs_num;
-            //старт
+            //СЃС‚Р°СЂС‚
             // a_cmd_args[0] - DRS num
             //a_cmd_args[1]- mode
             //		00 - page mode and read (N page)
@@ -449,7 +449,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             dap_events_socket_write_unsafe(a_es, &l_value, sizeof(l_value));
         }break;
         case CMD_READ_STATUS_N_PAGE:{ //read status and page
-            //нужно подправить!!!
+            //РЅСѓР¶РЅРѕ РїРѕРґРїСЂР°РІРёС‚СЊ!!!
             struct fast_compile {
                 uint32_t fast_complite;
                 uint32_t pages;
