@@ -11,6 +11,7 @@
 #include "drs_data.h"
 #include "drs_ops.h"
 #include "drs_cal.h"
+#include "drs_cal_pvt.h"
 #include "drs_cal_amp.h"
 
 #define LOG_TAG "drs_cal_amp"

@@ -14,6 +14,7 @@
 #include "drs.h"
 #include "drs_data.h"
 #include "drs_cal.h"
+#include "drs_cal_pvt.h"
 #include "drs_cal_amp.h"
 #include "drs_cal_time_global.h"
 #include "drs_cal_time_local.h"
@@ -266,13 +267,21 @@ int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec)
  * @param a_drs_num
  * @return
  */
-drs_calibrate_t* drs_calibrate_get_state(int a_drs_num)
+drs_calibrate_state_t* drs_calibrate_get_state(int a_drs_num)
 {
     if(a_drs_num >= DRS_COUNT){
         log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
         return NULL;
     }
-    return &s_state[a_drs_num];
+    drs_calibrate_state_t * l_ret = DAP_NEW_Z(drs_calibrate_state_t);
+    l_ret->is_running = s_state[a_drs_num].is_running;
+    l_ret->progress = s_state[a_drs_num].progress;
+    l_ret->thread_id = s_state[a_drs_num].thread_id;
+    l_ret->ts_start = s_state[a_drs_num].ts_start;
+    l_ret->ts_end = s_state[a_drs_num].ts_end;
+    l_ret->cal = &s_state[a_drs_num];
+
+    return l_ret;
 }
 
 /**
@@ -282,7 +291,15 @@ drs_calibrate_t* drs_calibrate_get_state(int a_drs_num)
  */
 int drs_calibrate_progress(int a_drs_num)
 {
-    drs_calibrate_t * l_cal = drs_calibrate_get_state(a_drs_num);
+    if(a_drs_num < 0){
+        log_it(L_ERROR, "-1 is not allowed for drs_calibrate_progress() call");
+        return -1;
+    }
+    if(a_drs_num >= DRS_COUNT){
+        log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
+        return -1;
+    }
+    drs_calibrate_t * l_cal = &s_state[a_drs_num];
     if (l_cal == NULL)
         return -2;
     pthread_rwlock_rdlock(&l_cal->rwlock);
@@ -298,12 +315,20 @@ int drs_calibrate_progress(int a_drs_num)
  */
 bool drs_calibrate_is_running(int a_drs_num)
 {
-    drs_calibrate_t * l_cal = drs_calibrate_get_state(a_drs_num);
+    if(a_drs_num < 0){
+        log_it(L_ERROR, "-1 is not allowed for drs_calibrate_is_running() call");
+        return -1;
+    }
+    if(a_drs_num >= DRS_COUNT){
+        log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
+        return -1;
+    }
+    drs_calibrate_t * l_cal = &s_state[a_drs_num];
     if (l_cal == NULL)
         return -2;
 
     bool l_ret;
-    pthread_rwlock_rdlock(&l_cal->rwlock);
+    pthread_rwlock_rdlock(&l_cal ->rwlock);
     l_ret = l_cal->is_running;
     pthread_rwlock_unlock(&l_cal->rwlock);
     return l_ret;
@@ -316,6 +341,10 @@ bool drs_calibrate_is_running(int a_drs_num)
  */
 int drs_calibrate_abort(int a_drs_num)
 {
+    if(a_drs_num < 0){
+        log_it(L_ERROR, "-1 is not allowed for drs_calibrate_abort() call");
+        return -1;
+    }
     // Проверка на номер DRS
     if(a_drs_num >= DRS_COUNT){
         log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
@@ -462,13 +491,14 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
  * @param a_limits
  * @param a_flags
  */
-void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigned a_limits, int a_flags)
+void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, unsigned a_limits, int a_flags)
 {
-    pthread_rwlock_rdlock(&a_cal->rwlock);
+    drs_calibrate_t *l_cal_pvt = a_cal->cal;
+    pthread_rwlock_rdlock(&l_cal_pvt->rwlock);
     dap_string_append_printf( a_reply, "Running:     %s\n\n", a_cal->is_running? "yes" : "no" );
     dap_string_append_printf( a_reply, "Progress:    %d%%\n\n", a_cal->progress );
     if (a_cal->ts_end){
-        coefficients_t * l_params = &a_cal->drs->coeffs;
+        coefficients_t * l_params = &l_cal_pvt->drs->coeffs;
         if ( a_flags & DRS_COEF_SPLASH)
             dap_string_append_array(a_reply, "splash", "%d", l_params->splash, a_limits);
 
@@ -513,7 +543,7 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_t *a_cal, unsigne
 
 
     }
-    pthread_rwlock_unlock(&a_cal->rwlock);
+    pthread_rwlock_unlock(&l_cal_pvt->rwlock);
 }
 
 
@@ -549,6 +579,7 @@ static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
  */
 void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params)
 {
+    assert(a_params);
     memset(a_params,0, sizeof(*a_params));
     a_params->ampl.N = 100;
     a_params->ampl.repeats = 1;

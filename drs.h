@@ -50,9 +50,11 @@
 
 #define DRS_REG_DATA_DAC_CH9		31
 
-
 #define DRS_REG_WAIT_DRS_A              49
 #define DRS_REG_WAIT_DRS_B              50
+
+#define DRS_REG_NPAGES_DRS_A            75
+#define DRS_REG_NPAGES_DRS_B            76
 
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
 
@@ -199,6 +201,16 @@ double drs_get_freq_value(enum drs_freq a_freq);
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data);
 unsigned int drs_reg_read(unsigned int reg_adr);
+
+/**
+ * @brief drs_check_flag
+ * @details Проверка на предмет того, инициализирована ли была DRS или нет
+ * @param a_drs_num
+ * @return
+ */
+static inline bool drs_check_flag(unsigned a_drs_num){
+    return g_drs_flags & (0x1 << a_drs_num);
+}
 
 #ifdef __cplusplus
 }

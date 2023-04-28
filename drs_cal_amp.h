@@ -8,5 +8,6 @@
 #pragma once
 #include <dap_common.h>
 #include "drs_cal.h"
+#include "drs_cal_pvt.h"
 
 int drs_cal_amp( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress);

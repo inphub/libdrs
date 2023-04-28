@@ -37,8 +37,8 @@
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
 
 #define PAGE_SIZE 8192
-#define HPS2FPGA_BRIDGE_BASE	0xC0000000 //данные быстрых АЦП
-#define LWHPS2FPGA_BRIDGE_BASE	0xff200000 //управление
+#define HPS2FPGA_BRIDGE_BASE	0xC0000000 //РґР°РЅРЅС‹Рµ Р±С‹СЃС‚СЂС‹С… РђР¦Рџ
+#define LWHPS2FPGA_BRIDGE_BASE	0xff200000 //СѓРїСЂР°РІР»РµРЅРёРµ
 #define SHIFT_DRS1	0x2FD00000
 #define SHIFT_DRS2	0x3FD00000
 
@@ -93,14 +93,14 @@ static bool s_initalized = false;
  */
 int drs_init(int a_drs_flags)
 {
-    // Проверка на инициализацию
+    // РџСЂРѕРІРµСЂРєР° РЅР° РёРЅРёС†РёР°Р»РёР·Р°С†РёСЋ
     if( s_initalized ) {
         log_it(L_WARNING, "DRS is already initialized, pls check your code for double call");
         return -1000;
     }
     s_initalized = true;
     g_drs_flags = a_drs_flags;
-    // Инициализация DRS
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ DRS
     s_init_mem();
 
     g_ini = DAP_NEW_Z(parameter_t);
@@ -108,18 +108,18 @@ int drs_init(int a_drs_flags)
 
     drs_set_freq(g_current_freq);
 
-    // Инициализация параметров DRS по таймеру
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїР°СЂР°РјРµС‚СЂРѕРІ DRS РїРѕ С‚Р°Р№РјРµСЂСѓ
     log_it(L_NOTICE,"DRS config and memory are initialized");
 
     dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
                                        s_init_on_start_timer_callback, g_ini);
 
-    // Инициализация консоли
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєРѕРЅСЃРѕР»Рё
     if (drs_cli_init() != 0){
         log_it(L_CRITICAL, "Can't init drs cli");
         return -14;
     }
-    // Инициализация калибровочных модулей
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєР°Р»РёР±СЂРѕРІРѕС‡РЅС‹С… РјРѕРґСѓР»РµР№
     drs_calibrate_init();
 
     return 0;
@@ -259,7 +259,7 @@ static void s_post_init()
         log_it(L_WARNING, "Already initialized");
         return;
     }
-    s_memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
+    s_memw(0xFFC25080,0x3fff); //РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЂР°Р±РѕС‚С‹ СЃ SDRAM
 
     if(g_drs_flags & 0x1){
         set_dma_addr_drs1(0x08000000);  		//    drs_reg_write(0x00000017, 0x8000000);// DRS1
@@ -288,13 +288,13 @@ static void s_post_init()
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
     //set_dac_rofs_O_ofs_drs1(35000, 30000);
-    drs_reg_write(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
+    drs_reg_write(0x0000000a, 0x7d009e98); // С‡С‚РѕР±С‹ СЃРѕРІРїР°РґР°Р»Рѕ СЃ Р»РѕРіРѕРј Р»Р°Р±РІСЊСЋ
 
     if(g_drs_flags & 0x1)
         set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
 
     //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    drs_reg_write(0x0000000c, 0x7d009e98);
-    drs_reg_write(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
+    drs_reg_write(0x0000000c, 0x7d009e98); // С‡С‚РѕР±С‹ СЃРѕРІРїР°РґР°Р»Рѕ СЃ Р»РѕРіРѕРј Р»Р°Р±РІСЊСЋ
 
     if(g_drs_flags & 0x2)
         set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
@@ -390,7 +390,7 @@ void drs_init_old(parameter_t *a_params)
 }
 
 /**
- * @brief Загружает даные из ini файла и сохраняет в параметры
+ * @brief Р—Р°РіСЂСѓР¶Р°РµС‚ РґР°РЅС‹Рµ РёР· ini С„Р°Р№Р»Р° Рё СЃРѕС…СЂР°РЅСЏРµС‚ РІ РїР°СЂР°РјРµС‚СЂС‹
  * @param a_ini_path
  * @param a_prm
  */
@@ -406,6 +406,7 @@ int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
         log_it(L_CRITICAL, "Can't load ini file from path %s", a_ini_path);
         return -1 ;
     }
+
   //  char IP[16];
   //  long n;
     /* string reading */
@@ -436,7 +437,7 @@ int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
         a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_gain, 1.0);
     }
 
-    // Для 9 канала
+    // Р”Р»СЏ 9 РєР°РЅР°Р»Р°
     sDAC_offset[strlen(sDAC_offset)-1]=9 + 49;
     sDAC_gain[strlen(sDAC_offset)-1]=9 + 49;
     g_ini_ch9.offset  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, a_prm->fastadc.dac_offsets[0]);
@@ -521,7 +522,7 @@ void drs_dac_set(unsigned int onAH)//fix
 }
 
 /**
- * unsigned short *shiftValue 		масиив сдивгов для ЦАП
+ * unsigned short *shiftValue 		РјР°СЃРёРёРІ СЃРґРёРІРіРѕРІ РґР»СЏ Р¦РђРџ
  */
 void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue)//fix
 {
@@ -529,9 +530,9 @@ void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue)//fix
 }
 
 /**
- * double *shiftDAC		сдвиги с фронтпанели;
- * float *DAC_gain		массив из ini
- * float *DAC_offset	массив из ini
+ * double *shiftDAC		СЃРґРІРёРіРё СЃ С„СЂРѕРЅС‚РїР°РЅРµР»Рё;
+ * float *DAC_gain		РјР°СЃСЃРёРІ РёР· ini
+ * float *DAC_offset	РјР°СЃСЃРёРІ РёР· ini
  */
 void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset)//fix
 {

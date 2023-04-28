@@ -8,7 +8,16 @@
 
 #include "drs.h"
 
+// Разрешение программного старта записи сигнала
+#define DRS_CMD_SOFT_START           0x00000001
+// Загрузка всех заданных установок и запуск непосредственно самой DRS
+#define DRS_CMD_LOAD_N_RUN           0x00000002
+//Разрешение внешнего старта записи сигнала
+#define DRS_CMD_EXT_START            0x00000004
+//Разрешение внешнего старта записи сигнала
+#define DRS_CMD_RESET                0x00000008
 
+#define DRS_CMD_MAX                  0x00000008
 
 void drs_start(int a_drs_num);
 void drs_set_flag_end_read(int l_drs_num, bool a_enable);

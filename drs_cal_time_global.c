@@ -16,6 +16,7 @@
 #include "drs_data.h"
 #include "drs_ops.h"
 #include "drs_cal.h"
+#include "drs_cal_pvt.h"
 #include "drs_cal_amp.h"
 #include "drs_cal_time_local.h"
 #include "drs_cal_time_global.h"

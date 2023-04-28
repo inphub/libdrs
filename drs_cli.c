@@ -15,6 +15,7 @@
 #include "drs_cli.h"
 #include "drs_data.h"
 #include "drs_cal.h"
+#include "drs_cal_pvt.h"
 
 #define LOG_TAG "drs_cli"
 
@@ -45,9 +46,9 @@ int drs_cli_init()
 
 
     // Start DRS
-    dap_cli_server_cmd_add ("start", s_callback_start, "Start DRS",
-                "start [<DRS number>]\n"
-                "\tStart all DRS or just the <DRS number> if present\n"
+    dap_cli_server_cmd_add ("start", s_callback_start, "Запуск DRS",
+                "start -drs <DRS number> -flags <SOFT_START,EXT_START,LOAD_N_RUN,RESET> \n"
+                "\tЗапуск DRS\n"
              );
 
     // Calibrate
@@ -120,18 +121,6 @@ void drs_cli_deinit()
 }
 
 /**
- * @brief s_callback_read_status
- * @param a_argc
- * @param a_argv
- * @param a_str_reply
- * @return
- */
-static int s_callback_read_status(int a_argc, char ** a_argv, char ** a_str_reply)
-{
-
-}
-
-/**
  * @brief s_parse_drs_and_check
  * @param a_arg_index
  * @param a_argc
@@ -169,7 +158,7 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
     int l_arg_index = 0;
 
     int l_drs_num = s_parse_drs_and_check(l_arg_index, a_argc, a_argv, a_str_reply);
-    if (l_drs_num < -1 ) // Wrong DRS num
+    if (l_drs_num < 0 ) // Wrong DRS num
         return -1;
 
     double l_shifts[DRS_DAC_COUNT]={30000,30000};
@@ -179,12 +168,33 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
                                     g_ini->fastadc.dac_offsets[l_drs_num*DRS_COUNT + 1]};
 
     drs_dac_shift_set_all(l_drs_num, l_shifts,l_gains, l_offsets );
-    drs_start(l_drs_num);
 
-    if (l_drs_num == -1)
-        dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started all" );
-    else
-        dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started %d", l_drs_num );
+
+    //  Парсим флаги запуска ДРСки
+    const char *l_flags_str_c[]={
+        [DRS_CMD_SOFT_START ] = "SOFT_START", [ DRS_CMD_EXT_START]  = "EXT_START",
+        [DRS_CMD_LOAD_N_RUN]   = "LOAD_N_RUN",   [DRS_CMD_RESET]   = "RESET",
+    };
+    int l_flags = 0;
+
+    // Читаем аргументы к команде
+    const char * l_flags_str = NULL;
+    dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-flags",        &l_flags_str);
+
+    // Конвертируем флаги
+    char ** l_flags_strs = dap_strsplit(l_flags_str, ",",3);
+    if ( l_flags_str){
+        for (unsigned n = 0; l_flags_strs[n]; n++){
+            for(unsigned idx = 0;  (2^idx) < DRS_CMD_MAX ; idx++ ){
+                if( dap_strcmp(l_flags_strs[n], l_flags_str_c[2^idx]) == 0 ) {
+                    l_flags |= 2^idx;
+                }
+            }
+        }
+    }
+    //SOFT_START,EXT_START,LOAD_N_RUN,RESET
+    drs_cmd(l_drs_num, l_flags);
+    dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started #%d with flags 0x%08X", l_drs_num, l_flags );
     return 0;
 }
 
@@ -228,6 +238,18 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                 dap_cli_server_cmd_set_reply_text( a_str_reply, "DRS #%d is %s", l_flag_ready? "ready": "not ready");
         }break;
         case CMD_STATUS:{
+            dap_string_t * l_reply = dap_string_new("DRS read status:\n");
+            // Пробегаем по всем DRS, либо только по выбранной
+            for(unsigned n = l_drs_num == -1? 0 : l_drs_num; n < DRS_COUNT; n++){
+                if( drs_check_flag (n) ){
+                    bool l_done  = drs_reg_read(DRS_REG_WAIT_DRS_A); //fast complite
+                    uint32_t l_npages = drs_reg_read(DRS_REG_NPAGES_DRS_A );//num of page complite
+                    dap_string_append_printf(l_reply, "  #%u: ready=%s npages=%u", n, l_done ?"true":"false", l_npages);
+                }
+                if (l_drs_num != -1)
+                  break;
+            }
+            *a_str_reply = dap_string_free(l_reply, false);
         }break;
         case CMD_PAGE:{
             const char * l_limits_str;
@@ -585,14 +607,16 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             }
             if (l_drs_num == -1){ // Если не указан DRS канал, то фигачим все
                 for (int i = 0; i < DRS_COUNT; i++){
-                    drs_calibrate_t *l_cal = drs_calibrate_get_state(i);
+                    drs_calibrate_state_t *l_cal = drs_calibrate_get_state(i);
                     dap_string_append_printf(l_reply, "--== DRS %d ==--\n", i);
                     drs_cal_state_print(l_reply, l_cal, l_limits, l_coeffs_flags);
+                    DAP_DELETE(l_cal);
                 }
             }else{ // Если указан, то только конкретный
-                drs_calibrate_t * l_cal = drs_calibrate_get_state(l_drs_num);
+                drs_calibrate_state_t * l_cal = drs_calibrate_get_state(l_drs_num);
                 dap_string_append_printf(l_reply, "--== DRS %d ==--\n", l_drs_num);
                 drs_cal_state_print(l_reply, l_cal, l_limits, l_coeffs_flags);
+                DAP_DELETE(l_cal);
             }
             *a_str_reply = dap_string_free(l_reply, false);
         } else if ( dap_strcmp( a_argv[1], "abort") == 0){
