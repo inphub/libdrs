@@ -133,7 +133,6 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     l_dac_shifts_old =  drs_dac_shift_input_get_ch9();
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
-    drs_start(a_drs->id);
     drs_dac_shift_input_set_ch9(l_dac_shifts_old);
 
 

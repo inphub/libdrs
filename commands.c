@@ -1,7 +1,7 @@
 /*
  * commands.c
  *
- *  Created on: 20 δεκ. 2019 γ.
+ *  Created on: 20 Π΄ΠµΠΊ. 2019 Π³.
  *      Author: Denis
  */
 #include <stdio.h>
@@ -19,8 +19,8 @@
 
 void setNumPages(unsigned int num)
 {
-    drs_reg_write(DRS1_NUM_PAGE,num);
-    drs_reg_write(DRS2_NUM_PAGE,num);
+    drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A,num);
+    drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B,num);
 	usleep(100);
 }
 

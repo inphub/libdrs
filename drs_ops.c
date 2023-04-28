@@ -17,14 +17,27 @@
 /**
  * @brief drs_start
  */
-void drs_start(int a_drs_num)
+void drs_start(int a_drs_num, int a_flags, unsigned a_pages_num)
 {
     if(a_drs_num == -1){
-        drs_reg_write(DRS_REG_CMD_DRS_1, 2);
-        drs_reg_write(DRS_REG_CMD_DRS_2, 2);
-    }else if (a_drs_num >=0)
-        drs_reg_write(DRS_REG_CMD_DRS_1 + a_drs_num, 2);
-    else
+        drs_reg_write(DRS_REG_CMD_DRS_1, a_flags);
+        drs_reg_write(DRS_REG_CMD_DRS_2, a_flags);
+        if(a_pages_num > 1){
+            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
+            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
+        }
+    }else if (a_drs_num >=0){
+//        drs_reg_write(DRS_REG_CMD_DRS_1 + a_drs_num, a_flags);
+        drs_reg_write(DRS_REG_CMD_DRS_1, a_flags);
+        drs_reg_write(DRS_REG_CMD_DRS_2, a_flags);
+        if( a_pages_num > 1){
+//            drs_reg_write( DRS_REG_NPAGES_MAX_DRS_A + a_drs_num,  a_pages_num);
+            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
+            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
+
+        }
+        log_it(L_DEBUG, "Pages count %u", drs_reg_read(DRS_REG_NPAGES_MAX_DRS_A));
+    }else
         log_it(L_ERROR, "Wrong DRS num %d", a_drs_num);
     usleep(20);
 }
@@ -36,8 +49,8 @@ void drs_start(int a_drs_num)
  */
 void drs_set_num_pages_all(unsigned int a_num)
 {
-    drs_reg_write(DRS1_NUM_PAGE,a_num);
-    drs_reg_write(DRS2_NUM_PAGE,a_num);
+    drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A,a_num);
+    drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B,a_num);
     usleep(100);
 }
 
@@ -63,7 +76,7 @@ void drs_set_flag_end_read(int a_drs_num, bool a_enable)
     switch (a_drs_num) {
         case -1:
             drs_reg_write(DRS_REG_READY_A, a_enable ? 1 : 0);
-            drs_reg_write(DRS_REG_READY_B,a_enable? 1 : 0);
+            drs_reg_write(DRS_REG_READY_B, a_enable? 1 : 0);
         break;
         case 0:
             drs_reg_write(DRS_REG_READY_A, a_enable ? 1 : 0);

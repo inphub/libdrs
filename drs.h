@@ -40,8 +40,8 @@
 
 #define DRS_BASE_NUM_PAGE		19
 
-#define DRS1_NUM_PAGE			19
-#define DRS2_NUM_PAGE			20
+#define DRS_REG_NPAGES_MAX_DRS_A	19
+#define DRS_REG_NPAGES_MAX_DRS_B	20
 
 
 #define DRS_REG_READY_A                 21

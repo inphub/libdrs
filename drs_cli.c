@@ -47,12 +47,12 @@ int drs_cli_init()
 
     // Start DRS
     dap_cli_server_cmd_add ("start", s_callback_start, "Запуск DRS",
-                "start -drs <DRS number> -flags <SOFT_START,EXT_START,LOAD_N_RUN,RESET> \n"
+                "start -drs <DRS number> -flags <SOFT_START,EXT_START,LOAD_N_RUN,RESET> [-pages <Количество страниц>]\n"
                 "\tЗапуск DRS\n"
              );
 
     // Calibrate
-    dap_cli_server_cmd_add ("calibrate", s_callback_calibrate, "Calibrate DRS",
+    dap_cli_server_cmd_add ("calibrate", s_callback_calibrate, "Калибровка DRS",
                 "\n"
                 "calibrate run [-drs <DRS number>]  -flags <AMPL,TIME_GLOBAL,TIME_LOCAL> [-repeats <repeats for Ampl>\n"
                 "               -begin <Begin level> -end <End level> -shifts <Shifts for every DCA, splitted with \",\">\n"
@@ -71,37 +71,40 @@ int drs_cli_init()
 
 
     // Set some vars
-    dap_cli_server_cmd_add ("set", s_cli_set, "Set DRS variable",
+    dap_cli_server_cmd_add ("set", s_cli_set, "Установить значение для параметра DRS",
                             "\n"
-                            "set mode -drs <DRS num> -mode <DRS mode>"
-                            "\t Set DRS mode for selected number\n"
-                            "\t Possible modes: SOFT_START,EXT_START,PAGE_MODE,CAL_AMPL,CAL_TIME,OFF_INPUTS\n"
+                            "set mode -drs <Номер DRS> -mode <Режим>"
+                            "\t Установить режим работы DRS\n"
+                            "\t Возможные режимы: SOFT_START,EXT_START,PAGE_MODE,CAL_AMPL,CAL_TIME,OFF_INPUTS\n"
                             "\n"
                             "set dac shifts <DAC shifts lists>"
-                            "\t Set DAC shifts as list, splitted with \",\"\n"
+                            "\t Установить смещения АЦП в виде списка через запятую\n"
+                            "\n"
+                            "set flag_end_read -drs <Номер DRS>"
+                            "\t Установить флаг завершения чтения"
                             ""
                             );
 
     // Set off/on sinus generator
-    dap_cli_server_cmd_add ("sinus", s_cli_sinus, "Sinus generator switch",
+    dap_cli_server_cmd_add ("sinus", s_cli_sinus, "Генератор синуса вкл/выкл",
                             "\n"
                             "sinus on|off"
-                            "\t Switch sinus generator on or off\n"
+                            "\t Включает/выключает встроенный генератор синуса\n"
                             "\n"
                             ""
                             );
 
     // Get raw data
-    dap_cli_server_cmd_add ("read", s_callback_read, "Read raw data ",
+    dap_cli_server_cmd_add ("read", s_callback_read, "Читает сырые данные",
                             "\n"
                             "read write_ready [-drs <DRS num>]"
-                            "\t Check for write_ready flag for target DRS or for all"
+                            "\t Проверка на флаг готовности к записи"
                             "\n"
-                            "read page [-drs <DRS num>] [-limit <Limit cells number for output>]"
-                            "\t Call getOnce() and read one raw page at once for target DRS or for all"
+                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-page <Номер страницы>]"
+                            "\t Читает сырые данные из указанной ДРС. Для внешнего запуска так же можно указать номер страницы (1 по умолчанию)"
                             "\n"
-                            "read status [-drs <DRS num>] "
-                            "\t Show the current read status - is it complete and how many pages are ready"
+                            "read status [-drs <Номер DRS>] "
+                            "\t Показывает текущий статус чтения, завершено ли и сколько страницов"
                             "\n"
                             ""
                             "\n"
@@ -178,8 +181,18 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
     int l_flags = 0;
 
     // Читаем аргументы к команде
+
+    // Флаги
     const char * l_flags_str = NULL;
     dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-flags",        &l_flags_str);
+
+    // Количество страниц ( 1 по умолчанию )
+    const char * l_pages_str = NULL;
+    unsigned l_pages = 1;
+    dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-pages",        &l_pages_str);
+    if (l_pages_str){
+        l_pages = atoi(l_pages_str);
+    }
 
     // Конвертируем флаги
     char ** l_flags_strs = dap_strsplit(l_flags_str, ",",3);
@@ -193,8 +206,9 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
         }
     }
     //SOFT_START,EXT_START,LOAD_N_RUN,RESET
-    drs_cmd(l_drs_num, l_flags);
-    dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started #%d with flags 0x%08X", l_drs_num, l_flags );
+    drs_start(l_drs_num, l_flags, l_pages);
+    dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started #%d with flags 0x%08X (pages %u)"
+                                       , l_drs_num, l_flags, l_pages );
     return 0;
 }
 
@@ -242,8 +256,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             // Пробегаем по всем DRS, либо только по выбранной
             for(unsigned n = l_drs_num == -1? 0 : l_drs_num; n < DRS_COUNT; n++){
                 if( drs_check_flag (n) ){
-                    bool l_done  = drs_reg_read(DRS_REG_WAIT_DRS_A); //fast complite
-                    uint32_t l_npages = drs_reg_read(DRS_REG_NPAGES_DRS_A );//num of page complite
+                    bool l_done  = drs_reg_read(DRS_REG_WAIT_DRS_A + n); //fast complite
+                    uint32_t l_npages = drs_reg_read(DRS_REG_NPAGES_DRS_A + n );//num of page complite
                     dap_string_append_printf(l_reply, "  #%u: ready=%s npages=%u", n, l_done ?"true":"false", l_npages);
                 }
                 if (l_drs_num != -1)
@@ -252,24 +266,38 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             *a_str_reply = dap_string_free(l_reply, false);
         }break;
         case CMD_PAGE:{
-            const char * l_limits_str;
+
+            // Максимальное число ячеек для вывода на экран
+            const char * l_limits_str = NULL;
             size_t l_limits = DRS_CELLS_COUNT;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-limit",  &l_limits_str);
-
             if (l_limits_str)
                 l_limits = atoi(l_limits_str);
 
-            if(l_drs_num!=-1){
+            // Нумер страницы
+            const char * l_page_str = NULL;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-page",  &l_page_str);
+            int l_page = 0;
+            if(l_page_str)
+                l_page = atoi(l_page_str);
 
+
+            if(l_drs_num!=-1){
+                size_t l_buf_size = DRS_CELLS_COUNT * sizeof (unsigned short);
                 unsigned short l_buf[DRS_CELLS_COUNT]={0};
+
                 dap_string_t * l_reply = dap_string_new("");
-                dap_string_append_printf(l_reply,"Page read for DRS %d\n", l_drs_num);
                 drs_t * l_drs = &g_drs[l_drs_num];
-                drs_data_get_all(l_drs, 0, l_buf);
-                for (size_t t = 0; t < l_limits; t++){
-                    dap_string_append_printf(l_reply, "0x%04X ", l_buf[t]);
-                    if ( t % 30 == 0)
-                        dap_string_append_printf(l_reply, "\n");
+                int l_ret = drs_data_get_page( l_drs, 0, l_page, l_buf, l_buf_size);
+                if (l_ret == 0){
+                    dap_string_append_printf(l_reply,"Page read for DRS #%d\n", l_drs_num);
+                    for (size_t t = 0; t < l_limits; t++){
+                        dap_string_append_printf(l_reply, "0x%04X ", l_buf[t]);
+                        if ( t % 30 == 0)
+                            dap_string_append_printf(l_reply, "\n");
+                    }
+                }else{
+                    dap_string_append_printf(l_reply,"ERROR: Page read for DRS #%d returned code %d\n", l_drs_num, l_ret);
                 }
                 dap_string_append_printf(l_reply, "\n");
                 *a_str_reply = dap_string_free(l_reply, false);
@@ -277,15 +305,22 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                 dap_string_t * l_reply = dap_string_new("");
 
                 for(size_t n = 0; n < DRS_COUNT ; n++){
+                    size_t l_buf_size = DRS_CELLS_COUNT * sizeof (unsigned short);
                     unsigned short l_buf[DRS_CELLS_COUNT]={0};
-                    dap_string_append_printf(l_reply,"Page read for DRS %d\n", n);
-                    drs_t * l_drs = g_drs+ n;
-                    drs_data_get_all(l_drs, 0, l_buf);
-                    for (size_t t = 0; t < l_limits; t++){
-                        dap_string_append_printf(l_reply, "%04X ", l_buf[t]);
-                        if ( t % 30 == 0)
-                            dap_string_append_printf(l_reply, "\n");
+                    drs_t * l_drs = g_drs + n;
+                    int l_ret = drs_data_get_page( l_drs, 0, l_page, l_buf, l_buf_size);
+                    if (l_ret == 0){
+                        dap_string_append_printf(l_reply,"Page read for DRS %d\n", n);
+
+                        for (size_t t = 0; t < l_limits; t++){
+                            dap_string_append_printf(l_reply, "%04X ", l_buf[t]);
+                            if ( t % 30 == 0)
+                                dap_string_append_printf(l_reply, "\n");
+                        }
+                    }else{
+                        dap_string_append_printf(l_reply,"ERROR: Page read for DRS #%d returned code %d\n", l_drs_num, l_ret);
                     }
+
                     dap_string_append_printf(l_reply, "\n");
                 }
                 *a_str_reply = dap_string_free(l_reply, false);
@@ -688,12 +723,14 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_NONE =0,
         CMD_MODE,
         CMD_REG,
-        CMD_DAC
+        CMD_DAC,
+        CMD_FLAG_END_READ
     };
     const char *l_cmd_str_c[] ={
         [CMD_MODE] = "mode",
         [CMD_REG] = "reg",
-        [CMD_DAC] = "dac"
+        [CMD_DAC] = "dac",
+        [CMD_FLAG_END_READ] = "flag_end_read"
     };
 
     if(a_argc < 3) {
@@ -762,6 +799,9 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
            // strtoul(l_reg_str,)
         }
         break;
+        case CMD_FLAG_END_READ:{
+            drs_set_flag_end_read(l_drs_num, true);
+        }break;
         case CMD_DAC:{
             int l_ret;
             const char * l_shifts_str = NULL;

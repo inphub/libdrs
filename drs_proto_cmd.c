@@ -413,7 +413,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                     log_it(L_DEBUG, "01 - soft start and read (one page)\n");
                     //drs_set_sinus_signal(true);
                     //drs_set_mode(l_drs_num, MODE_SOFT_START);
-                    drs_start(l_drs_num);
+                    drs_start(l_drs_num, DRS_CMD_SOFT_START | DRS_CMD_LOAD_N_RUN, 1);
                     //drs_reg_write(0x00000015, 0);  //page mode disable
 
                     /*                                       	 drs_reg_write(0x00000025, 1);   	//pages

@@ -1,7 +1,7 @@
 /*
  * data_operations.c
  *
- *  Created on: 20 дек. 2019 г.
+ *  Created on: 20 РґРµРє. 2019 Рі.
  *      Author: Denis
  */
 #include <unistd.h>
@@ -20,16 +20,16 @@
 static bool s_debug_more = false;
 
 /**
- * МНК
- * double*yArr			массив Y
- * double *xArr 		массив X
- * unsigned int length  длинна массивов
- * double *b			адрес переменной для записи b
- * double *k			адрес переменной для записи k
+ * РњРќРљ
+ * double*yArr			РјР°СЃСЃРёРІ Y
+ * double *xArr 		РјР°СЃСЃРёРІ X
+ * unsigned int length  РґР»РёРЅРЅР° РјР°СЃСЃРёРІРѕРІ
+ * double *b			Р°РґСЂРµСЃ РїРµСЂРµРјРµРЅРЅРѕР№ РґР»СЏ Р·Р°РїРёСЃРё b
+ * double *k			Р°РґСЂРµСЃ РїРµСЂРµРјРµРЅРЅРѕР№ РґР»СЏ Р·Р°РїРёСЃРё k
  */
 void getCoefLine(double*yArr,double *xArr,unsigned int length,double *b,double *k)
 {
-    // length может быть 0, тогда массивы yArr и xArr будут NULL
+    // length РјРѕР¶РµС‚ Р±С‹С‚СЊ 0, С‚РѕРіРґР° РјР°СЃСЃРёРІС‹ yArr Рё xArr Р±СѓРґСѓС‚ NULL
     double x=0,x2=0,xy=0,y=0;
     unsigned int i=0;
     for(i=0;i<length;i++){
@@ -66,9 +66,9 @@ void pageModeStart(unsigned int num)
 }
 
 /**
- * unsigned short *buffer		буфер данных;
- * unsigned int *shift			указатель на  unsigned int в который положится сдвиг;
- * unsigned short extStart		индикатор внешнего запуска;
+ * unsigned short *buffer		Р±СѓС„РµСЂ РґР°РЅРЅС‹С…;
+ * unsigned int *shift			СѓРєР°Р·Р°С‚РµР»СЊ РЅР°  unsigned int РІ РєРѕС‚РѕСЂС‹Р№ РїРѕР»РѕР¶РёС‚СЃСЏ СЃРґРІРёРі;
+ * unsigned short extStart		РёРЅРґРёРєР°С‚РѕСЂ РІРЅРµС€РЅРµРіРѕ Р·Р°РїСѓСЃРєР°;
  */
 unsigned int onceGet(unsigned short *buffer,unsigned int *shift,unsigned int calibrate,unsigned int extStart,unsigned int drsnum)
 {
@@ -107,8 +107,8 @@ unsigned int onceGet(unsigned short *buffer,unsigned int *shift,unsigned int cal
 }
 
 /**
- * unsigned int drsnum		номер drs для вычитывания сдвига
- * return 					индекс сдвига;
+ * unsigned int drsnum		РЅРѕРјРµСЂ drs РґР»СЏ РІС‹С‡РёС‚С‹РІР°РЅРёСЏ СЃРґРІРёРіР°
+ * return 					РёРЅРґРµРєСЃ СЃРґРІРёРіР°;
  */
 unsigned int getShiftIndex(unsigned int drsnum)//npage
 {
@@ -121,10 +121,10 @@ unsigned int getShiftIndex(unsigned int drsnum)//npage
 }
 
 /**
- * double *average					масиив со средними значениями каналов;
- * double *data						массив данных
- * unsigned int chanalLength		длинна канала;
- * unsigned int chanalCount			число каналов;
+ * double *average					РјР°СЃРёРёРІ СЃРѕ СЃСЂРµРґРЅРёРјРё Р·РЅР°С‡РµРЅРёСЏРјРё РєР°РЅР°Р»РѕРІ;
+ * double *data						РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…
+ * unsigned int chanalLength		РґР»РёРЅРЅР° РєР°РЅР°Р»Р°;
+ * unsigned int chanalCount			С‡РёСЃР»Рѕ РєР°РЅР°Р»РѕРІ;
  */
 void getAverage(double *average,double *data,unsigned int chanalLength,unsigned int chanalCount)
 {
@@ -170,10 +170,10 @@ double drs_ch_get_average(double *a_cells, unsigned a_cells_count, unsigned a_ch
     return l_ret;
 }
 /**
- * double *         a_average		масиив со средними значениями каналов;
- * unsigned short*  a_cells		массив данных
- * unsigned int     a_ch_cells_count	длинна канала;
- * unsigned int     a_ch_count		число каналов;
+ * double *         a_average		РјР°СЃРёРёРІ СЃРѕ СЃСЂРµРґРЅРёРјРё Р·РЅР°С‡РµРЅРёСЏРјРё РєР°РЅР°Р»РѕРІ;
+ * unsigned short*  a_cells		РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…
+ * unsigned int     a_ch_cells_count	РґР»РёРЅРЅР° РєР°РЅР°Р»Р°;
+ * unsigned int     a_ch_count		С‡РёСЃР»Рѕ РєР°РЅР°Р»РѕРІ;
  */
 void getAverageInt(double *a_average,unsigned short *a_cells,unsigned int a_ch_cells_count,unsigned int a_ch_count)
 {
@@ -199,9 +199,9 @@ void getAverageInt(double *a_average,unsigned short *a_cells,unsigned int a_ch_c
  }
 
  /**
-  * unsigned short *buffer		массив данных
-  * unsigned int *shift			сдвиг;
-  * unsigned int pageCount		номер страницы;
+  * unsigned short *buffer		РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…
+  * unsigned int *shift			СЃРґРІРёРі;
+  * unsigned int pageCount		РЅРѕРјРµСЂ СЃС‚СЂР°РЅРёС†С‹;
   */
  void readNPage(unsigned short *buffer,unsigned int* shift,unsigned int numPage, unsigned int drsnum)
  {
@@ -213,9 +213,9 @@ void getAverageInt(double *a_average,unsigned short *a_cells,unsigned int a_ch_c
  }
 
  /**
-  * unsigned short *buffer		массив данных
-  * unsigned int *shift			сдвиг;
-  * unsigned int pageCount		номер страницы;
+  * unsigned short *buffer		РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…
+  * unsigned int *shift			СЃРґРІРёРі;
+  * unsigned int pageCount		РЅРѕРјРµСЂ СЃС‚СЂР°РЅРёС†С‹;
   */
  void writeNPage(unsigned short *buffer,unsigned int numPage, unsigned int drsnum)
  {
@@ -225,9 +225,9 @@ void getAverageInt(double *a_average,unsigned short *a_cells,unsigned int a_ch_c
  	 memcpy(&(((unsigned short *)data_map_drs2)[numPage*16384]),buffer, 0x8000);
  }
 /**
- * unsigned short *buffer		массив данных
- * unsigned int *shift			сдвиги;
- * unsigned int pageCount		число страниц;
+ * unsigned short *buffer		РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…
+ * unsigned int *shift			СЃРґРІРёРіРё;
+ * unsigned int pageCount		С‡РёСЃР»Рѕ СЃС‚СЂР°РЅРёС†;
  */
 void readNPages(unsigned short *buffer,unsigned int *shift,unsigned int pageCount, unsigned int step, unsigned int drsnum)
 {

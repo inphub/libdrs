@@ -39,65 +39,62 @@ int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
     return 0;
 };
 
-
-/**
- * @brief drs_data_get
- * @param a_drs                  Указатель на объект DRS
- * @param a_flags                Флаги операции
- * @param a_buffer               буфер данных, минимум DRS_PAGE_READ_SIZE размера
- * @param a_buffer_size          максимальный размер данных для буфера (его размер)
- */
-int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t a_buffer_size )
+int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned short * a_buffer, size_t a_buffer_size)
 {
-    assert(a_drs);
-    assert(a_buffer);
-    unsigned int l_ret=0,i=0;
-    unsigned l_cmds = DRS_CMD_INIT_SOFT_START | DRS_CMD_START_DRS;
+  assert(a_drs);
+  assert(a_buffer);
+  unsigned int l_ret=0,i=0;
+  unsigned l_cmds = DRS_CMD_LOAD_N_RUN;
 
-    if (a_flags & DRS_OP_FLAG_EXT_START){
-        log_it(L_INFO, "start ext DRS");
-        l_cmds |= DRS_CMD_ENABLE_EXT_PULSE;
-    }
+  if (a_flags & DRS_OP_FLAG_EXT_START){
+      log_it(L_INFO, "start ext DRS");
+      l_cmds |= DRS_CMD_EXT_START;
+  } else{
+      l_cmds |= DRS_CMD_SOFT_START;
+  }
 
-    drs_cmd( -1, l_cmds);
-    //usleep(100);
+  drs_cmd( -1, l_cmds);
+  //usleep(100);
 
-    bool l_is_ready = false;
-    bool l_loop = true;
-    while( l_loop ) {
-        l_is_ready = drs_get_flag_write_ready(a_drs->id);
-        if( l_is_ready)
-            break;
+  bool l_is_ready = false;
+  bool l_loop = true;
+  while( l_loop ) {
+      l_is_ready = drs_get_flag_write_ready(a_drs->id);
+      if( l_is_ready)
+          break;
 
-        i++;
+      i++;
 //        if( a_flags & DRS_OP_FLAG_EXT_START){
-            if(i>100){
-                log_it(L_ERROR, "Was waiting for write_ready flag but without success");
-                l_loop = false;
-                l_ret = -1;
-            }
+          if(i>100){
+              log_it(L_ERROR, "Was waiting for write_ready flag but without success");
+              l_loop = false;
+          }
 //        }else{
-            //if(ext_start==0){end=1;)
+          //if(ext_start==0){end=1;)
 //        }
-        //readExternalStatus(0xc); //Peter fix
-    }
-    if(l_is_ready ){
-        debug_if(s_debug_more, L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
-    }else
-        log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+      //readExternalStatus(0xc); //Peter fix
+  }
+  if(l_is_ready ){
+      debug_if(s_debug_more, L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+  }else{
+      log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+      //return -1;
+  }
 
-    if(a_flags & DRS_OP_FLAG_ROTATE)
-        drs_read_page_rotated(a_drs, 0, a_buffer, a_buffer_size);
-    else
-        drs_read_page(a_drs, 0, a_buffer, a_buffer_size);
+  if(a_flags & DRS_OP_FLAG_ROTATE)
+      drs_read_page_rotated(a_drs, a_page, a_buffer, a_buffer_size);
+  else
+      drs_read_page(a_drs, a_page, a_buffer, a_buffer_size);
 
-    drs_set_flag_end_read(a_drs->id, true);
+  if( l_ret == 0 )
+      drs_set_flag_end_read(a_drs->id, true);
 
 #ifndef DRS_OPT_DATA_GET_NODELAYS
-    usleep(DRS_PAGE_READ_DELAY);
+  usleep(DRS_PAGE_READ_DELAY);
 #endif
 
-    return l_ret;
+  return l_ret;
+
 }
 
 
@@ -113,9 +110,9 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
     assert(a_drs);
     assert(a_buffer);
     if ( a_drs->id ==0 )
-        memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
+        memcpy(a_buffer,  ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
     else
-       memcpy(a_buffer, (unsigned short *) ( ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE), a_buffer_size ) ;
+       memcpy(a_buffer, ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
     a_drs->shift =drs_get_shift( a_drs->id);
     a_drs->shift_bank =a_drs->shift & 1023;
 

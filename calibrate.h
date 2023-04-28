@@ -1,7 +1,7 @@
 /*
  * calibrate.h
  *
- *  Created on: 19 сент. 2019 г.
+ *  Created on: 19 СЃРµРЅС‚. 2019 Рі.
  *      Author: Denis
  *  Refactored: 2022 by Dmitry Gerasimov
  */

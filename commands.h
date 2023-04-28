@@ -1,18 +1,13 @@
 /*
  * commands.h
  *
- *  Created on: 20 δεκ. 2019 γ.
+ *  Created on: 20 Π΄ΠµΠΊ. 2019 Π³.
  *      Author: Denis
  */
 
 #pragma once
 
 #include "drs.h"
-
-#define DRS_CMD_INIT_SOFT_START			0x00000001 //EN_WORK
-#define DRS_CMD_START_DRS			0x00000002
-#define DRS_CMD_ENABLE_EXT_PULSE                0x00000004
-#define DRS_CMD_RESET				0x00000008
 
 #define EXTERNAL_CLK	0
 #define INTERNAL_CLK	1

@@ -19,7 +19,7 @@
 
 #define DRS_CMD_MAX                  0x00000008
 
-void drs_start(int a_drs_num);
+void drs_start(int a_drs_num, int a_flags, unsigned a_pages_num);
 void drs_set_flag_end_read(int l_drs_num, bool a_enable);
 void drs_set_num_pages_all(unsigned int a_num);
 void drs_cmd(int a_drs_num, unsigned int a_cmd);

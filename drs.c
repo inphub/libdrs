@@ -329,7 +329,7 @@ static void s_post_init()
     fclose(f);
 
     // Init all DRS
-    drs_cmd(-1, DRS_CMD_INIT_SOFT_START);
+    //drs_cmd(-1, DRS_CMD_ );
 
     log_it(L_NOTICE, "DRS settings are implemented");
     if(g_drs_flags & 0x1)
@@ -458,8 +458,6 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
     assert(a_drs_num >= -1 && a_drs_num < DRS_COUNT );
     s_mode[a_drs_num] = a_mode;
     drs_reg_write(DRS_MODE_REG, a_mode);
-    usleep(100);
-    drs_cmd(a_drs_num, DRS_CMD_INIT_SOFT_START);
 }
 
 /**

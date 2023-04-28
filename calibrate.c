@@ -1,7 +1,7 @@
 /*
  * calibrate.c
  *
- *  Created on: 19 сент. 2019 г.
+ *  Created on: 19 СЃРµРЅС‚. 2019 Рі.
  *      Author: Denis
  */
 
@@ -27,8 +27,8 @@
 #define LOG_TAG "calibrate"
 
 #define GeneratorFrequency 50 //MHz
-#define periodLength 38.912 //4.9152/2.4*19 || periodLength-длинна в отсчетах одного периода 4.9152 ГГц-частота ацп, 2400/19-МГц частота синуса
-#define maxPeriodsCount 28//26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
+#define periodLength 38.912 //4.9152/2.4*19 || periodLength-РґР»РёРЅРЅР° РІ РѕС‚СЃС‡РµС‚Р°С… РѕРґРЅРѕРіРѕ РїРµСЂРёРѕРґР° 4.9152 Р“Р“С†-С‡Р°СЃС‚РѕС‚Р° Р°С†Рї, 2400/19-РњР“С† С‡Р°СЃС‚РѕС‚Р° СЃРёРЅСѓСЃР°
+#define maxPeriodsCount 28//26,315789473684210526315789473684- РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРµСЂРёРѕРґРѕРІ РІ 1024 РѕС‚СЃС‡РµС‚Р°С…->27, +1 РґР»СЏ РЅСѓР»СЏ;
 //#define freqDRS 4915200.0/1000000000.0
 //extern const double freqDRS[];
 
@@ -67,11 +67,11 @@ static void           s_remove_splash     (   double* a_Y,             unsigned 
 
 
 /**
- * Собирает статистику для каждой ячкейки
- * coefficients *acc			сумма знчаений для ячейки;
- * unsigned short *buff 		массив данных;
- * unsigned int shift			индекс разварота данных;
- * unsigned int *statistic		статистика для ячеек;
+ * РЎРѕР±РёСЂР°РµС‚ СЃС‚Р°С‚РёСЃС‚РёРєСѓ РґР»СЏ РєР°Р¶РґРѕР№ СЏС‡РєРµР№РєРё
+ * coefficients *acc			СЃСѓРјРјР° Р·РЅС‡Р°РµРЅРёР№ РґР»СЏ СЏС‡РµР№РєРё;
+ * unsigned short *buff 		РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…;
+ * unsigned int shift			РёРЅРґРµРєСЃ СЂР°Р·РІР°СЂРѕС‚Р° РґР°РЅРЅС‹С…;
+ * unsigned int *statistic		СЃС‚Р°С‚РёСЃС‚РёРєР° РґР»СЏ СЏС‡РµРµРє;
  */
 void calibrate_collect_statistics_b(double *acc,unsigned short *buff,unsigned short *shift,unsigned int *statistic)
 {
