@@ -95,13 +95,13 @@ int drs_cli_init()
                             );
 
     // Get raw data
-    dap_cli_server_cmd_add ("read", s_callback_read, "Читает сырые данные",
+    dap_cli_server_cmd_add ("read", s_callback_read, "Читает данные",
                             "\n"
                             "read write_ready [-drs <DRS num>]"
                             "\t Проверка на флаг готовности к записи"
                             "\n"
-                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-page <Номер страницы>]"
-                            "\t Читает сырые данные из указанной ДРС. Для внешнего запуска так же можно указать номер страницы (1 по умолчанию)"
+                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-page <Номер страницы>] [-apply AMPL,TIMER_LOCAL,TIMER_GLOBAL]"
+                            "\t Читает данные из указанной ДРС. Для внешнего запуска так же можно указать номер страницы (1 по умолчанию)"
                             "\n"
                             "read status [-drs <Номер DRS>] "
                             "\t Показывает текущий статус чтения, завершено ли и сколько страницов"
@@ -280,6 +280,11 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             int l_page = 0;
             if(l_page_str)
                 l_page = atoi(l_page_str);
+
+            // Применение калибровки
+            const char * l_apply_str = NULL;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-apply",  &l_page_str);
+            // -apply AMPL,TIMER_LOCAL,TIMER_GLOBAL]
 
 
             if(l_drs_num!=-1){

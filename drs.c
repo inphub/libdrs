@@ -263,12 +263,12 @@ static void s_post_init()
 
     if(g_drs_flags & 0x1){
         set_dma_addr_drs1(0x08000000);  		//    drs_reg_write(0x00000017, 0x8000000);// DRS1
-        set_size_dma_drs1(0x00004000);  		//    drs_reg_write(0x00000019, 0x4000);
+        //set_size_dma_drs1(0x00004000);  		//    drs_reg_write(0x00000019, 0x4000);
     }
 
     if(g_drs_flags & 0x2){
         set_dma_addr_drs2(0x0c000000);  		//    drs_reg_write(0x00000018, 0xC000000);// DRS2
-        set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
+        //set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
     }
 
     if(g_drs_flags & 0x1)

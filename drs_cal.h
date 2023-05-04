@@ -111,6 +111,8 @@ int drs_calibrate_progress(int a_drs_num);
 drs_calibrate_state_t* drs_calibrate_get_state(int a_drs_num);
 int drs_calibrate_wait_for_finished(int a_drs_num, int a_wait_msec);
 int drs_calibrate_abort(int a_drs_num);
+int drs_cal_save(const char * a_file_path);
+int drs_cal_load(const char * a_file_path);
 
 void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags);
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *buffer,double *dBuf, int a_flags);

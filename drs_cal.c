@@ -4,12 +4,15 @@
  *  Created on: 8 November 2022
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
  */
+#include <errno.h>
 #include <assert.h>
 #include <pthread.h>
 
+#include <dap_sdk.h>
 #include <dap_common.h>
 #include <dap_string.h>
 #include <dap_time.h>
+#include <dap_file_utils.h>
 
 #include "drs.h"
 #include "drs_data.h"
@@ -41,6 +44,8 @@
 
 // Состояния калибровки (текущие )
 drs_calibrate_t s_state[DRS_COUNT] = {};
+
+static char * s_cal_file_path = NULL;
 // Поток калибровки
 static void *     s_thread_routine(void * a_arg);
 static inline int s_run           (int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
@@ -130,6 +135,8 @@ static void * s_thread_routine(void * a_arg)
     pthread_cond_broadcast(&l_cal->finished_cond);
     pthread_mutex_unlock(&l_cal->finished_mutex);
 
+    drs_cal_save(s_cal_file_path);
+
     return NULL;
 }
 
@@ -144,6 +151,15 @@ int drs_calibrate_init()
         pthread_rwlock_init(& s_state[i].rwlock, NULL);
         s_state[i].drs = &g_drs[i];
     }
+
+    dap_string_t * l_file_coeffs = dap_string_new(g_dap_vars.core.sys_dir);
+    dap_string_append(l_file_coeffs,"/var/lib/");
+    dap_mkdir_with_parents(l_file_coeffs->str);
+    dap_string_append(l_file_coeffs,"/cal_coeffs.bin");
+
+    s_cal_file_path = dap_string_free(l_file_coeffs, false);
+    drs_cal_load(s_cal_file_path);
+
     return 0;
 }
 
@@ -430,7 +446,8 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     //double  **l_ki = a_drs->coeffs.k;
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
-    double * l_out = a_flags & DRS_CAL_ROTATE && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY)) ?
+    bool l_need_to_rotate =  a_flags & DRS_CAL_ROTATE && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY));
+    double * l_out = l_need_to_rotate ?
           DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
     for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
@@ -465,7 +482,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
                 l_out[l_inout_id] = (l_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
             }
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
-                l_out[l_inout_id]=(l_out[l_inout_id]-g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
+                l_out[l_inout_id]=(l_out[l_inout_id] - g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }
         }
         if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
@@ -479,7 +496,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     // Разворачиваем всё вместе
 
 
-    if (a_flags & DRS_CAL_ROTATE && ! (a_flags &DRS_CAL_APPLY_CH9_ONLY) ){
+    if ( l_need_to_rotate ){
         drs_data_rotate(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
     }
 }
@@ -497,7 +514,7 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
     pthread_rwlock_rdlock(&l_cal_pvt->rwlock);
     dap_string_append_printf( a_reply, "Running:     %s\n\n", a_cal->is_running? "yes" : "no" );
     dap_string_append_printf( a_reply, "Progress:    %d%%\n\n", a_cal->progress );
-    if (a_cal->ts_end){
+    if (a_cal->ts_end || true){
         coefficients_t * l_params = &l_cal_pvt->drs->coeffs;
         if ( a_flags & DRS_COEF_SPLASH)
             dap_string_append_array(a_reply, "splash", "%d", l_params->splash, a_limits);
@@ -581,10 +598,84 @@ void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params)
 {
     assert(a_params);
     memset(a_params,0, sizeof(*a_params));
+    a_params->ampl.levels[0] = -0.25;
+    a_params->ampl.levels[1] = 0.25;
     a_params->ampl.N = 100;
     a_params->ampl.repeats = 1;
+
     a_params->ampl.splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
     a_params->time_local.min_N = 50;
     a_params->time_local.max_repeats = 10000;
     a_params->time_global.num_cycle = 1000;
+}
+
+#define CAL_FILE_MAGIC   0x877BA4E1
+typedef struct cal_file_hdr
+{
+    uint32_t magic;
+    int      version;
+    uint32_t drs_count;
+} DAP_ALIGN_PACKED cal_file_hdr_t;
+
+/**
+ * @brief drs_cal_save
+ * @param a_drs
+ * @param a_file_path
+ * @return
+ */
+int drs_cal_save(const char * a_file_path)
+{
+    cal_file_hdr_t l_hdr = {
+        .magic     =  CAL_FILE_MAGIC,
+        .version   = 0x1,
+        .drs_count = DRS_COUNT
+    };
+    FILE * f = fopen(a_file_path, "w");
+    if ( f == NULL){
+        int l_errno = errno;
+        char l_strerr[255];
+        strerror_r(l_errno, l_strerr, sizeof (l_strerr));
+        log_it(L_ERROR, "Can't save file, error string \"%s\" (code %d) ", l_strerr, l_errno );
+        return -1;
+    }
+    fwrite(&l_hdr, sizeof (l_hdr), 1, f);
+    for(unsigned i = 0; i < DRS_COUNT; i++)
+      fwrite(&g_drs[i].coeffs , sizeof (g_drs[i].coeffs),1, f);
+    fclose(f);
+    log_it(L_NOTICE, "Saved DRS calibration coeffs to %s", a_file_path);
+    return 0;
+}
+
+/**
+ * @brief drs_cal_load
+ * @param a_file_path
+ * @return
+ */
+int drs_cal_load(const char * a_file_path)
+{
+    cal_file_hdr_t l_hdr = {};
+
+    FILE * f = fopen(a_file_path, "r");
+    if ( f == NULL){
+        int l_errno = errno;
+        char l_strerr[255];
+        strerror_r(l_errno, l_strerr, sizeof (l_strerr));
+        log_it(L_ERROR, "Can't load from file, error string \"%s\" (code %d) ", l_strerr, l_errno );
+        return -1;
+    }
+
+
+    fread(&l_hdr, 1, sizeof (l_hdr), f);
+    if (l_hdr.magic != CAL_FILE_MAGIC){
+        log_it(L_ERROR, "Wrong file type, expected to see 0x%08X but we have 0x%08X", CAL_FILE_MAGIC, l_hdr.magic);
+        return -2;
+    }
+    if (l_hdr.drs_count != DRS_COUNT){
+        log_it(L_ERROR, "Wrong DRS count, need to be %u when there is %u in file", DRS_COUNT, l_hdr.drs_count);
+        return -3;
+    }
+    for(unsigned i = 0; i < DRS_COUNT; i++)
+      fread(&g_drs[i].coeffs , sizeof (g_drs[i].coeffs),1, f);
+    fclose(f);
+    return 0;
 }
