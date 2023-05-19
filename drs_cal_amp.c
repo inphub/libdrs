@@ -29,7 +29,7 @@ struct amp_context{
 static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress);
 
 static int s_fin_collect(drs_t * a_drs,  drs_cal_args_t * a_args, bool a_ch9_only);
-static int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args);
+static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args);
 
 static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats, bool a_ch9_only);
 static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter, bool a_ch9_only);
@@ -119,7 +119,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
     // Межканальная калибровка
-    if( s_channels_calibration( a_drs, a_args) !=0 ) {
+    if( s_interchannels_calibration( a_drs, a_args) !=0 ) {
         log_it(L_INFO, "No success with channels calibration");
         l_ret = -2;
         goto lb_exit;
@@ -321,7 +321,7 @@ lb_exit:
  * @param a_args
  * @return
  */
-static int s_channels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
+static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
 {
     unsigned l_count = a_args->param.ampl.repeats + DRS_CAL_MIN_REPEATS_DEFAULT;
     double dh,shiftDACValues[DRS_CHANNELS_COUNT],

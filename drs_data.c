@@ -130,7 +130,7 @@ void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, siz
     unsigned int l_shift_global = a_drs->shift;
     unsigned int l_shift = DRS_CELLS_COUNT_BANK - a_drs->shift_bank;
 
-    log_it(L_DEBUG, "Global shift: %u , local shift: %u",l_shift_global, l_shift);
+    //log_it(L_DEBUG, "Global shift: %u , local shift: %u",l_shift_global, l_shift);
 
     size_t l_total_size = 0;
     size_t l_in_offset, l_out_offset;

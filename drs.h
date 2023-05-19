@@ -57,6 +57,7 @@
 #define DRS_REG_NPAGES_DRS_B            76
 
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
+#define DRS_PAGE_COUNT_MAX              1024
 
 // Задержка после чтения, в микросекундах
 #define DRS_PAGE_READ_DELAY             50000
@@ -144,6 +145,8 @@ typedef struct{
     short id;
     unsigned int shift_bank;
     unsigned int shift;
+
+    double avr_level; // Level for channels averaging
     coefficients_t coeffs;
 } drs_t;
 
@@ -185,6 +188,8 @@ void drs_dac_shift_set_ch9(double a_shiftDAC,float DAC_gain,float DAC_offset);
 void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue);
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
+
+static inline void drs_set_avr_level (drs_t * a_drs, const double a_avr_level) { a_drs->avr_level = a_avr_level; }
 
 drs_mode_t drs_get_mode(int a_drs_num);
 

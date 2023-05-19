@@ -72,6 +72,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
     bool l_is_9_channel = drs_get_mode(a_drs->id) == DRS_MODE_CAL_TIME;
     double l_average[DRS_CHANNELS_COUNT];
     unsigned l_cells_proc_count = l_is_9_channel? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
+
     for(unsigned ch=0; ch<DRS_CHANNELS_COUNT; ch++){
         if (l_is_9_channel)
             ch = DRS_CHANNEL_9;
@@ -96,7 +97,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
                 unsigned idx = n + b* DRS_CELLS_COUNT_BANK;
                 a_output[idx] = l_tmpX;
 
-                l_cell_id_shifted = ( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&1023 ) );
+                l_cell_id_shifted = ( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&1023 ) )&1023;
                 l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_shifted] * l_average[ch];
             }
         }

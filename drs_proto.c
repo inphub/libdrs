@@ -28,6 +28,9 @@ static void s_callback_write_finished(dap_events_socket_t * a_es, void * a_arg, 
 
 static inline void s_proto_out_add( drs_proto_t * a_proto, drs_proto_data_t * a_out);
 static inline void s_proto_out_remove(drs_proto_t * a_proto, drs_proto_data_t * a_out);
+
+static int s_cli_callback(int a_argc, char ** a_argv, char **a_str_reply);
+
 /**
  * @brief Инициализация протокола
  * @param a_server Указатель на есокет сервер, чти входящие соединения мы будем обрабатывать
@@ -47,6 +50,23 @@ int drs_proto_init(dap_server_t * a_server)
         s_server->client_callbacks = l_callbacks;
     }
 
+    // Help
+    /*
+    dap_cli_server_cmd_add ("proto", s_cli_callback, "Команды управления сетевым протоколом",
+                                        "proto set avr_level  <уровень для усреднения>\n"
+                                        "\tУстанавливает целевой средний уровень для схлапывания каналов\n"
+                                        "proto set flags_default_read_y <фла>"
+  "CELLS",       "применение калибровки для ячеек"},
+  "INTERCHANNEL","межканальная калибровка"},
+  "SPLASHS","избавление от всплесков"},
+  "TIME_LOCAL", "Временная локальная калибровка"},
+  "TIME_GLOBAL", "Временная глобальная калибровка"},
+  "EQUALIZE","Выровнять итоговые результаты"},
+  "ROTATE","Развернуть итоговые результаты"},
+  "PHYS","приведение к физическим величинам"},
+  "CH9_ONLY","Только 9ый канал"},
+        );
+    return 0;*/
     return 0;
 }
 
@@ -237,7 +257,7 @@ static void s_callback_write (dap_events_socket_t * a_es,void * a_arg )
 static void s_callback_write_finished(dap_events_socket_t * a_es, void * a_arg, int a_errno)
 {
     UNUSED (a_arg);
-    log_it(L_DEBUG, "Write finished with errno %d", a_errno);
+    //log_it(L_DEBUG, "Write finished with errno %d", a_errno);
     if(a_errno == 0) { // это не есть завершение по коду ошибки
         if (DRS_PROTO(a_es)->out_last) // Если нам всё ещё есть что отправить из очереди отправки, то возвращаем флаг готовности к записи
             dap_events_socket_set_writable_unsafe(a_es, true);

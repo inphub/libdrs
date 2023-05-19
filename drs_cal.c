@@ -42,6 +42,18 @@
  * unsigned int key - ключ применения калибровок 4 бит-локальная временная, 5 бит-глобальная временная, 6 бит-приведение к физическим величинам
  */
 
+struct drs_cal_apply_flags g_drs_cal_apply_to_str[]={
+  [0]        = {"CELLS",       "применение калибровки для ячеек"},
+  [1] = {"INTERCHANNEL","межканальная калибровка"},
+  [2]      = {"SPLASHS","избавление от всплесков"},
+  [8]   = {"TIME_LOCAL", "Временная локальная калибровка"},
+  [9]  = {"TIME_GLOBAL", "Временная глобальная калибровка"},
+  [29]     = {"EQUALIZE","Выровнять итоговые результаты"},
+  [30]  = {"ROTATE","Развернуть итоговые результаты"},
+  [28]  = {"PHYS","приведение к физическим величинам"},
+  [31]  = {"CH9_ONLY","Только 9ый канал"},
+};
+
 // Состояния калибровки (текущие )
 drs_calibrate_t s_state[DRS_COUNT] = {};
 
@@ -401,23 +413,32 @@ static void s_x_to_real(double*x)
 
 
 /**
- * @brief drs_cal_x_amply
+ * @brief drs_cal_x_produce
  * @param a_drs
- * @param a_x
  * @param a_flags
  */
-void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags)
+double * drs_cal_x_produce(drs_t * a_drs, int a_flags)
 {
-    if(a_flags & DRS_CAL_APPLY_X_TIME_LOCAL) {
-        drs_cal_time_local_apply(a_drs, a_x, a_x);
-    }
-    if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
-        drs_cal_time_global_apply(a_drs, a_x,a_x);
-    }
-    if(a_flags & DRS_CAL_APPLY_PHYS) {
-        do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
+    double * l_ret = DAP_NEW_SIZE(double, DRS_CELLS_COUNT_CHANNEL*sizeof(double) );
+
+    if (!l_ret)
+        return NULL;
+
+    for (unsigned n =0; n <DRS_CELLS_COUNT_CHANNEL; n++){
+      l_ret[n] = n;
     }
 
+    if(a_flags & DRS_CAL_APPLY_X_TIME_LOCAL) {
+        drs_cal_time_local_apply(a_drs, l_ret, l_ret);
+    }
+    if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
+        drs_cal_time_global_apply(a_drs, l_ret,l_ret);
+    }
+    if(a_flags & DRS_CAL_APPLY_PHYS) {
+        do_on_array(l_ret,DRS_CELLS_COUNT_ALL,s_x_to_real);
+    }
+
+    return l_ret;
 }
 
 
@@ -446,7 +467,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     //double  **l_ki = a_drs->coeffs.k;
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
-    bool l_need_to_rotate =  a_flags & DRS_CAL_ROTATE && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY));
+    bool l_need_to_rotate =  a_flags & DRS_CAL_APPLY_ROTATE && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY));
     double * l_out = l_need_to_rotate ?
           DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
@@ -484,6 +505,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
                 l_out[l_inout_id]=(l_out[l_inout_id] - g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
             }
+
         }
         if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
             break;
@@ -499,6 +521,45 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     if ( l_need_to_rotate ){
         drs_data_rotate(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
     }
+
+    if( a_flags & DRS_CAL_APPLY_Y_EQUALIZE){
+        drs_cal_y_ch_equalize(a_drs, l_out, l_out, a_drs->avr_level);
+    }
+}
+
+/**
+ * @brief drs_cal_y_ch_equalize
+ * @param a_drs
+ * @param a_y_in
+ * @param a_y_out
+ * @param a_avr_level
+ * @return
+ */
+int drs_cal_y_ch_equalize(drs_t * a_drs, const double *a_y_in, double * a_y_out, double a_avr_level)
+{
+    assert(a_drs);
+    assert(a_y_in);
+    assert(a_y_out);
+
+    long double l_avr[DRS_CHANNELS_COUNT] = {};
+    long double l_avr_level;
+    for (unsigned ch = 0; ch < DRS_CHANNELS_COUNT; ch++){
+        for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
+            l_avr[ch] +=  (a_y_in[ DRS_IDX(ch,n) ] / (double) DRS_CELLS_COUNT_CHANNEL) ;
+        }
+        if (ch == 0){
+            l_avr_level = l_avr[ch];
+            continue;
+
+        }else {
+            double l_delta = l_avr_level - l_avr[ch];
+            for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
+                a_y_out[DRS_IDX(ch,n)] = a_y_in[DRS_IDX(ch,n)] + l_delta;
+            }
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -598,15 +659,15 @@ void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params)
 {
     assert(a_params);
     memset(a_params,0, sizeof(*a_params));
-    a_params->ampl.levels[0] = -0.25;
-    a_params->ampl.levels[1] = 0.25;
-    a_params->ampl.N = 100;
-    a_params->ampl.repeats = 1;
+    a_params->ampl.levels[0] = DRS_CAL_BEGIN_DEFAULT;
+    a_params->ampl.levels[1] = DRS_CAL_END_DEFAULT;
+    a_params->ampl.N = DRS_CAL_N_DEFAULT;
+    a_params->ampl.repeats = DRS_CAL_REPEATS;
 
     a_params->ampl.splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
-    a_params->time_local.min_N = 50;
-    a_params->time_local.max_repeats = 10000;
-    a_params->time_global.num_cycle = 1000;
+    a_params->time_local.min_N = DRS_CAL_MIN_N_DEFAULT;
+    a_params->time_local.max_repeats = DRS_CAL_MAX_REPEATS_DEFAULT;
+    a_params->time_global.num_cycle = DRS_CAL_NUM_CYCLE_DEFAULT;
 }
 
 #define CAL_FILE_MAGIC   0x877BA4E1
@@ -677,5 +738,6 @@ int drs_cal_load(const char * a_file_path)
     for(unsigned i = 0; i < DRS_COUNT; i++)
       fread(&g_drs[i].coeffs , sizeof (g_drs[i].coeffs),1, f);
     fclose(f);
+    log_it(L_NOTICE, "Loaded calibration params from %s", a_file_path);
     return 0;
 }

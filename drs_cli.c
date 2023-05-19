@@ -73,15 +73,15 @@ int drs_cli_init()
     // Set some vars
     dap_cli_server_cmd_add ("set", s_cli_set, "Установить значение для параметра DRS",
                             "\n"
-                            "set mode -drs <Номер DRS> -mode <Режим>"
+                            "set mode -drs <Номер DRS> -mode <Режим>\n"
                             "\t Установить режим работы DRS\n"
                             "\t Возможные режимы: SOFT_START,EXT_START,PAGE_MODE,CAL_AMPL,CAL_TIME,OFF_INPUTS\n"
                             "\n"
-                            "set dac shifts <DAC shifts lists>"
+                            "set dac shifts <DAC shifts lists>\n"
                             "\t Установить смещения АЦП в виде списка через запятую\n"
                             "\n"
-                            "set flag_end_read -drs <Номер DRS>"
-                            "\t Установить флаг завершения чтения"
+                            "set flag_end_read -drs <Номер DRS>\n"
+                            "\t Установить флаг завершения чтения\n"
                             ""
                             );
 
@@ -97,20 +97,32 @@ int drs_cli_init()
     // Get raw data
     dap_cli_server_cmd_add ("read", s_callback_read, "Читает данные",
                             "\n"
-                            "read write_ready [-drs <DRS num>]"
-                            "\t Проверка на флаг готовности к записи"
+                            "read write_ready [-drs <DRS num>]\n"
+                            "\t Проверка на флаг готовности к записи\n"
                             "\n"
-                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-page <Номер страницы>] [-apply AMPL,TIMER_LOCAL,TIMER_GLOBAL]"
-                            "\t Читает данные из указанной ДРС. Для внешнего запуска так же можно указать номер страницы (1 по умолчанию)"
+                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-page <Номер страницы>] [-apply <флаги>]\n"
+                            "\t Читает данные из указанной ДРС. Для внешнего запуска так же можно указать номер страницы (1 по умолчанию)\n"
+                            "\t В случае указания флагов(через запятую) с параметром -apply комманда выводит значения с плавающей точкой. Доступные флаги применения:\n"
+                            "\t  CELLS         Амплитудная калибровка\n"
+                            "\t  INTERCHANNEL  Межканальная калибровка\n"
+                            "\t  SPLASHS       Удаление всплесков\n"
+                            "\t  ROTATE        Разворот данных\n"
+                            "\t  PHYS          Приведение к физическим величинам\n"
+                            "\t  CH9_ONLY      Только 9ый канал\n"
                             "\n"
-                            "read status [-drs <Номер DRS>] "
-                            "\t Показывает текущий статус чтения, завершено ли и сколько страницов"
+                            "read x -drs <Номер DRS> [-limit <Предельное число ячеек для отображения>] [-start_from <Номер ячейки>] [-apply <флаги>]\n"
+                            "\t Генерирует массив Х и применяет к нему калибровки, если указаны. Возможные флаги калибровки:\n"
+                            "\t TIME_LOCAL   Применение таймерной локальной калибровки\n"
+                            "\t TIME_GLOBAL  Применение таймерной глобальной калибровки\n"
+                            "\t ROTATE       Разворот данных\n"
+                            "\t PHYS         Приведение к физическим величинам\n"
                             "\n"
-                            ""
+                            "read status [-drs <Номер DRS>]\n"
+                            "\t Показывает текущий статус чтения, завершено ли и сколько страницов\n"
+                            "\n"
                             "\n"
                             ""
                             );
-
 
     return 0;
 }
@@ -205,6 +217,7 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
             }
         }
     }
+    dap_strfreev(l_flags_strs);
     //SOFT_START,EXT_START,LOAD_N_RUN,RESET
     drs_start(l_drs_num, l_flags, l_pages);
     dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started #%d with flags 0x%08X (pages %u)"
@@ -225,6 +238,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_NONE =0,
         CMD_WRITE_READY,
         CMD_PAGE,
+        CMD_X,
         CMD_STATUS
     };
     int l_arg_index = 1;
@@ -235,6 +249,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
         l_cmd_num = CMD_WRITE_READY;
     }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "page", NULL)) {
         l_cmd_num = CMD_PAGE;
+    }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "x", NULL)){
+        l_cmd_num = CMD_X;
     }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "status", NULL)) {
         l_cmd_num = CMD_STATUS;
     }
@@ -264,7 +280,75 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                   break;
             }
             *a_str_reply = dap_string_free(l_reply, false);
-        }break;
+        } break;
+        case CMD_X:{
+            //  -drs <Номер DRS>
+            // [-limit <Предельное число ячеек для отображения>]
+            // [-start_from <Номер ячейки>]
+            // [-apply <флаги>]"
+
+            // Максимальное число ячеек для вывода на экран
+              const char * l_limits_str = NULL;
+              size_t l_limits = DRS_CELLS_COUNT;
+              dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-limit",  &l_limits_str);
+              if (l_limits_str)
+                  l_limits = atoi(l_limits_str);
+
+            // Начальный номер ячейки для вывода на экран
+            const char * l_start_from_str = NULL;
+            size_t l_start_from = 0;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-start_from",  &l_start_from_str);
+            if (l_start_from_str)
+                l_start_from = atoi(l_start_from_str);
+
+            // Проверяем, не вышли ли за пределы и возвращаемся в них, если вышли
+            if(l_start_from + l_limits > DRS_CELLS_COUNT )
+                l_limits = DRS_CELLS_COUNT - l_start_from;
+
+            // Применение калибровки
+            const char * l_apply_str = NULL;
+            int l_apply_flags = 0;
+            const size_t c_max_tokens = 100;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-apply",  &l_apply_str);
+            if( l_apply_str){
+                char ** l_apply_flags_strs = dap_strsplit(l_apply_str, ",", c_max_tokens );
+                if (l_apply_flags_strs == NULL){
+                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Apply argument is empty");
+                    return -4;
+                }
+                size_t n =0;
+                for ( n = 0; l_apply_flags_strs[n] && n <= c_max_tokens ; n ++){
+                    char * l_str = l_apply_flags_strs[n];
+                    if (dap_strcmp(l_str,"TIME_LOCAL") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_X_TIME_LOCAL ;
+                    }else if (dap_strcmp(l_str,"TIME_GLOBAL") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_X_TIME_GLOBAL;
+                    }else if (dap_strcmp(l_str,"ROTATE") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_ROTATE;
+                    }else if (dap_strcmp(l_str,"PHYS") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_PHYS;
+                    }
+                }
+                dap_strfreev(l_apply_flags_strs);
+            }
+
+            // Получаем массив Х
+            double * l_x = drs_cal_x_produce(&g_drs[l_drs_num], l_apply_flags);
+
+            // Выводим его
+            dap_string_t* l_reply = dap_string_new("");
+            dap_string_append_printf(l_reply,"X array for DRS #%d\n", l_drs_num);
+            for (size_t t = 0; t < l_limits; t++){
+                dap_string_append_printf(l_reply, "%05.02f ", l_x[t + l_start_from]);
+                if ( t % 30 == 0 && t > 0)
+                    dap_string_append_printf(l_reply, "\n");
+            }
+            dap_string_append_printf(l_reply, "\n");
+            *a_str_reply = dap_string_free(l_reply, false);
+
+            DAP_DELETE(l_x);
+
+        } break;
         case CMD_PAGE:{
 
             // Максимальное число ячеек для вывода на экран
@@ -273,6 +357,17 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-limit",  &l_limits_str);
             if (l_limits_str)
                 l_limits = atoi(l_limits_str);
+
+            // Начальный номер ячейки для вывода на экран
+            const char * l_start_from_str = NULL;
+            size_t l_start_from = 0;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-start_from",  &l_start_from_str);
+            if (l_start_from_str)
+                l_start_from = atoi(l_start_from_str);
+
+            // Проверяем, не вышли ли за пределы и возвращаемся в них, если вышли
+            if(l_start_from + l_limits > DRS_CELLS_COUNT )
+                l_limits = DRS_CELLS_COUNT - l_start_from;
 
             // Нумер страницы
             const char * l_page_str = NULL;
@@ -283,9 +378,40 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
 
             // Применение калибровки
             const char * l_apply_str = NULL;
-            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-apply",  &l_page_str);
-            // -apply AMPL,TIMER_LOCAL,TIMER_GLOBAL]
+            int l_apply_flags = 0;
+            const size_t c_max_tokens = 100;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-apply",  &l_apply_str);
+            if( l_apply_str){
+                char ** l_apply_flags_strs = dap_strsplit(l_apply_str, ",", c_max_tokens );
+                if (l_apply_flags_strs == NULL){
+                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Apply argument is empty");
+                    return -4;
+                }
+                size_t n =0;
+                for ( n = 0; l_apply_flags_strs[n] && n <= c_max_tokens ; n ++){
+                    char * l_str = l_apply_flags_strs[n];
+                    if (dap_strcmp(l_str,"CELLS") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_Y_CELLS;
+                    }else if (dap_strcmp(l_str,"INTERCHANNEL") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_Y_INTERCHANNEL;
+                    }else if (dap_strcmp(l_str,"SPLASHS") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_Y_SPLASHS;
+                    }else if (dap_strcmp(l_str,"ROTATE") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_ROTATE;
+                    }else if (dap_strcmp(l_str,"PHYS") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_PHYS;
+                    }else if (dap_strcmp(l_str,"CH9_ONLY") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_CH9_ONLY;
+                    }
+                }
+                dap_strfreev(l_apply_flags_strs);
+            }
 
+            // Флаги чтения данных
+
+            int l_flags_data_read = drs_get_mode(l_drs_num)== DRS_MODE_EXT_START ||
+                                    drs_get_mode(l_drs_num)== DRS_MODE_PAGE_MODE ?
+                                        DRS_OP_FLAG_EXT_START : 0;
 
             if(l_drs_num!=-1){
                 size_t l_buf_size = DRS_CELLS_COUNT * sizeof (unsigned short);
@@ -293,13 +419,23 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
 
                 dap_string_t * l_reply = dap_string_new("");
                 drs_t * l_drs = &g_drs[l_drs_num];
-                int l_ret = drs_data_get_page( l_drs, 0, l_page, l_buf, l_buf_size);
+                int l_ret = drs_data_get_page( l_drs, l_flags_data_read, l_page, l_buf, l_buf_size);
                 if (l_ret == 0){
                     dap_string_append_printf(l_reply,"Page read for DRS #%d\n", l_drs_num);
-                    for (size_t t = 0; t < l_limits; t++){
-                        dap_string_append_printf(l_reply, "0x%04X ", l_buf[t]);
-                        if ( t % 30 == 0)
-                            dap_string_append_printf(l_reply, "\n");
+                    if (l_apply_flags){
+                        double l_y[DRS_CELLS_COUNT];
+                        drs_cal_y_apply(l_drs, l_buf,l_y, l_apply_flags);
+                        for (size_t t = 0; t < l_limits; t++){
+                            dap_string_append_printf(l_reply, "%05.02f ", l_y[t + l_start_from]);
+                            if ( t % 30 == 0 && t > 0)
+                                dap_string_append_printf(l_reply, "\n");
+                        }
+                    }else{
+                        for (size_t t = 0; t < l_limits; t++){
+                            dap_string_append_printf(l_reply, "0x%04X ", l_buf[t + l_start_from]);
+                            if ( t % 30 == 0 && t > 0)
+                                dap_string_append_printf(l_reply, "\n");
+                        }
                     }
                 }else{
                     dap_string_append_printf(l_reply,"ERROR: Page read for DRS #%d returned code %d\n", l_drs_num, l_ret);
@@ -313,14 +449,23 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                     size_t l_buf_size = DRS_CELLS_COUNT * sizeof (unsigned short);
                     unsigned short l_buf[DRS_CELLS_COUNT]={0};
                     drs_t * l_drs = g_drs + n;
-                    int l_ret = drs_data_get_page( l_drs, 0, l_page, l_buf, l_buf_size);
+                    int l_ret = drs_data_get_page( l_drs, l_flags_data_read, l_page, l_buf, l_buf_size);
                     if (l_ret == 0){
                         dap_string_append_printf(l_reply,"Page read for DRS %d\n", n);
-
-                        for (size_t t = 0; t < l_limits; t++){
-                            dap_string_append_printf(l_reply, "%04X ", l_buf[t]);
-                            if ( t % 30 == 0)
-                                dap_string_append_printf(l_reply, "\n");
+                        if (l_apply_flags){
+                            double l_y[DRS_CELLS_COUNT];
+                            drs_cal_y_apply(l_drs, l_buf,l_y, l_apply_flags);
+                            for (size_t t = 0; t < l_limits; t++){
+                                dap_string_append_printf(l_reply, "%05.02f ", l_y[t + l_start_from]);
+                                if ( t % 30 == 0)
+                                    dap_string_append_printf(l_reply, "\n");
+                            }
+                        }else{
+                            for (size_t t = 0; t < l_limits; t++){
+                                dap_string_append_printf(l_reply, "%04X ", l_buf[t + l_start_from]);
+                                if ( t % 30 == 0)
+                                    dap_string_append_printf(l_reply, "\n");
+                            }
                         }
                     }else{
                         dap_string_append_printf(l_reply,"ERROR: Page read for DRS #%d returned code %d\n", l_drs_num, l_ret);
@@ -397,10 +542,7 @@ int dap_cli_server_cmd_parse_list_doubles(char ** a_str_reply,  const char * a_s
     return 0;
 lb_exit:
     if (l_strs){
-        for (; l_strs[n]; n ++){
-            DAP_DELETE(l_strs[n]);
-        }
-        DAP_DELETE(l_strs);
+        dap_strfreev(l_strs);
     }
     return l_retcode;
 }
@@ -443,14 +585,14 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 return -21;
             }
             uint32_t l_flags = 0;
-            unsigned l_min_N = 0;
+            unsigned l_min_N = DRS_CAL_MIN_N_DEFAULT;
             unsigned l_max_repeats = DRS_CAL_MAX_REPEATS_DEFAULT;
-            double l_begin = 0;
-            double l_end = 0;
+            double l_begin = DRS_CAL_BEGIN_DEFAULT;
+            double l_end = DRS_CAL_END_DEFAULT;
             double l_shifts[DRS_DCA_COUNT_ALL] ={};
-            unsigned l_repeats = 0;
-            unsigned l_num_cycle = 0;
-            unsigned l_N = 0;
+            unsigned l_repeats = DRS_CAL_REPEATS;
+            unsigned l_num_cycle = DRS_CAL_NUM_CYCLE_DEFAULT;
+            unsigned l_N = DRS_CAL_N_DEFAULT;
 
             for (size_t i = 0; l_flags_strs[i]; i ++){
                 // Подготавливаем флаги
@@ -461,6 +603,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 if ( dap_strcmp(l_flags_strs[i], "TIME_GLOBAL") == 0)
                     l_flags |= DRS_CAL_FLAG_TIME_GLOBAL;
             }
+            dap_strfreev(l_flags_strs);
 
             // Амплитудная калибровка
             if (l_flags & DRS_CAL_FLAG_AMPL){
@@ -476,49 +619,48 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-shifts",       &l_shifts_str);
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-N", &l_N_str);
 
-                // Проверяем наличие всех аргументов
-                if ( ! (l_repeats_str && l_N_str && l_begin_str && l_end_str && l_shifts_str && l_N_str)  ){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Amplitude arguments is missed, check help for the command");
-                    return -2;
-                }
-
                 // Конвертируем смещения
-
-                if ( (l_ret = dap_cli_server_cmd_parse_list_double(a_str_reply,l_shifts_str,l_shifts,DRS_CHANNELS_COUNT,DRS_CHANNELS_COUNT,NULL)) < 0 ){
-                    return l_ret;
-                }
-
+                if (l_shifts_str)
+                    dap_cli_server_cmd_parse_list_double(a_str_reply,l_shifts_str,l_shifts,DRS_CHANNELS_COUNT,DRS_CHANNELS_COUNT,NULL);
 
                 // конвертируем begin
-                char * l_begin_str_endptr = NULL;
-                l_begin = strtod( l_begin_str, & l_begin_str_endptr);
-                if (l_begin_str_endptr == l_begin_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Begin value \"%s\" can't be converted to double", l_begin_str );
-                    return -26;
+                if (l_begin_str){
+                    char * l_begin_str_endptr = NULL;
+                    l_begin = strtod( l_begin_str, & l_begin_str_endptr);
+                    if (l_begin_str_endptr == l_begin_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "Begin value \"%s\" can't be converted to double", l_begin_str );
+                        return -26;
+                    }
                 }
 
                 // конвертируем end
-                char * l_end_str_endptr = NULL;
-                l_end = strtod( l_end_str, & l_end_str_endptr);
-                if (l_end_str_endptr == l_end_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "End value \"%s\" can't be converted to double", l_end_str );
-                    return -27;
+                if (l_end_str){
+                    char * l_end_str_endptr = NULL;
+                    l_end = strtod( l_end_str, & l_end_str_endptr);
+                    if (l_end_str_endptr == l_end_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "End value \"%s\" can't be converted to double", l_end_str );
+                        return -27;
+                    }
                 }
 
                 // конвертируем repeats
-                char * l_repeats_str_endptr = NULL;
-                l_repeats = strtoul( l_repeats_str, & l_repeats_str_endptr, 10);
-                if (l_repeats_str_endptr == l_repeats_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Repeats value \"%s\" can't be converted to unsigned integer", l_repeats_str );
-                    return -28;
+                if(l_repeats_str){
+                    char * l_repeats_str_endptr = NULL;
+                    l_repeats = strtoul( l_repeats_str, & l_repeats_str_endptr, 10);
+                    if (l_repeats_str_endptr == l_repeats_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "Repeats value \"%s\" can't be converted to unsigned integer", l_repeats_str );
+                        return -28;
+                    }
                 }
 
                 // конвертируем N
-                char * l_N_str_endptr = NULL;
-                l_N = strtoul( l_N_str, & l_N_str_endptr, 10);
-                if (l_N_str_endptr == l_N_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "levels_count value \"%s\" can't be converted to unsigned integer", l_N_str );
-                    return -31;
+                if( l_N_str ){
+                    char * l_N_str_endptr = NULL;
+                    l_N = strtoul( l_N_str, & l_N_str_endptr, 10);
+                    if (l_N_str_endptr == l_N_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "levels_count value \"%s\" can't be converted to unsigned integer", l_N_str );
+                        return -31;
+                    }
                 }
             }
 
@@ -530,19 +672,22 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 char * l_tmp_endptr = NULL;
 
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-min_N",        &l_min_N_str);
-
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-max_repeats",        &l_max_repeats_str);
-                l_min_N = strtoul( l_min_N_str, & l_tmp_endptr, 10);
-                if (l_tmp_endptr == l_min_N_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "MinN value \"%s\" can't be converted to unsigned integer", l_min_N_str );
-                    return -29;
+
+
+                if(l_min_N_str){
+                    l_min_N = strtoul( l_min_N_str, & l_tmp_endptr, 10);
+                    if (l_tmp_endptr == l_min_N_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "MinN value \"%s\" can't be converted to unsigned integer", l_min_N_str );
+                        return -29;
+                    }
                 }
-
-                dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-max_repeats",        &l_max_repeats_str);
-                l_max_repeats = strtoul( l_max_repeats_str, & l_tmp_endptr, 10);
-                if (l_tmp_endptr == l_max_repeats_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "max repeats value \"%s\" can't be converted to unsigned integer", l_max_repeats_str );
-                    return -29;
+                if (l_max_repeats_str) {
+                    l_max_repeats = strtoul( l_max_repeats_str, & l_tmp_endptr, 10);
+                    if (l_tmp_endptr == l_max_repeats_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "max repeats value \"%s\" can't be converted to unsigned integer", l_max_repeats_str );
+                        return -29;
+                    }
                 }
 
             }
@@ -550,12 +695,14 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             if (l_flags & DRS_CAL_FLAG_TIME_GLOBAL){
                 const char * l_num_cycle_str = NULL;
                 dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-num_cycle",    &l_num_cycle_str);
-                // конвертируем num_cycle
-                char * l_num_cycle_str_endptr = NULL;
-                l_num_cycle = strtoul( l_num_cycle_str, & l_num_cycle_str_endptr, 10);
-                if (l_num_cycle_str_endptr == l_num_cycle_str){
-                    dap_cli_server_cmd_set_reply_text(a_str_reply, "num_cycle value \"%s\" can't be converted to unsigned integer", l_num_cycle_str );
-                    return -30;
+                if(l_num_cycle_str){
+                    // конвертируем num_cycle
+                    char * l_num_cycle_str_endptr = NULL;
+                    l_num_cycle = strtoul( l_num_cycle_str, & l_num_cycle_str_endptr, 10);
+                    if (l_num_cycle_str_endptr == l_num_cycle_str){
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "num_cycle value \"%s\" can't be converted to unsigned integer", l_num_cycle_str );
+                        return -30;
+                    }
                 }
             }
 
@@ -574,6 +721,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                     .max_repeats = l_max_repeats
                 }
             };
+
             l_params.ampl.levels[0] = l_begin;
             l_params.ampl.levels[1] = l_end;
             memcpy(l_params.ampl.levels+2, l_shifts,sizeof (l_params.ampl.levels)-2 *sizeof(double) );

@@ -40,6 +40,7 @@ size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX]={
     [CMD_FF]                  = 1 * sizeof(uint32_t),
     [CMD_GET_SHIFT]           = 1 * sizeof(uint32_t),
     [CMD_START]               = 3 * sizeof(uint32_t),
+    [CMD_READ_STATUS_N_PAGE]  = 1 * sizeof(uint32_t),
 
     [CMD_CALIBRATE_ABORT ]         = 1 * sizeof(uint32_t),
     [CMD_CALIBRATE_RESULTS ]       = 1 * sizeof(uint32_t),
@@ -50,11 +51,12 @@ size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX]={
 #define MAX_PAGE_COUNT 1000
 //#define SIZE_FAST MAX_PAGE_COUNT*1024*8*8
 static int s_read_y_flags_add = 0;
+static bool s_debug_more = true ;
 
 void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* a_cmd_args)
 {
     uint32_t l_addr = 0, l_value = 0;
-    log_it(L_DEBUG, "---=== Proto cmd 0x%08X ===---", a_cmd);
+    debug_if(s_debug_more && a_cmd != CMD_CALIBRATE_PROGRESS , L_INFO, "---=== Proto cmd 0x%08X ===---", a_cmd);
     switch( a_cmd ) {
         case CMD_IDLE:
             log_it(L_NOTICE, "Client sent idle command, do nothing");
@@ -210,6 +212,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 l_flags |= DRS_CAL_FLAG_TIME_LOCAL;
             if ( a_cmd_args[1] & 4)
                 l_flags |= DRS_CAL_FLAG_TIME_GLOBAL;
+            log_it(L_DEBUG,"Запуск калибровки c флагами 0x%08X", l_flags);
 
             int l_ret = drs_calibrate_run(l_drs_num,l_flags, &l_params);
             dap_events_socket_write_unsafe(a_es, &l_ret, sizeof(l_ret));
@@ -292,33 +295,46 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             a_cmd_args[1]- число страниц для чтения
             a_cmd_args[2]- флаги
             */
-            int a_drs_num = a_cmd_args[0];
+            int l_drs_num = a_cmd_args[0];
+            int l_pages_num = a_cmd_args[1];
+
+            if (l_pages_num > DRS_PAGE_COUNT_MAX){
+                log_it(L_ERROR, "Too many pages(%d) required, maximum %d",l_pages_num, DRS_PAGE_COUNT_MAX );
+                break;
+            }
 
             // TODO убрать после исправлений бага в Ui
             // тут мы просто отфильтровываем корректные флаги
-            int l_flags =  a_cmd_args[2]|DRS_CAL_ROTATE ;
-            if(a_drs_num <0 || a_drs_num >=DRS_COUNT){
-                log_it(L_ERROR, "Can't get DRS #%d", a_drs_num);
+            int l_flags_apply =  a_cmd_args[2];//|DRS_CAL_APPLY_Y_EQUALIZE ;
+            if (l_flags_apply & DRS_CAL_APPLY_Y_CELLS)
+                l_flags_apply |= DRS_CAL_APPLY_Y_EQUALIZE;
+
+            int l_flags_data_read = drs_get_mode(l_drs_num)== DRS_MODE_EXT_START ||
+                                    drs_get_mode(l_drs_num)== DRS_MODE_PAGE_MODE ?
+                                        DRS_OP_FLAG_EXT_START : 0;
+
+            if(l_drs_num <0 || l_drs_num >=DRS_COUNT){
+                log_it(L_ERROR, "Can't get DRS #%d", l_drs_num);
                 break;
             }
-            drs_t * l_drs = g_drs + a_drs_num;
+            drs_t * l_drs = g_drs + l_drs_num;
 
             l_value=4*(1+((a_cmd_args[3]&24)!=0));
             log_it(L_INFO, "Read Y cmd: drs_num=%u,npages=%u,flags=0x%08X (%d )",
-                   a_cmd_args[0],a_cmd_args[1],l_flags, l_flags);
+                   a_cmd_args[0],a_cmd_args[1],l_flags_apply, l_flags_apply);
 
             unsigned short *l_buf = DAP_NEW_STACK_SIZE(unsigned short,DRS_CELLS_COUNT*sizeof(unsigned short));
 
-            //if((a_cmd_args[1]&1)==1 || true){//soft start
-            drs_data_get_all( l_drs, s_read_y_flags_add , l_buf);
-            /*}else{
+            if( a_cmd_args[1]==1 ){//soft start
+                drs_data_get_all( l_drs, s_read_y_flags_add | l_flags_data_read , l_buf);
+            }else{
                 drs_set_num_pages(l_drs, 1);
-                drs_read_pages(l_drs, a_cmd_args[1] | s_read_y_flags_add, l_value* 8192, l_buf, DRS_CELLS_COUNT*sizeof(unsigned short));
-            }*/
+                drs_read_pages(l_drs, a_cmd_args[1], 1, l_buf, DRS_CELLS_COUNT*sizeof(unsigned short));
+            }
 
-            double * l_out = DAP_NEW_Z_SIZE(double, DRS_CELLS_COUNT * sizeof (double));
-            drs_cal_y_apply(l_drs, l_buf, l_out ,l_flags );
-            drs_proto_out_add_mem(DRS_PROTO(a_es), l_out,  DRS_CELLS_COUNT * sizeof (double),  DRS_PROTO_DATA_MEM_FREE_AFTER );
+            double * l_out = DAP_NEW_Z_SIZE(double, DRS_CELLS_COUNT * sizeof (double)* l_pages_num);
+            drs_cal_y_apply(l_drs, l_buf, l_out ,l_flags_apply );
+            drs_proto_out_add_mem(DRS_PROTO(a_es), l_out,  DRS_CELLS_COUNT * sizeof (double) * l_pages_num,  DRS_PROTO_DATA_MEM_FREE_AFTER );
 
         }break;
 
@@ -337,12 +353,8 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             }
             drs_t * l_drs = g_drs + a_drs_num;
 
-            double * l_data_x = DAP_NEW_SIZE(double, DRS_CELLS_COUNT_CHANNEL*sizeof(double) );
+            double * l_data_x = drs_cal_x_produce(l_drs, l_flags);
 
-            for (unsigned n =0; n <DRS_CELLS_COUNT_CHANNEL; n++){
-                l_data_x[n] = n;
-            }
-            drs_cal_x_apply(l_drs, l_data_x ,l_flags);
             drs_proto_out_add_mem(DRS_PROTO(a_es), l_data_x,  DRS_CELLS_COUNT_CHANNEL*sizeof(double) , DRS_PROTO_DATA_MEM_FREE_AFTER);
 
             log_it(L_INFO, "X array requested, apply flags 0x%08X, x[0]=%.4f, x[1]=%.4f, x[2]=%.4f, x[3]=%.4f, x[4]=%.4f ",
@@ -399,6 +411,11 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             //a_cmd_args[2] - pages
             switch(a_cmd_args[1]){
                 case 0: //00 - page mode and read (N page)
+                    log_it(L_NOTICE,"Page mode and read");
+                    drs_set_mode(l_drs_num, DRS_MODE_PAGE_MODE);
+                    drs_start(l_drs_num, DRS_CMD_LOAD_N_RUN | DRS_CMD_EXT_START, a_cmd_args[2]);
+
+                    /*
                     drs_set_num_pages(l_drs, a_cmd_args[2]);
                     log_it(L_DEBUG, "write: adr=0x%08x, val=0x%08x\n", 0x00000025, a_cmd_args[2]);
                     setSizeSamples(a_cmd_args[2]*1024);
@@ -408,6 +425,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                     usleep(100);
                     drs_reg_write(0x00000027, 1);  //external enable
                     log_it(L_DEBUG, "write: adr=0x%08x, val=0x%08x\n", 0x00000027, 1);
+                    */
                 break;
                 case 1: //01 - soft start and read (one page)
                     log_it(L_DEBUG, "01 - soft start and read (one page)\n");
@@ -449,13 +467,15 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             dap_events_socket_write_unsafe(a_es, &l_value, sizeof(l_value));
         }break;
         case CMD_READ_STATUS_N_PAGE:{ //read status and page
+            int l_drs_num = a_cmd_args[0];
+
             //нужно подправить!!!
             struct fast_compile {
-                uint32_t fast_complite;
+                uint32_t complite;
                 uint32_t pages;
             } DAP_ALIGN_PACKED l_reply = {
-                .fast_complite = drs_reg_read(0x00000031),//fast complite
-                .pages = drs_reg_read(0x0000003D),//num of page complite
+                .complite = drs_reg_read(DRS_REG_WAIT_DRS_A + l_drs_num),//fast complite
+                .pages = drs_reg_read(DRS_REG_NPAGES_DRS_A+ l_drs_num),//num of page complite
             };
             //printf("fast complite: %d, num page complite: %d, slow complite %d\n", a_cmd_args[0], a_cmd_args[1], a_cmd_args[2]),fflush(stdout);
             dap_events_socket_write_unsafe(a_es, &l_reply, sizeof(l_reply));

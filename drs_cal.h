@@ -13,6 +13,7 @@
 #include "drs.h"
 
 typedef struct{
+
     // Амплитудная калибровка
     struct {
         unsigned repeats; // (N) количество проходов амплитудной калибровки для каждого уровня цапов
@@ -72,13 +73,17 @@ typedef struct{
 // Временная глобальная калибровка
 #define DRS_CAL_APPLY_X_TIME_GLOBAL  BIT(9)
 
+// Выровнять итоговые результаты
+#define DRS_CAL_APPLY_Y_EQUALIZE  BIT(29)
 // Развернуть итоговые результаты
-#define DRS_CAL_ROTATE  BIT(30)
+#define DRS_CAL_APPLY_ROTATE  BIT(30)
 // приведение к физическим величинам
-#define DRS_CAL_APPLY_PHYS  BIT(31)
+#define DRS_CAL_APPLY_PHYS  BIT(28)
 
 // Только 9ый канал
 #define DRS_CAL_APPLY_CH9_ONLY           BIT(31)
+
+extern struct drs_cal_apply_flags{ const char* brief; const char * descr;} g_drs_cal_apply_to_str[];
 
 #define dap_string_append_array(a_reply, a_name, a_fmt, a_array, a_limits )\
     {\
@@ -114,8 +119,12 @@ int drs_calibrate_abort(int a_drs_num);
 int drs_cal_save(const char * a_file_path);
 int drs_cal_load(const char * a_file_path);
 
-void drs_cal_x_apply(drs_t * a_drs, double*a_x, int a_flags);
+double* drs_cal_x_produce(drs_t * a_drs, int a_flags);
+double * drs_cal_y_produce(drs_t * a_drs,int a_flags);
+
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *buffer,double *dBuf, int a_flags);
+
+int drs_cal_y_ch_equalize(drs_t * a_drs, const double *a_y_in, double * a_y_out, double a_avg_level);
 
 void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_state,unsigned a_limits, int a_flags );
 

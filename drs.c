@@ -50,10 +50,12 @@ drs_dac_ch_params_t g_ini_ch9;
 
 drs_t g_drs[DRS_COUNT]={
     [0]={
-        .id = 0
+        .id = 0,
+        .avr_level = 8182.0,
     },
     [1]={
-        .id = 1
+        .id = 1,
+        .avr_level = 8182.0,
     }
 };
 enum drs_freq g_current_freq=DRS_FREQ_5GHz;

@@ -79,6 +79,14 @@ int drs_cal_time_global( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fas
     }
 }
 
+/**
+ * @brief s_y_idx
+ * @param n
+ * @param b
+ */
+static inline unsigned s_y_idx(unsigned n, unsigned b){
+  return n + b*DRS_CELLS_COUNT_BANK;
+};
 
 /**
  * @brief drs_cal_time_global_apply  Применяет амплитудную калибровку к данным
@@ -91,13 +99,17 @@ void drs_cal_time_global_apply( drs_t * a_drs,  double *a_in,   double *a_out )
     double tmpX = 0.0;
     a_in[0]=0.0;
     for(unsigned b=0;b<DRS_CHANNEL_BANK_COUNT ;b++){
-        for(unsigned n=0, pz;n< DRS_CELLS_COUNT_BANK;n++){
+        for(unsigned n=0, pz_bank, pz;n< DRS_CELLS_COUNT_BANK;n++){
             //pz = ( a_drs->shift + n)&1023;
             pz = n + b*DRS_CELLS_COUNT_BANK;
-            if(!( n == 0 && b==0 ))
-              tmpX += (a_out[n + b*DRS_CELLS_COUNT_BANK] - a_out[ (n-1) + b*DRS_CELLS_COUNT_BANK])*
-                                        a_drs->coeffs.kTime[ pz ];
-            a_in[n + b*DRS_CELLS_COUNT_BANK]=tmpX;
+            pz_bank = pz & 1023;
+            if( n == 0 && b == 0)
+                tmpX = 0.0;
+            else if(n == 0 && b != 0)
+                tmpX += (a_out[s_y_idx(n,b)] - a_out[s_y_idx(DRS_CELLS_COUNT_BANK-1,b-1)])* a_drs->coeffs.kTime[ pz_bank ];
+            else
+                tmpX += (a_out[s_y_idx(n,b)] - a_out[s_y_idx(n-1,b)])* a_drs->coeffs.kTime[ pz_bank ];
+            a_in[n + b*DRS_CELLS_COUNT_BANK] = tmpX;
         }
     }
 }
@@ -139,14 +151,13 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     drs_set_sinus_signal(true);
 
     for( unsigned i = 0; i < a_args->param.time_global.num_cycle; i++){
-        int l_ret = drs_data_get(a_drs,0, l_y_raw,sizeof (l_y_raw) );
+        int l_ret = drs_data_get(a_drs,DRS_OP_FLAG_ROTATE, l_y_raw,sizeof (l_y_raw) );
         if ( l_ret != 0){
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
             drs_set_sinus_signal(false);
             drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
         }
-        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS |
-                                                   DRS_CAL_APPLY_Y_INTERCHANNEL );
+        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS  );
 
         // Заполняем массив X
         for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
@@ -222,14 +233,14 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
     average = drs_ch_get_average(a_y,DRS_CELLS_COUNT_BANK,DRS_CHANNEL_9 );
     // Бежим по ячейкам
     for(unsigned n=0;n< DRS_CELLS_COUNT_BANK && l_count < l_max_period_count; n++){
-        unsigned n2 = n* DRS_CHANNELS_COUNT;
-        if( (average >= l_last_y) && (average < a_y[n2] ) && (n != 0) ) {
+        unsigned n_9idx = n* DRS_CHANNELS_COUNT + DRS_CHANNEL_9;
+        if( (average >= l_last_y) && (average < a_y[n_9idx] ) && (n != 0) ) {
             deltX = a_x[n] - l_last_x;
             if(a_x[n] < l_last_x) {
                 deltX += 1024.0;
             }
 
-            l_period[l_count] = (deltX / (a_y[n2]-l_last_y)) * (average - l_last_y) + l_last_x;
+            l_period[l_count] = (deltX / (a_y[n_9idx]-l_last_y)) * (average - l_last_y) + l_last_x;
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_period[l_count] - l_period[l_count - 1];
             }
@@ -237,7 +248,7 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
             l_count++;
         }
 
-        l_last_y = a_y[n2];
+        l_last_y = a_y[n_9idx];
         l_last_x = a_x[n];
 
         // Обновляем прогресс бар

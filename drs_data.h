@@ -29,7 +29,6 @@ static inline int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_bu
     return drs_data_get_page(a_drs, a_flags,0,a_buffer, a_buffer_size);
 }
 
-
 unsigned int drs_get_shift(unsigned int a_drs_num);
 unsigned int drs_get_shift_bank(unsigned int a_drs_num);
 

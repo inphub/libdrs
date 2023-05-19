@@ -12,9 +12,16 @@
 
 #include "drs_cal.h"
 
+#define DRS_CAL_NUM_CYCLE_DEFAULT 1000
 #define DRS_CAL_MAX_REPEATS_DEFAULT 10000
 #define DRS_CAL_MIN_REPEATS_DEFAULT 2
 #define DRS_CAL_SPLASH_GAUNTLET_DEFAULT 100.0
+#define DRS_CAL_BEGIN_DEFAULT  -0.25
+#define DRS_CAL_END_DEFAULT     0.25
+#define DRS_CAL_N_DEFAULT       100
+#define DRS_CAL_REPEATS         1
+#define DRS_CAL_MIN_N_DEFAULT   50
+
 
 typedef struct drs_calibrate{
     pthread_rwlock_t rwlock;
