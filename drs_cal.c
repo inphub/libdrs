@@ -522,9 +522,9 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         drs_data_rotate(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
     }
 
-    if( a_flags & DRS_CAL_APPLY_Y_EQUALIZE){
-        drs_cal_y_ch_equalize(a_drs, l_out, l_out, a_drs->avr_level);
-    }
+    //if( a_flags & DRS_CAL_APPLY_Y_EQUALIZE){
+    //    drs_cal_y_ch_equalize(a_drs, l_out, l_out, a_drs->avr_level);
+    //}
 }
 
 /**

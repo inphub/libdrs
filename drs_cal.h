@@ -74,7 +74,8 @@ typedef struct{
 #define DRS_CAL_APPLY_X_TIME_GLOBAL  BIT(9)
 
 // Выровнять итоговые результаты
-#define DRS_CAL_APPLY_Y_EQUALIZE  BIT(29)
+//#define DRS_CAL_APPLY_Y_EQUALIZE  BIT(29)
+
 // Развернуть итоговые результаты
 #define DRS_CAL_APPLY_ROTATE  BIT(30)
 // приведение к физическим величинам
