@@ -43,7 +43,7 @@ static const unsigned s_period_max_count[] = {
 
 static bool s_debug_more = false;
 
-static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats);
+static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,unsigned a_iteration, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats);
 
 static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress);
 
@@ -151,7 +151,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     drs_set_sinus_signal(true);
 
     for( unsigned i = 0; i < a_args->param.time_global.num_cycle; i++){
-        int l_ret = drs_data_get(a_drs,DRS_OP_FLAG_ROTATE, l_y_raw,sizeof (l_y_raw) );
+        int l_ret = drs_data_get(a_drs,0, l_y_raw,sizeof (l_y_raw) );
         if ( l_ret != 0){
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
             drs_set_sinus_signal(false);
@@ -165,7 +165,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         }
         drs_cal_time_local_apply(a_drs, l_x, l_x);
 
-        s_collect_stats(a_drs,  a_progress, l_x,l_y, l_sum_delta_ref,l_stats);
+        s_collect_stats(a_drs,  a_progress, i, l_x,l_y, l_sum_delta_ref,l_stats);
     }
 
 
@@ -206,7 +206,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
  * @param a_sum_delta_ref
  * @param a_stats
  */
-static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats)
+static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,unsigned a_iteration, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats)
 {
 
     double average, l_last_x = 0.0 ,l_last_y = 0.0, deltX = 0.0;
@@ -234,7 +234,10 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
     // Бежим по ячейкам
     for(unsigned n=0;n< DRS_CELLS_COUNT_BANK && l_count < l_max_period_count; n++){
         unsigned n_9idx = n* DRS_CHANNELS_COUNT + DRS_CHANNEL_9;
-        if( (average >= l_last_y) && (average < a_y[n_9idx] ) && (n != 0) ) {
+        if( (average >= l_last_y) &&
+            (a_y[n_9idx] >= average) &&
+            (n != 0) ) {
+
             deltX = a_x[n] - l_last_x;
             if(a_x[n] < l_last_x) {
                 deltX += 1024.0;
@@ -245,6 +248,9 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
                 l_period_delt[l_count-1] = l_period[l_count] - l_period[l_count - 1];
             }
             l_indexs[l_count] = a_drs->shift_bank + n;
+            if(l_indexs[l_count] > DRS_CELLS_COUNT_CHANNEL){
+                log_it(L_WARNING,"Wrong index %u, can't be more than %u", l_indexs[l_count],DRS_CELLS_COUNT_CHANNEL );
+            }
             l_count++;
         }
 
@@ -259,9 +265,19 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress, do
 
     // Бежим по подсчитанному количеству
     for(unsigned n = 1; n < l_count; n++) {
-        for(unsigned l = l_indexs[n-1]; l < l_indexs[n]; l++){
-            pz=l&1023;
+        if( l_indexs[n] > l_indexs[n-1] ){
+            for(unsigned l = l_indexs[n-1]; l < l_indexs[n]; l++){
+                if(l_indexs[n] > DRS_CELLS_COUNT_CHANNEL)
+                    log_it(L_WARNING,"Wrong index %u, can't be more than %u", l_indexs[n],DRS_CELLS_COUNT_CHANNEL );
+                pz=l&1023;
 
+                a_sum_delta_ref[pz] += l_period_length / l_period_delt[n-1];
+                a_stats[pz]++;
+                //if( a_stats[pz] == a_iteration )
+                //    log_it(L_INFO,"Достигли потолка на позиции %u", pz);
+            }
+        }else if( l_indexs[n] == l_indexs[n-1] ){
+            pz=l_indexs[n]&1023;
             a_sum_delta_ref[pz] += l_period_length / l_period_delt[n-1];
             a_stats[pz]++;
         }

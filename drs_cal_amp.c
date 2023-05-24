@@ -133,13 +133,20 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     l_dac_shifts_old =  drs_dac_shift_input_get_ch9();
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
-    drs_dac_shift_input_set_ch9(l_dac_shifts_old);
 
+    // Собираем данные для 9 канала
+    if( s_fin_collect( a_drs, a_args, true) !=0 ) {
+        log_it(L_INFO, "No success with fin collect");
+        if (a_progress) *a_progress +=5;
 
+        l_ret = -1;
+        goto lb_exit;
+    }
 
     // Выключаем режим калибровки амплитуды
 
     drs_set_mode(a_drs->id, l_mode_old );
+    drs_dac_shift_input_set_ch9(l_dac_shifts_old);
 
     if (a_progress) *a_progress +=10;
     log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p", a_args->param.ampl.repeats
@@ -344,7 +351,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
         l_lvl=calibLvl[0]+dh*t;
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
         drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
-        if (drs_data_get_all(NULL,0, l_cells ) != 0){
+        if (drs_data_get_all(a_drs,0, l_cells ) != 0){
             log_it(L_ERROR,"data not read on iteration %u", t);
             return -1;
         }
@@ -353,9 +360,10 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
             return -2;
         }
         drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS );
+        s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     }
-    s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
+
     for(ch=0;ch<DRS_CHANNELS_COUNT;ch++){
         for(t=0;t<l_count;t++){
             x[t] = (DRS_ADC_VOLTAGE_BASE + calibLvl[0]+dh*t)*DRS_ADC_TOP_LEVEL;

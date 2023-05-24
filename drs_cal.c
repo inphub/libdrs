@@ -413,6 +413,35 @@ static void s_x_to_real(double*x)
 
 
 /**
+ * @brief drs_cal_get_x
+ * @param a_drs
+ * @param a_x
+ * @param a_flags
+ * @return
+ */
+int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags)
+{
+    assert(a_x);
+    assert(a_drs);
+
+    for (unsigned n =0; n <DRS_CELLS_COUNT_CHANNEL; n++){
+        a_x[n] = n;
+    }
+
+    if(a_flags & DRS_CAL_APPLY_X_TIME_LOCAL) {
+        drs_cal_time_local_apply(a_drs, a_x, a_x);
+    }
+    if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
+        drs_cal_time_global_apply(a_drs, a_x,a_x);
+    }
+    if(a_flags & DRS_CAL_APPLY_PHYS) {
+        do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
+    }
+
+    return 0;
+}
+
+/**
  * @brief drs_cal_x_produce
  * @param a_drs
  * @param a_flags
@@ -420,24 +449,12 @@ static void s_x_to_real(double*x)
 double * drs_cal_x_produce(drs_t * a_drs, int a_flags)
 {
     double * l_ret = DAP_NEW_SIZE(double, DRS_CELLS_COUNT_CHANNEL*sizeof(double) );
-
-    if (!l_ret)
+    int l_err;
+    if( (l_err = drs_cal_get_x (a_drs,l_ret, a_flags))!= 0){
+        DAP_DELETE(l_ret);
+        log_it(L_ERROR, "Can't fill X array, code %d", l_err );
         return NULL;
-
-    for (unsigned n =0; n <DRS_CELLS_COUNT_CHANNEL; n++){
-      l_ret[n] = n;
     }
-
-    if(a_flags & DRS_CAL_APPLY_X_TIME_LOCAL) {
-        drs_cal_time_local_apply(a_drs, l_ret, l_ret);
-    }
-    if(a_flags & DRS_CAL_APPLY_X_TIME_GLOBAL) {
-        drs_cal_time_global_apply(a_drs, l_ret,l_ret);
-    }
-    if(a_flags & DRS_CAL_APPLY_PHYS) {
-        do_on_array(l_ret,DRS_CELLS_COUNT_ALL,s_x_to_real);
-    }
-
     return l_ret;
 }
 
@@ -452,6 +469,26 @@ double * drs_cal_x_produce(drs_t * a_drs, int a_flags)
  * unsigned int chanalCount			количество каналов
  * unsigned int a_flags	    		0 бит- применение калибровки для ячеек, 1 бит- межканальная калибровка,2 бит- избавление от всплесков, 3 бит- приведение к физическим виличинам
  * */
+
+int drs_cal_get_y(drs_t * a_drs,double * a_y,unsigned a_page, int a_flags_get, int a_flags_apply)
+{
+    unsigned short l_buf[DRS_CELLS_COUNT];
+    int l_ret;
+    if ( (l_ret = drs_data_get_page(a_drs,a_flags_get,a_page,l_buf,sizeof (l_buf) )) != 0 ){
+        log_it(L_ERROR,"Can't get data from DRS, code %d", l_ret);
+        return l_ret;
+    }
+    drs_cal_y_apply(a_drs,l_buf,a_y,a_flags_apply);
+    return 0;
+}
+
+/**
+ * @brief drs_cal_y_apply
+ * @param a_drs
+ * @param a_in
+ * @param a_out
+ * @param a_flags
+ */
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
 {
     unsigned int l_ch_id,l_cell_id,koefIndex;

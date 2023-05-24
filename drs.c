@@ -63,7 +63,13 @@ void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2,
 
 int g_drs_flags = 0;
 
-static const unsigned int freqREG[]= {480, 240, 160, 120, 100};
+static const unsigned int freqREG[]= {
+  [DRS_FREQ_1GHz]=480,
+  [DRS_FREQ_2GHz]=240,
+  [DRS_FREQ_3GHz]=160,
+  [DRS_FREQ_4GHz]=120,
+  [DRS_FREQ_5GHz]=100
+};
 static const char s_drs_check_file[]="/tmp/drs_init";
 
 static const double c_freq_DRS[]= {

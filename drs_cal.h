@@ -120,6 +120,9 @@ int drs_calibrate_abort(int a_drs_num);
 int drs_cal_save(const char * a_file_path);
 int drs_cal_load(const char * a_file_path);
 
+int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags);
+int drs_cal_get_y(drs_t * a_drs,double * a_y, unsigned a_page, int a_flags_get, int a_flags_apply);
+
 double* drs_cal_x_produce(drs_t * a_drs, int a_flags);
 double * drs_cal_y_produce(drs_t * a_drs,int a_flags);
 
