@@ -16,6 +16,8 @@
 
 #define DRS_OP_FLAG_ROTATE        BIT(3)
 
+#define DRS_OP_FLAG_SOFT_START    BIT(4)
+
 #define DRS_PAGE_READ_SIZE        DRS_CELLS_COUNT *sizeof(unsigned short)
 
 

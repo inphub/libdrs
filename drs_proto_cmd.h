@@ -40,10 +40,13 @@ typedef enum drs_proto_cmd{
 
     CMD_READ_X               = 0xCC, // Read X
     CMD_READ_Y               = 0xCD, // Read Y
+    CMD_READ_READY_Y           = 0xCE, // Read ready flag
+    CMD_WRITE_READ_Y_END       = 0xCF, // Write end of read flag
 
     CMD_SHIFT_DAC_SET      = 0xD , // Set ShiftDAC
     CMD_FF                 = 0xE , // ??? Sends 15 always back
     CMD_GET_SHIFT          = 0xF, //получение массива сдвигов ячеек
+
 
     CMD_START              = 0x10, // старт
     CMD_READ_STATUS_N_PAGE = 0x12 //read status and page
@@ -54,5 +57,12 @@ typedef enum drs_proto_cmd{
 
 extern size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* a_cmd_args);
 
+#ifdef __cplusplus
+}
+#endif

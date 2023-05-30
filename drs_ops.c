@@ -14,32 +14,20 @@
 
 #define LOG_TAG "drs_ops"
 
+static s_debug_more = true;
 /**
  * @brief drs_start
  */
 void drs_start(int a_drs_num, int a_flags, unsigned a_pages_num)
 {
-    if(a_drs_num == -1){
-        drs_reg_write(DRS_REG_CMD_DRS_1, a_flags);
-        drs_reg_write(DRS_REG_CMD_DRS_2, a_flags);
-        if(a_pages_num > 1){
-            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
-            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
-        }
-    }else if (a_drs_num >=0){
-//        drs_reg_write(DRS_REG_CMD_DRS_1 + a_drs_num, a_flags);
-        drs_reg_write(DRS_REG_CMD_DRS_1, a_flags);
-        drs_reg_write(DRS_REG_CMD_DRS_2, a_flags);
-        if( a_pages_num > 1){
-//            drs_reg_write( DRS_REG_NPAGES_MAX_DRS_A + a_drs_num,  a_pages_num);
-            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
-            drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
+    debug_if(s_debug_more, L_INFO,"drs_start() a_flags = 0x%08X", a_flags);
+    drs_cmd( -1, a_flags);
 
-        }
+    if(a_pages_num > 1){
+        drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
+        drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
         log_it(L_DEBUG, "Pages count %u", drs_reg_read(DRS_REG_NPAGES_MAX_DRS_A));
-    }else
-        log_it(L_ERROR, "Wrong DRS num %d", a_drs_num);
-    usleep(20);
+    }
 }
 
 
@@ -105,6 +93,30 @@ bool drs_get_flag_write_ready(int l_drs_num )
             return 0;
     }
 }
+
+/**
+ * @brief drs_data_wait_for_ready
+ * @param a_drs
+ */
+int drs_data_wait_for_ready(drs_t * a_drs)
+{
+    bool l_is_ready = false;
+    bool l_loop = true;
+    unsigned i = 0;
+    while( l_loop ) {
+        l_is_ready = drs_get_flag_write_ready(a_drs->id);
+        if( l_is_ready)
+            break;
+
+        i++;
+        if(i>100){
+            log_it(L_ERROR, "Was waiting for write_ready flag but without success");
+            return -1;
+        }
+    }
+    return 0;
+}
+
 
 /**
  * @brief drs_cmd

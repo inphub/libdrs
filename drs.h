@@ -115,8 +115,8 @@ typedef struct
     uint32_t CLK_PHASE;
     float dac_offsets[4];
     float dac_gains[4];
-    float adc_offsets[4];
-    float adc_gains[4];
+    double adc_offsets[4];
+    double adc_gains[4];
 } DAP_ALIGN_PACKED fastadc_parameter_t;
 
 

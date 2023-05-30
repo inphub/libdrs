@@ -84,10 +84,15 @@ typedef struct drs_proto{
 
 extern const char g_inipath[];
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 int drs_proto_init(dap_server_t * a_server);
 void drs_proto_deinit();
 void drs_proto_out_add_mem(drs_proto_t * a_proto, void * a_data, size_t a_data_size, int a_flags);
 
 void drs_proto_out_add_file(drs_proto_t * a_proto, int a_fd, bool a_close_fd_after);
 
+#ifdef __cplusplus
+}
+#endif

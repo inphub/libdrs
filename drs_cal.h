@@ -76,10 +76,11 @@ typedef struct{
 // Выровнять итоговые результаты
 //#define DRS_CAL_APPLY_Y_EQUALIZE  BIT(29)
 
-// Развернуть итоговые результаты
-#define DRS_CAL_APPLY_ROTATE  BIT(30)
+
 // приведение к физическим величинам
 #define DRS_CAL_APPLY_PHYS  BIT(28)
+// Развернуть итоговые результаты
+#define DRS_CAL_APPLY_NO_ROTATE  BIT(30)
 
 // Только 9ый канал
 #define DRS_CAL_APPLY_CH9_ONLY           BIT(31)
@@ -122,6 +123,9 @@ int drs_cal_load(const char * a_file_path);
 
 int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags);
 int drs_cal_get_y(drs_t * a_drs,double * a_y, unsigned a_page, int a_flags_get, int a_flags_apply);
+
+void drs_cal_set_splash_gauntlet(unsigned a_gauntlet);
+unsigned drs_cal_get_splash_gauntlet();
 
 double* drs_cal_x_produce(drs_t * a_drs, int a_flags);
 double * drs_cal_y_produce(drs_t * a_drs,int a_flags);

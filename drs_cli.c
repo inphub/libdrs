@@ -109,6 +109,7 @@ int drs_cli_init()
                             "\t  ROTATE        Разворот данных\n"
                             "\t  PHYS          Приведение к физическим величинам\n"
                             "\t  CH9_ONLY      Только 9ый канал\n"
+                            "\t  NO_START      не запускать start и не ждать начало и окончание чтения"
                             "\n"
                             "read x -drs <Номер DRS> [-limit <Предельное число ячеек для отображения>] [-start_from <Номер ячейки>] [-apply <флаги>]\n"
                             "\t Генерирует массив Х и применяет к нему калибровки, если указаны. Возможные флаги калибровки:\n"
@@ -176,13 +177,13 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
     if (l_drs_num < 0 ) // Wrong DRS num
         return -1;
 
-    double l_shifts[DRS_DAC_COUNT]={30000,30000};
+    /*double l_shifts[DRS_DAC_COUNT]={30000,30000};
     float l_gains[DRS_DAC_COUNT]= {g_ini->fastadc.dac_gains[l_drs_num*DRS_COUNT],
                                    g_ini->fastadc.dac_gains[l_drs_num*DRS_COUNT + 1]};
     float l_offsets[DRS_DAC_COUNT]={g_ini->fastadc.dac_offsets[l_drs_num*DRS_COUNT],
                                     g_ini->fastadc.dac_offsets[l_drs_num*DRS_COUNT + 1]};
 
-    drs_dac_shift_set_all(l_drs_num, l_shifts,l_gains, l_offsets );
+    drs_dac_shift_set_all(l_drs_num, l_shifts,l_gains, l_offsets );*/
 
 
     //  Парсим флаги запуска ДРСки
@@ -219,6 +220,7 @@ static int s_callback_start(int a_argc, char ** a_argv, char **a_str_reply)
     }
     dap_strfreev(l_flags_strs);
     //SOFT_START,EXT_START,LOAD_N_RUN,RESET
+    drs_set_flag_end_read(l_drs_num, true);
     drs_start(l_drs_num, l_flags, l_pages);
     dap_cli_server_cmd_set_reply_text(a_str_reply,"DRS started #%d with flags 0x%08X (pages %u)"
                                        , l_drs_num, l_flags, l_pages );
@@ -265,7 +267,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
     switch (l_cmd_num){
         case CMD_WRITE_READY:{
                 bool l_flag_ready=drs_get_flag_write_ready(l_drs_num);
-                dap_cli_server_cmd_set_reply_text( a_str_reply, "DRS #%d is %s", l_flag_ready? "ready": "not ready");
+                dap_cli_server_cmd_set_reply_text( a_str_reply, "DRS #%d %s к чтению", l_drs_num, l_flag_ready? "готова": "не готова");
         }break;
         case CMD_STATUS:{
             dap_string_t * l_reply = dap_string_new("DRS read status:\n");
@@ -324,7 +326,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                     }else if (dap_strcmp(l_str,"TIME_GLOBAL") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_X_TIME_GLOBAL;
                     }else if (dap_strcmp(l_str,"ROTATE") == 0 ){
-                        l_apply_flags |= DRS_CAL_APPLY_ROTATE;
+                        l_apply_flags |= DRS_CAL_APPLY_NO_ROTATE;
                     }else if (dap_strcmp(l_str,"PHYS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_PHYS;
                     }
@@ -380,6 +382,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             const char * l_apply_str = NULL;
             int l_apply_flags = 0;
             const size_t c_max_tokens = 100;
+            bool l_no_start = false;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-apply",  &l_apply_str);
             if( l_apply_str){
                 char ** l_apply_flags_strs = dap_strsplit(l_apply_str, ",", c_max_tokens );
@@ -397,11 +400,13 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                     }else if (dap_strcmp(l_str,"SPLASHS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_Y_SPLASHS;
                     }else if (dap_strcmp(l_str,"ROTATE") == 0 ){
-                        l_apply_flags |= DRS_CAL_APPLY_ROTATE;
+                        l_apply_flags |= DRS_CAL_APPLY_NO_ROTATE;
                     }else if (dap_strcmp(l_str,"PHYS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_PHYS;
                     }else if (dap_strcmp(l_str,"CH9_ONLY") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_CH9_ONLY;
+                    }else if (dap_strcmp(l_str,"NO_START") == 0){
+                        l_no_start = true;
                     }
                 }
                 dap_strfreev(l_apply_flags_strs);
@@ -409,9 +414,10 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
 
             // Флаги чтения данных
 
-            int l_flags_data_read = drs_get_mode(l_drs_num)== DRS_MODE_EXT_START ||
+            int l_flags_data_read = l_no_start? 0 :
+                                                drs_get_mode(l_drs_num)== DRS_MODE_EXT_START ||
                                     drs_get_mode(l_drs_num)== DRS_MODE_PAGE_MODE ?
-                                        DRS_OP_FLAG_EXT_START : 0;
+                                        DRS_OP_FLAG_EXT_START : DRS_OP_FLAG_SOFT_START;
 
             if(l_drs_num!=-1){
                 size_t l_buf_size = DRS_CELLS_COUNT * sizeof (unsigned short);

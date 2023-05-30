@@ -552,6 +552,7 @@ void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float
         shiftDACValues[i]=(shiftDACValues[i]*DAC_gain[i]+DAC_offset[i]);
         log_it(L_DEBUG, "shiftDAC[%d]=%f\tshiftDACValues[%d]=%d",i,shiftDAC[i],i,shiftDACValues[i]);
     }
+
     drs_dac_shift_input_set_all(a_drs_num, shiftDACValues);
     drs_dac_set(1);
     usleep(60);

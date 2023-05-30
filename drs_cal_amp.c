@@ -35,7 +35,6 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
 static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned a_repeat_iter, bool a_ch9_only);
 
 static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  struct amp_context * a_ctx, bool a_ch9_only);
-static void s_find_splash(drs_t * a_drs, double*a_Y, double a_lvl, bool a_ch9_only);
 
 static bool s_debug_more = true;
 
@@ -339,7 +338,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     unsigned short l_cells[DRS_CELLS_COUNT];
     double *calibLvl = a_args->param.ampl.levels;
     unsigned int t=0,ch;
-    dh=(calibLvl[1]-calibLvl[0])/(l_count-1);
+    dh=(calibLvl[1]-calibLvl[0])/((double) (l_count-1) );
     if (l_count == 0){
       log_it(L_ERROR, "Repeats %d is wrong, its sum with %d should be not less than 0", a_args->param.ampl.repeats,
              DRS_CAL_MIN_REPEATS_DEFAULT );
@@ -348,7 +347,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     log_it(L_INFO,"--Interchannel calibration--");
 
     for(t=0;t<l_count;t++){
-        l_lvl=calibLvl[0]+dh*t;
+        l_lvl=calibLvl[0]+dh*((double)t);
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
         drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
         if (drs_data_get_all(a_drs,0, l_cells ) != 0){
@@ -359,14 +358,14 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
             log_it(L_ERROR,"shift index went beyond on iteration %u", t);
             return -2;
         }
-        drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS );
-        s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
+        drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );
+        //s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
     }
 
     for(ch=0;ch<DRS_CHANNELS_COUNT;ch++){
         for(t=0;t<l_count;t++){
-            x[t] = (DRS_ADC_VOLTAGE_BASE + calibLvl[0]+dh*t)*DRS_ADC_TOP_LEVEL;
+            x[t] = (DRS_ADC_VOLTAGE_BASE + calibLvl[0]+dh*((double) t) )*DRS_ADC_TOP_LEVEL;
             y[t] = average[DRS_CHANNELS_COUNT*t+ch] - x[t];
         }
         getCoefLine(y,x, l_count, &a_drs->coeffs.chanB[ch],
@@ -503,34 +502,56 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
     }
 }
 
-/**
- * @brief s_find_splash
- * @param a_drs
- * @param Y
- * @param lvl
- */
-static void s_find_splash(drs_t * a_drs, double*a_Y, double a_lvl, bool a_ch9_only)
-{
-    unsigned int * l_splash = a_drs->coeffs.splash;
-    unsigned l_cells_proc_count =  a_ch9_only ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL ;
 
+/**
+ * @brief drs_cal_amp_remove_splash
+ * @param a_drs
+ * @param a_Y
+ * @param a_gauntlet
+ */
+void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_gauntlet)
+{
+    unsigned int l_splash[DRS_CHANNELS_COUNT];
+    unsigned l_cells_proc_count =  DRS_CELLS_COUNT_CHANNEL ;
+    log_it(L_INFO,"Trying to find splashs, gauntlet %f...", a_gauntlet);
+    bool l_found_smth = false;
     for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
         l_splash[ch] = 1024;
         for(unsigned l_cell_id=1;l_cell_id<l_cells_proc_count;l_cell_id++){
 
-            if(absf(a_Y[DRS_IDX(ch,l_cell_id + 1)] - a_Y[DRS_IDX(ch,l_cell_id)])>a_lvl &&
-               absf(a_Y[DRS_IDX(ch,l_cell_id-1)]  - a_Y[DRS_IDX(ch,l_cell_id)])>a_lvl){
-                log_it(L_DEBUG, "find splash for %d channel in %d cell\n",ch,(l_cell_id+ a_drs->shift_bank)&1023);
+            if(absf(a_Y[DRS_IDX(ch,l_cell_id + 1)] - a_Y[DRS_IDX(ch,l_cell_id)])>a_gauntlet &&
+               absf(a_Y[DRS_IDX(ch,l_cell_id-1)]  - a_Y[DRS_IDX(ch,l_cell_id)])>a_gauntlet){
+                log_it(L_NOTICE, "Found splash for %d channel in %d cell\n",ch,(l_cell_id+ a_drs->shift_bank)&1023);
                 l_splash[ch] = ( l_cell_id + a_drs->shift_bank ) & 1023;
+                l_found_smth = true;
                 break;
             }
         }
-        if(   absf(a_Y[DRS_IDX(ch,1)]   - a_Y[DRS_IDX(ch,0)]    ) > a_lvl &&
-              absf(a_Y[DRS_IDX(ch,1023)] - a_Y[DRS_IDX(ch,1022)] ) > a_lvl){
+        if(   absf(a_Y[DRS_IDX(ch,1)]   - a_Y[DRS_IDX(ch,0)]    ) > a_gauntlet &&
+              absf(a_Y[DRS_IDX(ch,1023)] - a_Y[DRS_IDX(ch,1022)] ) > a_gauntlet){
             l_splash[ch] = 0;
-            log_it(L_DEBUG,"find splash for %u channel in %u cell",ch+1,a_drs->shift_bank);
+            l_found_smth = true;
+            log_it(L_NOTICE,"Found splash for %u channel in %u cell",ch+1,a_drs->shift_bank);
         }
     }
-}
+    if(l_found_smth){
+        for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
+            for (unsigned b = 0; b < DRS_CHANNEL_BANK_COUNT ; b++){
+                unsigned l_cell_id = ( l_splash[ch] - a_drs->shift_bank ) & (DRS_CELLS_COUNT_BANK-1 );
+                if((l_cell_id > 0) && (l_cell_id < (DRS_CELLS_COUNT_BANK - 1) )){
+                    a_Y[DRS_IDX_BANK(ch,b,l_cell_id)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id + 1)] + a_Y[DRS_IDX_BANK(ch,b,l_cell_id - 1)]) / 2.0;
+                }
 
+                if(l_cell_id == 0){
+                    a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
+                }
+
+                if(l_cell_id == 1023){
+                    a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
+                }
+            }
+        }
+    }else
+        log_it(L_INFO,"Splashes weren't found");
+}
 

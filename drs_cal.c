@@ -10,6 +10,7 @@
 
 #include <dap_sdk.h>
 #include <dap_common.h>
+#include <dap_config.h>
 #include <dap_string.h>
 #include <dap_time.h>
 #include <dap_file_utils.h>
@@ -58,12 +59,32 @@ struct drs_cal_apply_flags g_drs_cal_apply_to_str[]={
 drs_calibrate_t s_state[DRS_COUNT] = {};
 
 static char * s_cal_file_path = NULL;
+static bool s_debug_more = true;
+static unsigned s_splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
+
 // Поток калибровки
 static void *     s_thread_routine(void * a_arg);
 static inline int s_run           (int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params );
 
 static void       s_x_to_real     (double* x                                                             );
 static void       s_remove_splash (drs_t * a_drs, double* a_Y, bool a_ch9_only                           );
+
+/**
+ * @brief drs_cal_set_splash_gauntlet
+ * @param a_gauntlet
+ */
+void drs_cal_set_splash_gauntlet(unsigned a_gauntlet)
+{
+    s_splash_gauntlet = a_gauntlet;
+}
+
+/**
+ * @brief drs_cal_get_splash_gauntlet
+ */
+unsigned drs_cal_get_splash_gauntlet()
+{
+  return s_splash_gauntlet;
+}
 
 /**
  * @brief s_thread_routine
@@ -170,6 +191,7 @@ int drs_calibrate_init()
     dap_string_append(l_file_coeffs,"/cal_coeffs.bin");
 
     s_cal_file_path = dap_string_free(l_file_coeffs, false);
+    s_debug_more = dap_config_get_item_bool_default(g_config,"debug","drs_cal", false);
     drs_cal_load(s_cal_file_path);
 
     return 0;
@@ -491,6 +513,7 @@ int drs_cal_get_y(drs_t * a_drs,double * a_y,unsigned a_page, int a_flags_get, i
  */
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
 {
+    debug_if(s_debug_more, L_INFO, "drs_cal_y_apply() a_flags = 0x%08X", a_flags);
     unsigned int l_ch_id,l_cell_id,koefIndex;
 
     // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
@@ -504,7 +527,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     //double  **l_ki = a_drs->coeffs.k;
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
-    bool l_need_to_rotate =  a_flags & DRS_CAL_APPLY_ROTATE && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY));
+    bool l_need_to_rotate =  (! (a_flags & DRS_CAL_APPLY_NO_ROTATE) ) && (!(a_flags & DRS_CAL_APPLY_CH9_ONLY));
     double * l_out = l_need_to_rotate ?
           DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
@@ -537,10 +560,17 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             }
 
             if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
-                l_out[l_inout_id] = (l_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id] ) / a_drs->coeffs.chanK[l_ch_id];
+                l_out[l_inout_id] -=  a_drs->coeffs.chanB[l_ch_id] +  (DRS_ADC_TOP_LEVEL/2.0 ) * (a_drs->coeffs.chanK[l_ch_id] );
             }
+
+            //if((key&2)!=0)
+            //{
+            //  dBuf[k*chanalCount+j]-=coef->chanB[j]+coef->chanK[j]*average[j];
+            //}
+
+
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
-                l_out[l_inout_id]=(l_out[l_inout_id] - g_ini->fastadc.adc_offsets[l_ch_id])/g_ini->fastadc.adc_gains[l_ch_id];
+                l_out[l_inout_id]=(l_out[l_inout_id] + g_ini->fastadc.adc_offsets[l_ch_id]) * g_ini->fastadc.adc_gains[l_ch_id];
             }
 
         }
@@ -549,7 +579,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     }
     if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
     {
-        s_remove_splash(a_drs, l_out, a_flags & DRS_CAL_APPLY_CH9_ONLY);
+        drs_cal_amp_remove_splash(a_drs, l_out, drs_cal_get_splash_gauntlet() );
     }
 
     // Разворачиваем всё вместе
@@ -661,32 +691,6 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
     pthread_rwlock_unlock(&l_cal_pvt->rwlock);
 }
 
-
-/**
- * @brief s_remove_splash
- * @param Y
- * @param shift
- * @param coef
- */
-static void s_remove_splash(drs_t * a_drs, double* a_Y, bool a_ch9_only)
-{
-    for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
-        for (unsigned b = 0; a_ch9_only ? b == 0 : b < DRS_CHANNEL_BANK_COUNT ; b++){
-            unsigned l_cell_id = ( a_drs->coeffs.splash[ch] - a_drs->shift_bank + DRS_CELLS_COUNT_BANK - 1) & (DRS_CELLS_COUNT_BANK-1 );
-            if((l_cell_id > 0) && (l_cell_id < (DRS_CELLS_COUNT_BANK - 1) )){
-                a_Y[DRS_IDX_BANK(ch,b,l_cell_id)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id + 1)] + a_Y[DRS_IDX_BANK(ch,b,l_cell_id - 1)]) / 2.0;
-            }
-
-            if(l_cell_id == 0){
-                a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
-            }
-
-            if(l_cell_id == 1023){
-                a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
-            }
-        }
-    }
-}
 
 /**
  * @brief drs_calibrate_params_set_defaults

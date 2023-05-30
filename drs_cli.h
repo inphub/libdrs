@@ -7,5 +7,13 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int drs_cli_init();
 void drs_cli_deinit();
+
+#ifdef __cplusplus
+}
+#endif
