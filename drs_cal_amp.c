@@ -36,7 +36,7 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
 
 static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  struct amp_context * a_ctx, bool a_ch9_only);
 
-static bool s_debug_more = true;
+static bool s_debug_more = false;
 
 /**
  * @brief drs_cal_amp
@@ -96,8 +96,8 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     unsigned l_dac_shifts_old =  drs_dac_shift_input_get(a_drs->id);
 
     drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
-    log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, mode_old=%d",a_args->param.ampl.repeats ,
-           l_levels[0], l_levels[1], l_mode_old);
+    log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, mode_old=%d, dac_shifts_old=0x%08X",a_args->param.ampl.repeats ,
+           l_levels[0], l_levels[1], l_mode_old, l_dac_shifts_old);
 
 
     drs_set_sinus_signal(false); // Выключаяем сигнал синусоиды
@@ -129,7 +129,6 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     log_it(L_NOTICE, "Calibrate 9 channel");
     // Калибруем 9ый канал
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
-    l_dac_shifts_old =  drs_dac_shift_input_get_ch9();
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
 
@@ -145,11 +144,14 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     // Выключаем режим калибровки амплитуды
 
     drs_set_mode(a_drs->id, l_mode_old );
-    drs_dac_shift_input_set_ch9(l_dac_shifts_old);
+    drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
     if (a_progress) *a_progress +=10;
-    log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, shifts=%p", a_args->param.ampl.repeats
-           , l_levels[0], l_levels[1], l_shifts);
+
+    l_dac_shifts_old = drs_dac_shift_input_get(a_drs->id);
+
+    log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, dac_shifts=%08X", a_args->param.ampl.repeats
+           , l_levels[0], l_levels[1], l_dac_shifts_old);
 
     a_drs->coeffs.indicator|=1;
     if (a_progress) *a_progress +=10;
@@ -157,7 +159,6 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     return l_ret;
 lb_exit:
     drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
-
     drs_dac_shift_input_set( a_drs->id, l_dac_shifts_old);
     return l_ret;
 
@@ -235,7 +236,7 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
         }else{
             double shiftDACValues[DRS_CHANNELS_COUNT ];
             fill_array(shiftDACValues, &lvl, DRS_CHANNELS_COUNT, sizeof(lvl));
-            drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+            drs_dac_shift_set_quants(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
         }
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
@@ -291,9 +292,10 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
     log_it(L_NOTICE,"Collected coeficients in %u repeats",l_repeats);
 
     // Восстанавливаем уровни
-    //lvl = (calibLvl[1]-calibLvl[0])/2.0 + calibLvl[0];
-    //fill_array(shiftDACValues, &lvl, DRS_DAC_COUNT, sizeof(lvl));
-    //drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+//    double shiftDACValues[DRS_CHANNELS_COUNT ];
+//    lvl = (calibLvl[1]-calibLvl[0])/2.0 + calibLvl[0];
+//    fill_array(shiftDACValues, &lvl, DRS_DAC_COUNT, sizeof(lvl));
+//    drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
 
 lb_exit:
     // Очищаем буфер с результатами постраничного чтения
@@ -349,7 +351,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     for(t=0;t<l_count;t++){
         l_lvl=calibLvl[0]+dh*((double)t);
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
-        drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
+        drs_dac_shift_set_quants(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
         if (drs_data_get_all(a_drs,0, l_cells ) != 0){
             log_it(L_ERROR,"data not read on iteration %u", t);
             return -1;
@@ -375,7 +377,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     // Restore levels
     l_lvl = 0.0;
     fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
-    drs_dac_shift_set_all(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
+    drs_dac_shift_set_quants(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
 
     return 0;
 }

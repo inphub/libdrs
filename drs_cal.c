@@ -560,7 +560,8 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             }
 
             if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
-                l_out[l_inout_id] -=  a_drs->coeffs.chanB[l_ch_id] +  (DRS_ADC_TOP_LEVEL/2.0 ) * (a_drs->coeffs.chanK[l_ch_id] );
+                //l_out[l_inout_id] -=  a_drs->coeffs.chanB[l_ch_id] +  (DRS_ADC_TOP_LEVEL/2.0 ) * (a_drs->coeffs.chanK[l_ch_id] );
+                l_out[l_inout_id] =  (l_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id])/( a_drs->coeffs.chanK[l_ch_id] )+  (DRS_ADC_TOP_LEVEL/2.0 );
             }
 
             //if((key&2)!=0)
@@ -652,19 +653,19 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
             dap_string_append_array(a_reply, "deltaTimeRef", "%f", l_params->deltaTimeRef, a_limits);
 
         if ( a_flags & DRS_COEF_CHAN_K )
-            dap_string_append_array(a_reply, "chanK", "%f", l_params->chanK, a_limits);
+            dap_string_append_array(a_reply, "chanK", "%lf", l_params->chanK, a_limits);
 
         if ( a_flags & DRS_COEF_CHAN_B )
-            dap_string_append_array(a_reply, "chanB", "%f", l_params->chanB, a_limits);
+            dap_string_append_array(a_reply, "chanB", "%lf", l_params->chanB, a_limits);
 
         if ( a_flags & DRS_COEF_K_TIME )
-            dap_string_append_array(a_reply, "kTime", "%f", l_params->kTime, a_limits);
+            dap_string_append_array(a_reply, "kTime", "%lf", l_params->kTime, a_limits);
 
         if ( a_flags & DRS_COEF_K ){
             char l_str[128];
             for(unsigned c = 0; c< DRS_CHANNELS_COUNT; c++){
                 snprintf(l_str, sizeof(l_str),"k[%u]", c);
-                dap_string_append_array(a_reply, l_str, "%f", l_params->k[c], a_limits);
+                dap_string_append_array(a_reply, l_str, "%lf", l_params->k[c], a_limits);
             }
         }
 
@@ -672,15 +673,15 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
             char l_str[128];
             for(unsigned c = 0; c< DRS_CHANNELS_COUNT; c++){
                 snprintf(l_str, sizeof(l_str),"b[%u]", c);
-                dap_string_append_array(a_reply, l_str, "%f", l_params->b[c], a_limits);
+                dap_string_append_array(a_reply, l_str, "%lf", l_params->b[c], a_limits);
             }
         }
 
         if ( a_flags & DRS_COEF_K9 )
-            dap_string_append_array(a_reply, "k9", "%f", l_params->k9, a_limits);
+            dap_string_append_array(a_reply, "k9", "%lf", l_params->k9, a_limits);
 
         if ( a_flags & DRS_COEF_B9 )
-            dap_string_append_array(a_reply, "b9", "%f", l_params->b9, a_limits);
+            dap_string_append_array(a_reply, "b9", "%lf", l_params->b9, a_limits);
 
         dap_string_append_printf( a_reply, "indicator=%d \n\n", l_params->indicator);
         dap_string_append_printf( a_reply, "Got time:    %.3f seconds \n\n",

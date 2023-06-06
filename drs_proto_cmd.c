@@ -374,7 +374,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
               log_it(L_DEBUG, "%f",shiftDAC[t]);
             }
             for (int d = 0; d < DRS_COUNT; d++)
-              drs_dac_shift_set_all(d,&shiftDAC[d * DRS_DAC_COUNT] ,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+              drs_dac_shift_set_quants(d,&shiftDAC[d * DRS_DAC_COUNT] ,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
 
             drs_dac_set(1);
             l_value=1;

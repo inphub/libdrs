@@ -109,7 +109,7 @@ int drs_cli_init()
                             "\t  ROTATE        Разворот данных\n"
                             "\t  PHYS          Приведение к физическим величинам\n"
                             "\t  CH9_ONLY      Только 9ый канал\n"
-                            "\t  NO_START      не запускать start и не ждать начало и окончание чтения"
+                            "\t  START_BEFORE  Запускать start и ждать начала и окончание чтения"
                             "\n"
                             "read x -drs <Номер DRS> [-limit <Предельное число ячеек для отображения>] [-start_from <Номер ячейки>] [-apply <флаги>]\n"
                             "\t Генерирует массив Х и применяет к нему калибровки, если указаны. Возможные флаги калибровки:\n"
@@ -291,7 +291,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
 
             // Максимальное число ячеек для вывода на экран
               const char * l_limits_str = NULL;
-              size_t l_limits = DRS_CELLS_COUNT;
+              size_t l_limits = 10;
               dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-limit",  &l_limits_str);
               if (l_limits_str)
                   l_limits = atoi(l_limits_str);
@@ -355,7 +355,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
 
             // Максимальное число ячеек для вывода на экран
             const char * l_limits_str = NULL;
-            size_t l_limits = DRS_CELLS_COUNT;
+            size_t l_limits = 10;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-limit",  &l_limits_str);
             if (l_limits_str)
                 l_limits = atoi(l_limits_str);
@@ -382,7 +382,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             const char * l_apply_str = NULL;
             int l_apply_flags = 0;
             const size_t c_max_tokens = 100;
-            bool l_no_start = false;
+            bool l_start_before = false;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-apply",  &l_apply_str);
             if( l_apply_str){
                 char ** l_apply_flags_strs = dap_strsplit(l_apply_str, ",", c_max_tokens );
@@ -405,8 +405,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                         l_apply_flags |= DRS_CAL_APPLY_PHYS;
                     }else if (dap_strcmp(l_str,"CH9_ONLY") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_CH9_ONLY;
-                    }else if (dap_strcmp(l_str,"NO_START") == 0){
-                        l_no_start = true;
+                    }else if (dap_strcmp(l_str,"START_BEFORE") == 0){
+                        l_start_before = true;
                     }
                 }
                 dap_strfreev(l_apply_flags_strs);
@@ -414,10 +414,10 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
 
             // Флаги чтения данных
 
-            int l_flags_data_read = l_no_start? 0 :
+            int l_flags_data_read = l_start_before?
                                                 drs_get_mode(l_drs_num)== DRS_MODE_EXT_START ||
                                     drs_get_mode(l_drs_num)== DRS_MODE_PAGE_MODE ?
-                                        DRS_OP_FLAG_EXT_START : DRS_OP_FLAG_SOFT_START;
+                                        DRS_OP_FLAG_EXT_START : DRS_OP_FLAG_SOFT_START : 0;
 
             if(l_drs_num!=-1){
                 size_t l_buf_size = DRS_CELLS_COUNT * sizeof (unsigned short);
@@ -757,7 +757,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             const char * l_coeffs_str = NULL;
             const char * l_limit_str = NULL;
             int l_coeffs_flags = 0;
-            unsigned l_limits = 0;
+            unsigned l_limits = 10;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-coeffs",  &l_coeffs_str);
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-limit",  &l_limit_str);
 
@@ -982,7 +982,7 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             if (l_is_ch9){
                 drs_dac_shift_set_ch9(l_shifts[0],g_ini_ch9.gain, g_ini_ch9.offset);
             } else {
-                drs_dac_shift_set_all(l_drs->id, l_shifts,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+                drs_dac_shift_set_quants(l_drs->id, l_shifts,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
             }
         } break;
         default:

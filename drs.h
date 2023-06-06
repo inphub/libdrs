@@ -182,10 +182,18 @@ void drs_deinit();
 int drs_ini_load(const char *inifile, parameter_t *prm);
 
 
-void drs_dac_shift_set_all(int a_drs_num, double *shiftDAC,float *DAC_gain,float *DAC_offset);
+void drs_dac_shift_set_quants(int a_drs_num, const double shiftDAC[DRS_CHANNELS_COUNT],float *DAC_gain,float *DAC_offset);
+
+static inline void drs_dac_shift_set(int a_drs_num, const double a_shifts[DRS_CHANNELS_COUNT])
+{
+    drs_dac_shift_set_quants (a_drs_num, a_shifts, g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+}
+
 void drs_dac_shift_set_ch9(double a_shiftDAC,float DAC_gain,float DAC_offset);
 
-void drs_dac_shift_input_set_all(int a_drs_num, unsigned short *shiftValue);
+
+void drs_dac_shift_write_reg(int a_drs_num, unsigned short *shiftValue);
+
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
 
