@@ -115,7 +115,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         goto lb_exit;
     }
     log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",a_args->param.ampl.repeats, l_levels[0], l_levels[1], l_shifts);
-    drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
+    //drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
     // Межканальная калибровка
     if( s_interchannels_calibration( a_drs, a_args) !=0 ) {
@@ -123,7 +123,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         l_ret = -2;
         goto lb_exit;
     }
-    drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
+    //drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
 
     log_it(L_NOTICE, "Calibrate 9 channel");
@@ -240,7 +240,7 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
         }
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
-            if(drs_data_get(a_drs,DRS_OP_FLAG_CALIBRATE, l_ctx.cells, l_cells_count * sizeof (unsigned short) )!=0){
+            if(drs_data_get(a_drs,DRS_OP_FLAG_CALIBRATE| DRS_OP_FLAG_SOFT_START, l_ctx.cells, l_cells_count * sizeof (unsigned short) )!=0){
                 log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
                 l_ret = -1;
                 goto lb_exit;

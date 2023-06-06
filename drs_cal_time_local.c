@@ -139,6 +139,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
     }
 
+    unsigned l_mode_old = drs_get_mode(a_drs->id);
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
     drs_set_sinus_signal(true);
 
@@ -159,7 +160,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             *a_progress = l_progress_old + floor(l_progress);
 
         //debug_if(s_debug_more, L_INFO, "prod drs #%u, min=%u\tminValue=%f",a_drs->id, l_N_min,l_value_min);
-        int l_ret = drs_data_get_all(a_drs,0, l_page_buffer);
+        int l_ret = drs_data_get_all(a_drs, DRS_OP_FLAG_SOFT_START , l_page_buffer);
         if(l_ret!=0){
             log_it(L_ERROR,"data_get_all not read");
             drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
@@ -192,7 +193,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             coef->deltaTimeRef[n] = 0.0;
         }
     }
-    drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
+    drs_set_mode(a_drs->id, l_mode_old);
     drs_set_sinus_signal(false);
 
     coef->indicator|=2;
