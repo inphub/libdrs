@@ -106,7 +106,9 @@ int drs_cli_init()
                             "\t  CELLS         Амплитудная калибровка\n"
                             "\t  INTERCHANNEL  Межканальная калибровка\n"
                             "\t  SPLASHS       Удаление всплесков\n"
-                            "\t  ROTATE        Разворот данных\n"
+                            "\t  NO_ROTATE     Не разворачивать данные\n"
+                            "\t  ROTATE_BANK   Разворачивать внутри банка\n"
+                            "\t  ROTATE_GLOBAL Разворачивать глобально\n"
                             "\t  PHYS          Приведение к физическим величинам\n"
                             "\t  CH9_ONLY      Только 9ый канал\n"
                             "\t  START_BEFORE  Запускать start и ждать начала и окончание чтения"
@@ -325,7 +327,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                         l_apply_flags |= DRS_CAL_APPLY_X_TIME_LOCAL ;
                     }else if (dap_strcmp(l_str,"TIME_GLOBAL") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_X_TIME_GLOBAL;
-                    }else if (dap_strcmp(l_str,"ROTATE") == 0 ){
+                    }else if (dap_strcmp(l_str,"NO_ROTATE") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_NO_ROTATE;
                     }else if (dap_strcmp(l_str,"PHYS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_PHYS;
@@ -399,8 +401,12 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                         l_apply_flags |= DRS_CAL_APPLY_Y_INTERCHANNEL;
                     }else if (dap_strcmp(l_str,"SPLASHS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_Y_SPLASHS;
-                    }else if (dap_strcmp(l_str,"ROTATE") == 0 ){
+                    }else if (dap_strcmp(l_str,"NO_ROTATE") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_NO_ROTATE;
+                    }else if (dap_strcmp(l_str,"ROTATE_BANK") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_ROTATE_BANK;
+                    }else if (dap_strcmp(l_str,"ROTATE_GLOBAL") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_ROTATE_GLOBAL;
                     }else if (dap_strcmp(l_str,"PHYS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_PHYS;
                     }else if (dap_strcmp(l_str,"CH9_ONLY") == 0 ){

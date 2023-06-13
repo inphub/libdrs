@@ -149,15 +149,13 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     dap_nanotime_t l_ts_start = dap_nanotime_now();
 
-    const double l_progress_total = 30.0;
+    const double l_progress_total = 40.0;
 
 
-    double l_progress = 0, l_progress_step = l_progress_total / a_args->param.time_local.max_repeats;
+    double l_progress = 0, l_progress_step = l_progress_total / a_args->param.time_local.min_N ;
 
     unsigned n = 0;
     for(n=0; l_value_min < l_N_min && n < a_args->param.time_local.max_repeats; n++, l_progress += l_progress_step ) {
-        if (a_progress)
-            *a_progress = l_progress_old + floor(l_progress);
 
         //debug_if(s_debug_more, L_INFO, "prod drs #%u, min=%u\tminValue=%f",a_drs->id, l_N_min,l_value_min);
         int l_ret = drs_data_get_all(a_drs, DRS_OP_FLAG_SOFT_START , l_page_buffer);
@@ -168,10 +166,16 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
         }
 
-        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY );
+        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS);
 
 
+        double l_value_min_old = l_value_min;
         l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats,a_drs->shift_bank);
+        if (l_value_min_old != l_value_min){
+          if (a_progress)
+              *a_progress = l_progress_old + floor(l_value_min * l_progress_step );
+        }
+
         /*
         debug_if(s_debug_more, L_DEBUG, "l_value_min=%f",l_value_min);
         debug_if(s_debug_more, L_DEBUG, "l_page_buffer[]={0x%04X,0x%04X,0x%04X,0x%04X...}", l_page_buffer[0],

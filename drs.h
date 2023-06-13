@@ -163,6 +163,14 @@ typedef enum {
 enum drs_freq{DRS_FREQ_1GHz,DRS_FREQ_2GHz,DRS_FREQ_3GHz,DRS_FREQ_4GHz,DRS_FREQ_5GHz};
 
 extern enum drs_freq g_current_freq;
+static const double c_freq_DRS[]= {
+  [DRS_FREQ_1GHz] = 1.024,
+  [DRS_FREQ_2GHz] = 2.048,
+  [DRS_FREQ_3GHz] = 3.072,
+  [DRS_FREQ_4GHz] = 4.096,
+  [DRS_FREQ_5GHz]=  4.915200
+};
+
 extern parameter_t * g_ini;
 extern drs_dac_ch_params_t g_ini_ch9;
 extern drs_t g_drs[DRS_COUNT];

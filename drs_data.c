@@ -117,7 +117,7 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
 }
 
 
-void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size)
+void drs_data_rotate_bank(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size)
 {
     assert(a_drs);
     assert(a_mem_in);
@@ -169,12 +169,58 @@ void drs_data_rotate(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, siz
 
     }
 
-    //memcpy(a_mem_out, l_buf_out, a_mem_size);
-    // Разворачиваем глобально всё
-    unsigned l_head_size = (DRS_CELLS_COUNT_CHANNEL - l_shift_global) * a_cell_size * DRS_CHANNELS_COUNT;
-    memcpy(a_mem_out, l_buf_out + l_shift_global* a_cell_size * DRS_CHANNELS_COUNT , l_head_size  );
-    memcpy(((byte_t*)a_mem_out) + l_head_size, l_buf_out, l_shift_global * a_cell_size * DRS_CHANNELS_COUNT );
+    memcpy(a_mem_out, l_buf_out,a_mem_size );
+
 }
+
+/**
+ * @brief drs_data_rotate_global
+ * @param a_drs
+ * @param a_mem_in
+ * @param a_mem_out
+ * @param a_mem_size
+ * @param a_cell_size
+ */
+void drs_data_rotate_global(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size)
+{
+  assert(a_drs);
+  assert(a_mem_in);
+  assert(a_mem_out);
+  assert(a_cell_size);
+  unsigned int l_shift_global = a_drs->shift;
+  byte_t * l_buf_out =  DAP_NEW_STACK_SIZE(byte_t, a_mem_size);
+  memset(l_buf_out,0, a_mem_size);
+
+  //memcpy(a_mem_out, l_buf_out, a_mem_size);
+  // Разворачиваем глобально всё
+  unsigned l_head_size = (DRS_CELLS_COUNT_CHANNEL - l_shift_global) * a_cell_size * DRS_CHANNELS_COUNT;
+  memcpy(l_buf_out, a_mem_in + l_shift_global* a_cell_size * DRS_CHANNELS_COUNT , l_head_size  );
+  memcpy(l_buf_out + l_head_size, a_mem_in, l_shift_global * a_cell_size * DRS_CHANNELS_COUNT );
+
+  memcpy(a_mem_out, l_buf_out,a_mem_size );
+}
+
+
+void drs_data_rotate_bank9(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size)
+{
+  assert(a_drs);
+  assert(a_mem_in);
+  assert(a_mem_out);
+  assert(a_cell_size);
+  unsigned int l_shift = a_drs->shift_bank+1;
+  byte_t * l_buf_out =  DAP_NEW_STACK_SIZE(byte_t, a_mem_size );
+  memset(l_buf_out,0, a_mem_size);
+
+  //memcpy(a_mem_out, l_buf_out, a_mem_size);
+  // Разворачиваем 9ый канал
+  unsigned l_head_size = (DRS_CELLS_COUNT_BANK - l_shift) * a_cell_size * DRS_CHANNELS_COUNT;
+  memcpy(l_buf_out, ((byte_t*) a_mem_in)  + l_shift* a_cell_size * DRS_CHANNELS_COUNT , l_head_size  );
+  memcpy(l_buf_out + l_head_size, a_mem_in ,
+         l_shift * a_cell_size * DRS_CHANNELS_COUNT );
+
+  memcpy(a_mem_out, l_buf_out,a_mem_size );
+}
+
 
 
 
@@ -192,7 +238,7 @@ void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned shor
     byte_t * a_drs_mem = a_drs->id == 0 ? (byte_t*)data_map_drs1 : (byte_t*)data_map_drs2;
     unsigned short * a_drs_page =(unsigned short *) (a_drs_mem + a_page_num*DRS_PAGE_READ_SIZE);
 
-    drs_data_rotate(a_drs, a_drs_page, a_buffer, a_buffer_size, sizeof(unsigned short));
+    drs_data_rotate_bank(a_drs, a_drs_page, a_buffer, a_buffer_size, sizeof(unsigned short));
 }
 
 

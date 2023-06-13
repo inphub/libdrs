@@ -72,14 +72,6 @@ static const unsigned int freqREG[]= {
 };
 static const char s_drs_check_file[]="/tmp/drs_init";
 
-static const double c_freq_DRS[]= {
-  [DRS_FREQ_1GHz] = 1.024,
-  [DRS_FREQ_2GHz] = 2.048,
-  [DRS_FREQ_3GHz] = 3.072,
-  [DRS_FREQ_4GHz] = 4.096,
-  [DRS_FREQ_5GHz]=  4.915200};
-
-
 static int fd;
 static volatile unsigned int *control_mem;
 static void *control_map;
@@ -269,6 +261,7 @@ static int s_post_init()
     for (unsigned n = 0; n < DRS_COUNT; n++)
         drs_dac_shift_set(n,l_shifts);
 
+    return 0;
 }
 
 /**
@@ -298,8 +291,7 @@ static void s_hw_init()
     if(g_drs_flags & 0x2)
         set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
 
-    clk_select(INTERNAL_CLK);				//    drs_reg_write(0x00000004, 0x00000001);//select_freq
-    clk_select_internal_value(480);			//    drs_reg_write(0x0000001e, 0x00000064);//freqREG[curfreq]);
+    drs_set_freq(g_current_freq);
     clk_phase(40);							//    drs_reg_write(0x00000006, 0x00000028);
     clk_start(1);							//    drs_reg_write(0x00000005, 0x00000001);
 
@@ -322,7 +314,6 @@ static void s_hw_init()
         set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
     set_dac_9ch_ofs(30000);					//    drs_reg_write(0x0000001f, 0x00007530);
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
-
 
 
     set_gains_drss(32, 32, 32, 32);

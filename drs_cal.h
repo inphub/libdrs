@@ -78,10 +78,14 @@ typedef struct{
 // Выровнять итоговые результаты
 //#define DRS_CAL_APPLY_Y_EQUALIZE  BIT(29)
 
+// Развернуть внутри банка
+#define DRS_CAL_APPLY_ROTATE_BANK  BIT(20)
+// Развернуть глобально
+#define DRS_CAL_APPLY_ROTATE_GLOBAL  BIT(21)
 
 // приведение к физическим величинам
 #define DRS_CAL_APPLY_PHYS  BIT(28)
-// Развернуть итоговые результаты
+// Не разворачивать итоговые результаты, даже если очень хочется
 #define DRS_CAL_APPLY_NO_ROTATE  BIT(30)
 
 // Только 9ый канал

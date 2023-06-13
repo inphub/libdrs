@@ -32,12 +32,20 @@
 //4.9152/2.4*19 || periodLength-длинна в отсчетах одного периода 4.9152 ГГц-частота ацп, 2400/19-МГц частота синуса
 static const double s_period_length[] = {
     //[DRS_FREQ_5GHz] = 38.912
-    [DRS_FREQ_5GHz] = (4.9152 * 1000.0 )/50.0
+    [DRS_FREQ_1GHz] = (c_freq_DRS[DRS_FREQ_1GHz] * 1000.0 )/50.0,
+    [DRS_FREQ_2GHz] = (c_freq_DRS[DRS_FREQ_2GHz] * 1000.0 )/50.0,
+    [DRS_FREQ_3GHz] = (c_freq_DRS[DRS_FREQ_3GHz] * 1000.0 )/50.0,
+    [DRS_FREQ_4GHz] = (c_freq_DRS[DRS_FREQ_4GHz] * 1000.0 )/50.0,
+    [DRS_FREQ_5GHz] = (c_freq_DRS[DRS_FREQ_5GHz] * 1000.0 )/50.0
 };
 
 //26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
 static const unsigned s_period_max_count[] = {
-    [DRS_FREQ_5GHz] = 1024/( ( 4.9152 * 1000.0 )/50.0 ) + 2
+  [DRS_FREQ_1GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_1GHz] * 1000.0 )/50.0 ) + 2,
+  [DRS_FREQ_2GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_2GHz] * 1000.0 )/50.0 ) + 2,
+  [DRS_FREQ_3GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_3GHz] * 1000.0 )/50.0 ) + 2,
+  [DRS_FREQ_4GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_4GHz] * 1000.0 )/50.0 ) + 2,
+    [DRS_FREQ_5GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_5GHz] * 1000.0 )/50.0 ) + 2
     //[DRS_FREQ_5GHz] = 28
 };
 
@@ -132,7 +140,8 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     // Выставляем прогресс
     unsigned l_progress_old = 0;
-    const double l_progress_total = 30.0;
+    const double l_progress_total = 20.0;
+    double l_progress_step = l_progress_total / a_args->param.time_global.num_cycle;
     if (a_progress)
       l_progress_old = *a_progress;
 
@@ -156,8 +165,9 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
             drs_set_sinus_signal(false);
             drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
+            break;
         }
-        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS  );
+        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY | DRS_CAL_APPLY_ROTATE_BANK  );
 
         // Заполняем массив X
         for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
@@ -166,6 +176,9 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         drs_cal_time_local_apply(a_drs, l_x, l_x);
 
         s_collect_stats(a_drs,  a_progress, i, l_x,l_y, l_sum_delta_ref,l_stats);
+        if (a_progress)
+          *a_progress = l_progress_old + ((double) i)*l_progress_step ;
+
     }
 
 
@@ -218,19 +231,13 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
     const double l_period_length = s_period_length [g_current_freq];
 
     // TODO заменить с выделения кучи на выделение стека и сравнить скорость
-    double * l_period = DAP_NEW_Z_SIZE(double, sizeof(double) * l_max_period_count );
+    double * l_zero_cross_x = DAP_NEW_Z_SIZE(double, sizeof(double) * l_max_period_count );
     double * l_period_delt = DAP_NEW_Z_SIZE(double, sizeof(double) * l_max_period_count );
     unsigned *l_indexs = DAP_NEW_Z_SIZE(unsigned, sizeof(unsigned) * l_max_period_count );
 
-    // Подготавливаем прогресс бар
-    double l_progress_step = 27.0 / ((double) (DRS_CHANNEL_BANK_COUNT * DRS_CELLS_COUNT_BANK)) ;
-    unsigned l_progress_old = 0;
-    if (a_progress)
-      l_progress_old = *a_progress;
-    double l_progress = 0.0;
-
     // Считаем среднее по y
     average = drs_ch_get_average(a_y,DRS_CELLS_COUNT_BANK,DRS_CHANNEL_9 );
+    //average = 8192;
     // Бежим по ячейкам
     for(unsigned n=0;n< DRS_CELLS_COUNT_BANK && l_count < l_max_period_count; n++){
         unsigned n_9idx = n* DRS_CHANNELS_COUNT + DRS_CHANNEL_9;
@@ -243,9 +250,11 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
                 deltX += 1024.0;
             }
 
-            l_period[l_count] = (deltX / (a_y[n_9idx]-l_last_y)) * (average - l_last_y) + l_last_x;
+            l_zero_cross_x[l_count] = (deltX / (a_y[n_9idx]-l_last_y)) * (average - l_last_y) + l_last_x;
             if(l_count > 0) {
-                l_period_delt[l_count-1] = l_period[l_count] - l_period[l_count - 1];
+                l_period_delt[l_count-1] = l_zero_cross_x[l_count] - l_zero_cross_x[l_count - 1];
+                if ( l_period_delt[l_count-1] < 90)
+                  log_it(L_WARNING,"l_period_delt[%u] = %f",l_count-1,l_period_delt[l_count-1] );
             }
             l_indexs[l_count] = a_drs->shift_bank + n;
             if(l_indexs[l_count] > DRS_CELLS_COUNT_CHANNEL){
@@ -257,10 +266,6 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
         l_last_y = a_y[n_9idx];
         l_last_x = a_x[n];
 
-        // Обновляем прогресс бар
-        l_progress += l_progress_step;
-        if (a_progress)
-            *a_progress = l_progress_old + floor(l_progress);
     }
 
     // Бежим по подсчитанному количеству
@@ -285,12 +290,12 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
     if(s_debug_more){
         log_it(L_NOTICE,"-- stats dump -- ");
         for(unsigned n = 1; n < l_count ; n++) {
-            log_it(L_DEBUG, "%u: period=%f period_delt=%f",n-1,l_period[n-1], l_period_delt[n-1]);
+            log_it(L_DEBUG, "%u: zero_cross_x=%f period_delt=%f",n-1,l_zero_cross_x[n-1], l_period_delt[n-1]);
         }
     }
 
     // Очищаем память
-    DAP_DELETE(l_period);
+    DAP_DELETE(l_zero_cross_x);
     DAP_DELETE(l_period_delt);
     DAP_DELETE(l_indexs);
 }
