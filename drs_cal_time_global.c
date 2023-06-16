@@ -255,11 +255,23 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
             l_zero_cross_x[l_count] = (deltX / (a_y[n_9idx]-l_last_y)) * (average - l_last_y) + l_last_x;
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_zero_cross_x[l_count] - l_zero_cross_x[l_count - 1];
+                if (s_debug_dump_data){
+                    static l_wasnt_good_dumped = true;
+                    if (l_count>2 && l_period_delt[l_count-1] >= 90 && l_wasnt_good_dumped){
+                        char * l_file_name = dap_strdup_printf("time_global_good_dump_y_shift_%u", drs_get_shift(a_drs->id));
+                        drs_data_dump_in_files(l_file_name, a_y, DRS_CELLS_COUNT,
+                                              DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
+                                              DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
+                        DAP_DELETE(l_file_name);
+                        l_wasnt_good_dumped = false;
+                    }
+
+                }
                 if ( l_period_delt[l_count-1] < 90){
                     log_it(L_WARNING,"l_period_delt[%u] = %f",l_count-1,l_period_delt[l_count-1] );
 
                     if (s_debug_dump_data){
-                        char * l_file_name = dap_strdup_printf("time_global_dump_y_shift_%u", drs_get_shift(a_drs->id));
+                        char * l_file_name = dap_strdup_printf("time_global_bad_dump_y_shift_%u", drs_get_shift(a_drs->id));
                         drs_data_dump_in_files(l_file_name, a_y, DRS_CELLS_COUNT,
                                               DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
                                               DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
