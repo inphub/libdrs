@@ -458,7 +458,7 @@ int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags)
         drs_cal_time_global_apply(a_drs, a_x,a_x);
     }
     if(a_flags & DRS_CAL_APPLY_PHYS) {
-        do_on_array(a_x,DRS_CELLS_COUNT_ALL,s_x_to_real);
+        do_on_array(a_x,DRS_CELLS_COUNT_CHANNEL,s_x_to_real);
     }
 
     return 0;
@@ -519,11 +519,11 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
     // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
     unsigned l_mode = drs_get_mode(a_drs->id);
-    if (l_mode == DRS_MODE_CAL_TIME){
+    /*if (l_mode == DRS_MODE_CAL_TIME){
         a_flags |= DRS_CAL_APPLY_CH9_ONLY  ;
         //a_flags |= DRS_CAL_APPLY_NO_ROTATE ;
         a_flags |= DRS_CAL_APPLY_ROTATE_BANK  ;
-    }
+    }*/
 
     unsigned l_cells_proc_count =  a_flags & DRS_CAL_APPLY_CH9_ONLY ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
     //double * l_bi = s_bi; // a_drs->coeffs.b
