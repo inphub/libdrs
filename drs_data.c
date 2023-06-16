@@ -5,9 +5,18 @@
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
  */
 
+#include <sys/stat.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <errno.h>
+
+#include <dap_sdk.h>
 #include <dap_common.h>
+#include <dap_file_utils.h>
+#include <dap_strfuncs.h>
+#include <dap_string.h>
 
 #include "commands.h"
 #include "drs.h"
@@ -293,5 +302,69 @@ unsigned int drs_get_shift(unsigned int a_drs_num)
     else
      tmpshift=((unsigned long *)data_map_shift_drs2)[0];
 
-    return tmpshift;
+    return tmpshift & 4095;
+}
+
+
+int drs_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags)
+{
+
+    dap_string_t * l_file = dap_string_new("");
+
+    // Добавляем путь до var/lib внутри папки приложения
+    if ( a_flags & DRS_DATA_DUMP_ADD_PATH_VAR_LIB ){
+        char * l_path = dap_strdup_printf("%s/var/lib",g_dap_vars.core.sys_dir);
+        dap_mkdir_with_parents(l_path);
+        dap_string_append_printf(l_file, "%s/", l_path);
+    }
+
+    // Добавляем собственно имя файла
+    dap_string_append(l_file, a_filename);
+
+    // Добавляем время в юникс формате
+    if (a_flags & DRS_DATA_DUMP_ADD_TIMESTAMP ){
+        dap_nanotime_t l_ts = dap_nanotime_now();
+        //char l_ts_str[64]={0};
+        //dap_nanotime_to_str(&l_ts,l_ts_str);
+        dap_string_append_printf(l_file,"_%"DAP_UINT64_FORMAT_U"_",l_ts );
+    }
+
+
+    // Открываем CSV файл и пишем в него
+
+    if (a_flags & DRS_DATA_DUMP_CSV){
+        dap_string_t * l_fstr = dap_string_new( l_file->str);
+        // Добавляем расширение
+        dap_string_append(l_fstr, ".csv");
+        char * l_file_str = dap_string_free(l_fstr, false);
+
+
+        FILE * f = fopen(l_file_str,"w");
+        for (size_t n = 0; n < a_data_count; n++){
+            fprintf(f,"%lf;", a_data[n]);
+        }
+        fclose(f);
+
+        DAP_DELETE(l_file_str);
+    }
+
+    // Открываем BIN файл и пишем в него
+    if (a_flags & DRS_DATA_DUMP_BIN){
+        dap_string_t * l_fstr = dap_string_new( l_file->str);
+        // Добавляем расширение
+        dap_string_append(l_fstr, ".bin");
+        char * l_file_str = dap_string_free(l_fstr, false);
+
+        FILE * f = fopen(l_file_str,"w");
+        for (size_t n = 0; n < a_data_count; n++){
+            fwrite(&a_data[n],sizeof (a_data[n]),1, f);
+        }
+        fclose(f);
+
+        DAP_DELETE(l_file_str);
+    }
+
+    dap_string_free(l_file, true);
+
+    return 0;
 }

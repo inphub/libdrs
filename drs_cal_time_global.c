@@ -9,6 +9,7 @@
 
 #include <dap_common.h>
 #include <dap_time.h>
+#include <dap_strfuncs.h>
 
 #include "data_operations.h"
 
@@ -50,6 +51,7 @@ static const unsigned s_period_max_count[] = {
 };
 
 static bool s_debug_more = false;
+static bool s_debug_dump_data = true;
 
 static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,unsigned a_iteration, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats);
 
@@ -164,7 +166,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
         if ( l_ret != 0){
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
             drs_set_sinus_signal(false);
-            drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);
+            drs_set_mode(a_drs->id, l_mode_old);
             break;
         }
         drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY | DRS_CAL_APPLY_ROTATE_BANK  );
@@ -253,8 +255,17 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
             l_zero_cross_x[l_count] = (deltX / (a_y[n_9idx]-l_last_y)) * (average - l_last_y) + l_last_x;
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_zero_cross_x[l_count] - l_zero_cross_x[l_count - 1];
-                if ( l_period_delt[l_count-1] < 90)
-                  log_it(L_WARNING,"l_period_delt[%u] = %f",l_count-1,l_period_delt[l_count-1] );
+                if ( l_period_delt[l_count-1] < 90){
+                    log_it(L_WARNING,"l_period_delt[%u] = %f",l_count-1,l_period_delt[l_count-1] );
+
+                    if (s_debug_dump_data){
+                        char * l_file_name = dap_strdup_printf("time_global_dump_y_shift_%u", drs_get_shift(a_drs->id));
+                        drs_data_dump_in_files(l_file_name, a_y, DRS_CELLS_COUNT,
+                                              DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
+                                              DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
+                        DAP_DELETE(l_file_name);
+                    }
+                }
             }
             l_indexs[l_count] = a_drs->shift_bank + n;
             if(l_indexs[l_count] > DRS_CELLS_COUNT_CHANNEL){
