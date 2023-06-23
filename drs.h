@@ -37,6 +37,8 @@
 #define DRS_REG_CMD_DRS_1		14
 #define DRS_REG_CMD_DRS_2		15
 #define DRS_MODE_REG			16
+#define DRS_REG_ZAP_DELAY_A             17
+#define DRS_REG_ZAP_DELAY_B             18
 
 #define DRS_BASE_NUM_PAGE		19
 
@@ -160,7 +162,12 @@ typedef enum {
   DRS_MODE_MAX = DRS_MODE_OFF_INPUTS
 } drs_mode_t;
 
-enum drs_freq{DRS_FREQ_1GHz,DRS_FREQ_2GHz,DRS_FREQ_3GHz,DRS_FREQ_4GHz,DRS_FREQ_5GHz};
+enum drs_freq{DRS_FREQ_1GHz = 0,
+              DRS_FREQ_2GHz = 1,
+              DRS_FREQ_3GHz = 2,
+              DRS_FREQ_4GHz = 3,
+              DRS_FREQ_5GHz = 4,
+              DRS_FREQ_MAX = DRS_FREQ_5GHz};
 
 extern enum drs_freq g_current_freq;
 static const double c_freq_DRS[]= {
@@ -171,6 +178,33 @@ static const double c_freq_DRS[]= {
   [DRS_FREQ_5GHz]=  4.915200
 };
 
+static const char* c_freq_str[] = {
+  [DRS_FREQ_1GHz] = "1.024 GHz",
+  [DRS_FREQ_2GHz] = "2.048 GHz",
+  [DRS_FREQ_3GHz] = "3.072 GHz",
+  [DRS_FREQ_4GHz] = "4.096 GHz",
+  [DRS_FREQ_5GHz]=  "4.915200 GHz"
+};
+
+// ---Флаги выставлять в том же порядке, что и перечислены ниже ---
+
+#define DRS_INIT_ENABLE_DRS_0              0x00000001
+#define DRS_INIT_ENABLE_DRS_1              0x00000002
+
+// Выставляет частоту один раз после загрузки
+#define DRS_INIT_SET_ONCE_FREQ             0x10000000
+// Выставляет частоту всегда при инициализации
+#define DRS_INIT_SET_ALWAYS_FREQ           0x20020000
+
+
+
+// Отрезает в начале массива указанное число ячеек при чтении
+#define DRS_INIT_SET_DATA_CUT_FROM_BEGIN   0x40000000
+//   Отрезает в конце массива указанное число ячеек при чтении
+#define DRS_INIT_SET_DATA_CUT_FROM_END     0x80000000
+
+extern unsigned g_drs_data_cut_from_begin;
+extern unsigned g_drs_data_cut_from_end;
 extern parameter_t * g_ini;
 extern drs_dac_ch_params_t g_ini_ch9;
 extern drs_t g_drs[DRS_COUNT];
@@ -182,7 +216,7 @@ extern int g_drs_flags;
 extern "C" {
 #endif
 
-int drs_init(int a_drs_flags);
+int drs_init(int a_drs_flags,...);
 bool drs_get_inited();
 
 
@@ -222,6 +256,16 @@ double drs_get_freq_value(enum drs_freq a_freq);
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data);
 unsigned int drs_reg_read(unsigned int reg_adr);
+
+// возвращает количество страниц уже прочитанных
+static unsigned drs_get_pages_ready(unsigned a_drs_num){
+    return drs_reg_read(DRS_REG_NPAGES_DRS_A + a_drs_num );//num of page complite
+}
+
+// возвращает их ожидания внешнего запуска или постраничного режима готовность данных к чтению
+static bool drs_get_read_ready(unsigned a_drs_num){
+    return drs_reg_read(DRS_REG_WAIT_DRS_A + a_drs_num);
+}
 
 /**
  * @brief drs_check_flag

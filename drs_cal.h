@@ -78,10 +78,15 @@ typedef struct{
 // Выровнять итоговые результаты
 //#define DRS_CAL_APPLY_Y_EQUALIZE  BIT(29)
 
+
 // Развернуть внутри банка
 #define DRS_CAL_APPLY_ROTATE_BANK  BIT(20)
 // Развернуть глобально
 #define DRS_CAL_APPLY_ROTATE_GLOBAL  BIT(21)
+
+
+// Не обрезать начало и конец
+#define DRS_CAL_APPLY_NO_CUT  BIT(27)
 
 // приведение к физическим величинам
 #define DRS_CAL_APPLY_PHYS  BIT(28)
@@ -129,6 +134,16 @@ int drs_cal_load(const char * a_file_path);
 
 int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags);
 int drs_cal_get_y(drs_t * a_drs,double * a_y, unsigned a_page, int a_flags_get, int a_flags_apply);
+
+static inline unsigned drs_cal_get_y_count_after_cuts()
+{
+    return DRS_CELLS_COUNT - DRS_CHANNELS_COUNT*(g_drs_data_cut_from_begin+ g_drs_data_cut_from_end);
+}
+
+static inline unsigned drs_cal_get_x_count_after_cuts()
+{
+    return DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin - g_drs_data_cut_from_end;
+}
 
 void drs_cal_set_splash_gauntlet(unsigned a_gauntlet);
 unsigned drs_cal_get_splash_gauntlet();

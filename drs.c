@@ -8,10 +8,12 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <math.h>
+
 
 #include <dap_common.h>
 #include <dap_config.h>
@@ -62,6 +64,10 @@ enum drs_freq g_current_freq=DRS_FREQ_5GHz;
 void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
 
 int g_drs_flags = 0;
+va_list s_drs_flags_vars;
+
+unsigned g_drs_data_cut_from_begin = 0;
+unsigned g_drs_data_cut_from_end = 0;
 
 static const unsigned int freqREG[]= {
   [DRS_FREQ_1GHz]=480,
@@ -94,8 +100,9 @@ unsigned s_dac_shifts_values[DRS_COUNT ] ={0};
  * @param a_drs_flags
  * @return
  */
-int drs_init(int a_drs_flags)
+int drs_init(int a_drs_flags,...)
 {
+    va_list a_vars;
     // Проверка на инициализацию
     if( s_initalized ) {
         log_it(L_WARNING, "DRS is already initialized, pls check your code for double call");
@@ -103,19 +110,36 @@ int drs_init(int a_drs_flags)
     }
     s_initalized = true;
     g_drs_flags = a_drs_flags;
+
+    va_start(a_vars, a_drs_flags);
+    va_copy(s_drs_flags_vars, a_vars);
+    va_end(a_vars);
+
     // Инициализация DRS
     s_init_mem();
 
     g_ini = DAP_NEW_Z(parameter_t);
     drs_ini_load("/media/card/config.ini", g_ini );
 
-    drs_set_freq(g_current_freq);
+    if(g_drs_flags & DRS_INIT_SET_ONCE_FREQ ||  g_drs_flags & DRS_INIT_SET_ALWAYS_FREQ ){
+        g_current_freq = va_arg(s_drs_flags_vars, enum drs_freq );
+
+    }
+
+    if(g_drs_flags & DRS_INIT_SET_DATA_CUT_FROM_BEGIN ){
+        g_drs_data_cut_from_begin = va_arg(s_drs_flags_vars, unsigned);
+    }
+
+    if(g_drs_flags & DRS_INIT_SET_DATA_CUT_FROM_END )
+        g_drs_data_cut_from_end = va_arg(s_drs_flags_vars, unsigned);
+
 
     // Инициализация параметров DRS по таймеру
+
     log_it(L_NOTICE,"DRS config and memory are initialized");
 
     dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
-                                       s_init_on_start_timer_callback, g_ini);
+                                   s_init_on_start_timer_callback, g_ini);
 
     return 0;
 }
@@ -261,6 +285,9 @@ static int s_post_init()
     for (unsigned n = 0; n < DRS_COUNT; n++)
         drs_dac_shift_set(n,l_shifts);
 
+    if(g_drs_flags &DRS_INIT_SET_ALWAYS_FREQ )
+        drs_set_freq( g_current_freq );
+
     return 0;
 }
 
@@ -276,41 +303,43 @@ static void s_hw_init()
     }
     s_memw(0xFFC25080,0x3fff); //инициализация работы с SDRAM
 
-    if(g_drs_flags & 0x1){
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         set_dma_addr_drs1(0x08000000);  		//    drs_reg_write(0x00000017, 0x8000000);// DRS1
         //set_size_dma_drs1(0x00004000);  		//    drs_reg_write(0x00000019, 0x4000);
     }
 
-    if(g_drs_flags & 0x2){
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
         set_dma_addr_drs2(0x0c000000);  		//    drs_reg_write(0x00000018, 0xC000000);// DRS2
         //set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
     }
 
-    if(g_drs_flags & 0x1)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
         set_shift_addr_drs1(0x0bf40000);		//    drs_reg_write(0x0000001c, 0xBF40000);
-    if(g_drs_flags & 0x2)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
         set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
 
-    drs_set_freq(g_current_freq);
+    if(g_drs_flags &DRS_INIT_SET_ONCE_FREQ  )
+        drs_set_freq( g_current_freq );
+
     clk_phase(40);							//    drs_reg_write(0x00000006, 0x00000028);
     clk_start(1);							//    drs_reg_write(0x00000005, 0x00000001);
 
-    if(g_drs_flags & 0x1)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
         set_dac_offs_drs1(30000, 30000);		//    drs_reg_write(0x00000008, 0x83e683e6);
-    if(g_drs_flags & 0x2)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
         set_dac_offs_drs2(30000, 30000);		//    drs_reg_write(0x00000009, 0x83e683e6);
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
     //set_dac_rofs_O_ofs_drs1(35000, 30000);
     drs_reg_write(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    if(g_drs_flags & 0x1)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
         set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
 
     //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    drs_reg_write(0x0000000c, 0x7d009e98);
     drs_reg_write(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    if(g_drs_flags & 0x2)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
         set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
     set_dac_9ch_ofs(30000);					//    drs_reg_write(0x0000001f, 0x00007530);
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
@@ -319,19 +348,19 @@ static void s_hw_init()
     set_gains_drss(32, 32, 32, 32);
     start_amplifier(1);
 
-    if(g_drs_flags & 0x1){
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         set_starts_number_drs1(1);
         set_zap_delay_drs1(0);
     }
-    if(g_drs_flags & 0x2){
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
         set_starts_number_drs2(1);
         set_zap_delay_drs2(0);
     }
 
     set_mode_drss(MODE_SOFT_START);			//    drs_reg_write(0x00000010, 0x00000000);
-    if(g_drs_flags & 0x1)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
         init_drs1();							//    drs_reg_write(0x0000000e, 0x00000001);
-    if(g_drs_flags & 0x2)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
         init_drs2();							//    drs_reg_write(0x0000000f, 0x00000001);
 
     // Start all
@@ -345,18 +374,23 @@ static void s_hw_init()
     //drs_cmd(-1, DRS_CMD_ );
 
     log_it(L_NOTICE, "DRS settings are implemented");
-    if(g_drs_flags & 0x1)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
         log_it(L_NOTICE, "--DRS #0 initialized");
-    if(g_drs_flags & 0x2)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
         log_it(L_NOTICE, "--DRS #1 initialized");
 
 }
 
 void drs_set_freq(enum drs_freq a_freq)
 {
+    if(a_freq > DRS_FREQ_MAX){
+        log_it(L_ERROR, "Wrong frequency enum %d expected between 0 and %d", a_freq, DRS_FREQ_MAX );
+        return;
+    }
     g_current_freq = a_freq;
     drs_reg_write(0x4, 1);//select frequency (0 - external, 1 - internal
     drs_reg_write(30,   freqREG[g_current_freq]);//select ref frequency
+    log_it(L_NOTICE, "Set frequency %s", c_freq_str[a_freq]);
 }
 
 double drs_get_freq_value(enum drs_freq a_freq)

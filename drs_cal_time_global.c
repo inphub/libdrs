@@ -161,6 +161,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
     drs_set_sinus_signal(true);
 
+
     for( unsigned i = 0; i < a_args->param.time_global.num_cycle; i++){
         int l_ret = drs_data_get(a_drs,DRS_OP_FLAG_SOFT_START, l_y_raw,sizeof (l_y_raw) );
         if ( l_ret != 0){
@@ -170,6 +171,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             break;
         }
         drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY | DRS_CAL_APPLY_ROTATE_BANK  );
+
 
         // Заполняем массив X
         for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
@@ -241,7 +243,10 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
     average = drs_ch_get_average(a_y,DRS_CELLS_COUNT_BANK,DRS_CHANNEL_9 );
     //average = 8192;
     // Бежим по ячейкам
-    for(unsigned n=0;n< DRS_CELLS_COUNT_BANK && l_count < l_max_period_count; n++){
+
+    size_t l_cells_count = DRS_CELLS_COUNT_BANK - g_drs_data_cut_from_begin ;
+
+    for(unsigned n=0;n< l_cells_count && l_count < l_max_period_count; n++){
         unsigned n_9idx = n* DRS_CHANNELS_COUNT + DRS_CHANNEL_9;
         if( (average >= l_last_y) &&
             (a_y[n_9idx] >= average) &&
@@ -256,7 +261,7 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_zero_cross_x[l_count] - l_zero_cross_x[l_count - 1];
                 if (s_debug_dump_data){
-                    static l_wasnt_good_dumped = true;
+                    static bool l_wasnt_good_dumped = true;
                     if (l_count>2 && l_period_delt[l_count-1] >= 90 && l_wasnt_good_dumped){
                         char * l_file_name = dap_strdup_printf("time_global_good_dump_y_shift_%u", drs_get_shift(a_drs->id));
                         drs_data_dump_in_files(l_file_name, a_y, DRS_CELLS_COUNT,

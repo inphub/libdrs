@@ -18,6 +18,9 @@
 
 #define DRS_OP_FLAG_SOFT_START    BIT(4)
 
+#define DRS_OP_FLAG_NO_CUT        BIT(5)
+
+
 #define DRS_PAGE_READ_SIZE        DRS_CELLS_COUNT *sizeof(unsigned short)
 
 
@@ -36,6 +39,56 @@ int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); //
 int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned short * a_buffer, size_t a_buffer_size); /// Если a_drs NULL то он копирует для всех DRS
 static inline int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size){
     return drs_data_get_page(a_drs, a_flags,0,a_buffer, a_buffer_size);
+}
+
+// Один квант в наносекундах
+#define DRS_ZAP_DELAY_QUANT_NS       4
+// Дефолтное значение
+#define DRS_ZAP_DELAY_QUANT_DEFAULT  0
+// Минимум
+#define DRS_ZAP_DELAY_QUANT_MIN      0
+// Максимум
+#define DRS_ZAP_DELAY_QUANT_MAX      4096
+
+/**
+ * @brief drs_data_set_zap_delay_quants
+ * @param a_drs_num
+ * @param a_delay_quants
+ * @return
+ */
+static inline int drs_data_set_zap_delay_quants(unsigned a_drs_num, unsigned a_delay_quants)
+{
+   drs_reg_write(DRS_REG_ZAP_DELAY_A + a_drs_num, a_delay_quants );
+   return 0;
+}
+
+/**
+ * @brief drs_data_set_zap_delay_ns
+ * @param a_drs_num
+ * @param a_delay_ns
+ * @return
+ */
+static inline int drs_data_set_zap_delay_ns(unsigned a_drs_num, unsigned a_delay_ns){
+    return drs_data_set_zap_delay_quants(a_drs_num, a_delay_ns / DRS_ZAP_DELAY_QUANT_NS );
+}
+
+/**
+ * @brief drs_data_get_zap_delay_quants
+ * @param a_drs_num
+ */
+static inline unsigned drs_data_get_zap_delay_quants(unsigned a_drs_num)
+{
+    if( a_drs_num >= DRS_COUNT)
+        return -1;
+    return drs_reg_read(DRS_REG_ZAP_DELAY_A + a_drs_num);
+}
+
+/**
+ * @brief drs_data_get_zap_delay_ns
+ * @param a_drs_num
+ */
+static inline unsigned drs_data_get_zap_delay_ns(unsigned a_drs_num){
+    return drs_data_get_zap_delay_quants(a_drs_num) * DRS_ZAP_DELAY_QUANT_NS;
 }
 
 unsigned int drs_get_shift(unsigned int a_drs_num);

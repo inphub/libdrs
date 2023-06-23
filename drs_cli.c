@@ -73,7 +73,7 @@ int drs_cli_init()
     // Set some vars
     dap_cli_server_cmd_add ("set", s_cli_set, "Установить значение для параметра DRS",
                             "\n"
-                            "set mode -drs <Номер DRS> -mode <Режим>\n"
+                            "set mode -drs <Номер DRS> -- <Режим>\n"
                             "\t Установить режим работы DRS\n"
                             "\t Возможные режимы: SOFT_START,EXT_START,PAGE_MODE,CAL_AMPL,CAL_TIME,OFF_INPUTS\n"
                             "\n"
@@ -82,6 +82,12 @@ int drs_cli_init()
                             "\n"
                             "set flag_end_read -drs <Номер DRS>\n"
                             "\t Установить флаг завершения чтения\n"
+                            "\n"
+                            "set reg <Номер регистра> <Значение >\n"
+                            "\t Установить указанный регистр в указанное значение. Можно писать как в десятичной, так и в шестнадцатиричной форме\n"
+                            "\n"
+                            "set delay -drs <Номер ДРС> -- <Значение задержки в наносекундах>\n"
+                            "\n"
                             ""
                             );
 
@@ -276,8 +282,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             // Пробегаем по всем DRS, либо только по выбранной
             for(unsigned n = l_drs_num == -1? 0 : l_drs_num; n < DRS_COUNT; n++){
                 if( drs_check_flag (n) ){
-                    bool l_done  = drs_reg_read(DRS_REG_WAIT_DRS_A + n); //fast complite
-                    uint32_t l_npages = drs_reg_read(DRS_REG_NPAGES_DRS_A + n );//num of page complite
+                    bool l_done  = drs_get_read_ready(n) ; //fast complite
+                    uint32_t l_npages = drs_get_pages_ready(n);//num of page complite
                     dap_string_append_printf(l_reply, "  #%u: ready=%s npages=%u", n, l_done ?"true":"false", l_npages);
                 }
                 if (l_drs_num != -1)
@@ -331,6 +337,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                         l_apply_flags |= DRS_CAL_APPLY_NO_ROTATE;
                     }else if (dap_strcmp(l_str,"PHYS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_PHYS;
+                    }else if (dap_strcmp(l_str,"NO_CUT") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_NO_CUT;
                     }
                 }
                 dap_strfreev(l_apply_flags_strs);
@@ -413,6 +421,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                         l_apply_flags |= DRS_CAL_APPLY_CH9_ONLY;
                     }else if (dap_strcmp(l_str,"START_BEFORE") == 0){
                         l_start_before = true;
+                    }else if (dap_strcmp(l_str,"NO_CUT") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_NO_CUT;
                     }
                 }
                 dap_strfreev(l_apply_flags_strs);
@@ -889,13 +899,15 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_MODE,
         CMD_REG,
         CMD_DAC,
-        CMD_FLAG_END_READ
+        CMD_FLAG_END_READ,
+        CMD_DELAY
     };
     const char *l_cmd_str_c[] ={
         [CMD_MODE] = "mode",
         [CMD_REG] = "reg",
         [CMD_DAC] = "dac",
-        [CMD_FLAG_END_READ] = "flag_end_read"
+        [CMD_FLAG_END_READ] = "flag_end_read",
+        [CMD_DELAY] = "delay"
     };
 
     if(a_argc < 3) {
@@ -922,15 +934,20 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
     if (l_drs_num < -1){
         return -100;
     }
-    if( l_drs_num == -1 ){
-        dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
-        return -2;
-    }
-    drs_t * l_drs = &g_drs[l_drs_num];
+
     switch(l_cmd_num){
         case CMD_MODE:{
+            if( l_drs_num == -1 ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
+                return -2;
+            }
+            drs_t * l_drs = &g_drs[l_drs_num];
+
             const char * l_arg_mode = NULL;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-mode", &l_arg_mode);
+            if (l_arg_mode == NULL)
+                dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "--", &l_arg_mode);
+
             if( ! l_arg_mode ){
                 dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS mode with argument -mode <DRS mode>");
                 return -2;
@@ -957,17 +974,57 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             drs_set_mode(l_drs->id, l_mode);
             dap_cli_server_cmd_set_reply_text(a_str_reply, "DRS #%u mode is %s now",l_drs->id, l_arg_mode);
         } break;
+        case CMD_DELAY:{
+            if( l_drs_num == -1 ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
+                return -2;
+            }
+            const char * l_delay_str = NULL;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "--",  &l_delay_str);
+
+            if (l_delay_str == NULL){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires -- and value after it");
+                return -3;
+            }
+
+            unsigned l_delay = atoi (l_delay_str);
+            drs_data_set_zap_delay_ns(l_drs_num, l_delay );
+            dap_cli_server_cmd_set_reply_text(a_str_reply, "Теперь у DRS #%u стоит задержка в %u наносекунд, ура!", l_drs_num, l_delay );
+        }
         case CMD_REG:{
             const char * l_reg_str = a_argv[2];
             const char * l_value_str = a_argv[3];
             char * l_parse_end = NULL;
-           // strtoul(l_reg_str,)
+            size_t l_reg_str_length = dap_strlen(l_reg_str);
+            size_t l_value_str_length = dap_strlen(l_value_str);
+
+            unsigned l_reg, l_value, l_reg_base = 10, l_value_base = 10;
+
+            if ( l_reg_str_length > 2 && dap_strncmp(l_reg_str,"0x",2) == 0 ){
+                l_reg_base = 16;
+                l_reg_str += 2;
+            }
+
+            if ( l_value_str_length > 2 && dap_strncmp(l_value_str,"0x",2) == 0 ){
+                l_value_base = 16;
+                l_value_str += 2;
+            }
+
+            l_value = strtoul(l_value_str,&l_parse_end, l_value_base);
+
+            drs_reg_write(l_reg, l_value);
         }
         break;
         case CMD_FLAG_END_READ:{
             drs_set_flag_end_read(l_drs_num, true);
         }break;
         case CMD_DAC:{
+            if( l_drs_num == -1 ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
+                return -2;
+            }
+            drs_t * l_drs = &g_drs[l_drs_num];
+
             int l_ret;
             const char * l_shifts_str = NULL;
             double l_shifts[DRS_CHANNELS_COUNT];

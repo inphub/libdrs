@@ -45,14 +45,14 @@
 
 struct drs_cal_apply_flags g_drs_cal_apply_to_str[]={
   [0]        = {"CELLS",       "применение калибровки для ячеек"},
-  [1] = {"INTERCHANNEL","межканальная калибровка"},
-  [2]      = {"SPLASHS","избавление от всплесков"},
-  [8]   = {"TIME_LOCAL", "Временная локальная калибровка"},
-  [9]  = {"TIME_GLOBAL", "Временная глобальная калибровка"},
-  [29]     = {"EQUALIZE","Выровнять итоговые результаты"},
-  [30]  = {"ROTATE","Развернуть итоговые результаты"},
-  [28]  = {"PHYS","приведение к физическим величинам"},
-  [31]  = {"CH9_ONLY","Только 9ый канал"},
+  [1]        = {"INTERCHANNEL","межканальная калибровка"},
+  [2]        = {"SPLASHS","избавление от всплесков"},
+  [8]        = {"TIME_LOCAL", "Временная локальная калибровка"},
+  [9]        = {"TIME_GLOBAL", "Временная глобальная калибровка"},
+  [29]       = {"EQUALIZE","Выровнять итоговые результаты"},
+  [30]       = {"ROTATE","Развернуть итоговые результаты"},
+  [28]       = {"PHYS","приведение к физическим величинам"},
+  [31]       = {"CH9_ONLY","Только 9ый канал"},
 };
 
 // Состояния калибровки (текущие )
@@ -461,6 +461,18 @@ int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags)
         do_on_array(a_x,DRS_CELLS_COUNT_CHANNEL,s_x_to_real);
     }
 
+    if (! a_flags & DRS_CAL_APPLY_NO_CUT){
+
+        if (g_drs_data_cut_from_begin)
+            memmove(a_x, a_x + g_drs_data_cut_from_begin, (DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin)* sizeof (double)  );
+
+        if (g_drs_data_cut_from_end){
+            size_t l_end_count = DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin;
+            memset(a_x + l_end_count, 0, l_end_count * sizeof (double) );
+        }
+    }
+
+
     return 0;
 }
 
@@ -616,6 +628,15 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         }
     }
 
+    if (! a_flags & DRS_CAL_APPLY_NO_CUT){
+        if (g_drs_data_cut_from_begin)
+            memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - DRS_CHANNELS_COUNT*g_drs_data_cut_from_begin)* sizeof (double)  );
+
+        if (g_drs_data_cut_from_end){
+            size_t l_end_count = DRS_CELLS_COUNT - g_drs_data_cut_from_begin * DRS_CHANNELS_COUNT;
+            memset(a_out + l_end_count * DRS_CHANNELS_COUNT, 0, g_drs_data_cut_from_begin * DRS_CHANNELS_COUNT  * sizeof (double) );
+        }
+    }
 
     //if( a_flags & DRS_CAL_APPLY_Y_EQUALIZE){
     //    drs_cal_y_ch_equalize(a_drs, l_out, l_out, a_drs->avr_level);
