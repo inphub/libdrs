@@ -390,6 +390,7 @@ void drs_set_freq(enum drs_freq a_freq)
     g_current_freq = a_freq;
     drs_reg_write(0x4, 1);//select frequency (0 - external, 1 - internal
     drs_reg_write(30,   freqREG[g_current_freq]);//select ref frequency
+    drs_reg_write(0x5, 1);// write frequency
     log_it(L_NOTICE, "Set frequency %s", c_freq_str[a_freq]);
 }
 

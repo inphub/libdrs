@@ -118,7 +118,7 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
         memcpy(a_buffer,  ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
     else
        memcpy(a_buffer, ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
-    a_drs->shift =drs_get_shift( a_drs->id);
+    a_drs->shift =drs_get_shift( a_drs->id, a_page_num);
     a_drs->shift_bank =a_drs->shift & 1023;
 
     //log_it(L_DEBUG, "Global shift: %u , local shift: %u",drs_get_shift(a_drs->id), a_drs->shift);
@@ -256,11 +256,11 @@ void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned shor
  * @brief drs_read_pages
  * @param a_drs
  * @param a_page_count
- * @param a_step
+ * @param a_offset
  * @param a_buffer
  * @param a_buffer_size
  */
-void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_step,  unsigned short *a_buffer, size_t a_buffer_size)
+void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_offset,  unsigned short *a_buffer, size_t a_buffer_size)
 {
     size_t l_offset = 0;
     bool l_loop = true;
@@ -274,7 +274,7 @@ void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_ste
             log_it(L_ERROR, "Page read function goes out of input buffer, size %zd is not enought, requires %zd ( page read size %zd, num pages %u",
                     a_buffer_size, a_page_count * DRS_PAGE_READ_SIZE, DRS_PAGE_READ_SIZE, a_page_count );
         }
-        drs_read_page(a_drs,t,&a_buffer[t*a_step], l_read_size);
+        drs_read_page(a_drs,t,&a_buffer[t*a_offset], l_read_size);
     }
 }
 
@@ -284,9 +284,9 @@ void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_ste
  * unsigned int drsnum		номер drs для вычитывания сдвига
  * return 					индекс сдвига;
  */
-unsigned int drs_get_shift_bank(unsigned int a_drs_num)
+unsigned int drs_get_shift_bank(unsigned int a_drs_num, unsigned int a_page_num)
 {
-    return drs_get_shift(a_drs_num) &1023;
+    return drs_get_shift(a_drs_num, a_page_num) &1023;
 }
 
 /**
@@ -294,17 +294,15 @@ unsigned int drs_get_shift_bank(unsigned int a_drs_num)
  * @param a_drs_num
  * @return
  */
-unsigned int drs_get_shift(unsigned int a_drs_num)
+unsigned int drs_get_shift(unsigned int a_drs_num, unsigned int a_page_num)
 {
     unsigned short tmpshift;
     if (a_drs_num==0)
-     tmpshift=((unsigned long *)data_map_shift_drs1)[0];
+     tmpshift=((uint32_t *)data_map_shift_drs1)[a_page_num];
     else
-     tmpshift=((unsigned long *)data_map_shift_drs2)[0];
-
+     tmpshift=((uint32_t *)data_map_shift_drs2)[a_page_num];
     return tmpshift & 4095;
 }
-
 
 int drs_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags)
 {

@@ -91,18 +91,16 @@ static inline unsigned drs_data_get_zap_delay_ns(unsigned a_drs_num){
     return drs_data_get_zap_delay_quants(a_drs_num) * DRS_ZAP_DELAY_QUANT_NS;
 }
 
-unsigned int drs_get_shift(unsigned int a_drs_num);
-unsigned int drs_get_shift_bank(unsigned int a_drs_num);
 
+unsigned int drs_get_shift(unsigned int a_drs_num, unsigned int a_page_num);
+unsigned int drs_get_shift_bank(unsigned int a_drs_num, unsigned int a_page_num);
 
 void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size);
-void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size);
-static inline void drs_read_page_all(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer)
-{
-    return drs_read_page(a_drs, a_page_num, a_buffer, DRS_PAGE_READ_SIZE);
-}
 
-void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_step,  unsigned short *a_buffer, size_t a_buffer_size);
+
+void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size);
+
+void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_offset,  unsigned short *a_buffer, size_t a_buffer_size);
 
 void drs_data_rotate_bank9(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size);
 void drs_data_rotate_bank(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size);
