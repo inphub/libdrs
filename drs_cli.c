@@ -5,6 +5,8 @@
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
  */
 
+#include <stdlib.h>
+
 #include <dap_common.h>
 #include <dap_string.h>
 #include <dap_strfuncs.h>
@@ -88,6 +90,7 @@ int drs_cli_init()
                             "\n"
                             "set delay -drs <Номер ДРС> -- <Значение задержки в наносекундах>\n"
                             "\n"
+                            "set splash_gauntlet <значение предела срабатывания алгоритма>"
                             ""
                             );
 
@@ -106,7 +109,7 @@ int drs_cli_init()
                             "read write_ready [-drs <DRS num>]\n"
                             "\t Проверка на флаг готовности к записи\n"
                             "\n"
-                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-page <Номер страницы>] [-apply <флаги>]\n"
+                            "read page [-drs <Номер DRS>] [-limit <Предельное число ячеек для отображения>] [-start_from <номер ячейки>] [-page <Номер страницы>] [-apply <флаги>]\n"
                             "\t Читает данные из указанной ДРС. Для внешнего запуска так же можно указать номер страницы (1 по умолчанию)\n"
                             "\t В случае указания флагов(через запятую) с параметром -apply комманда выводит значения с плавающей точкой. Доступные флаги применения:\n"
                             "\t  CELLS         Амплитудная калибровка\n"
@@ -127,6 +130,9 @@ int drs_cli_init()
                             "\t PHYS         Приведение к физическим величинам\n"
                             "\n"
                             "read status [-drs <Номер DRS>]\n"
+                            "\t Показывает текущий статус чтения, завершено ли и сколько страницов\n"
+                            "\n"
+                            "read shift [-drs <Номер DRS>]\n"
                             "\t Показывает текущий статус чтения, завершено ли и сколько страницов\n"
                             "\n"
                             "\n"
@@ -249,7 +255,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_WRITE_READY,
         CMD_PAGE,
         CMD_X,
-        CMD_STATUS
+        CMD_STATUS,
+        CMD_SHIFT
     };
     int l_arg_index = 1;
     int l_cmd_num = CMD_NONE;
@@ -263,6 +270,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
         l_cmd_num = CMD_X;
     }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "status", NULL)) {
         l_cmd_num = CMD_STATUS;
+    }else if( dap_cli_server_cmd_find_option_val(a_argv, l_arg_index, a_argc, "shift", NULL)) {
+        l_cmd_num = CMD_SHIFT;
     }
 
     l_arg_index++;
@@ -277,6 +286,24 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                 bool l_flag_ready=drs_get_flag_write_ready(l_drs_num);
                 dap_cli_server_cmd_set_reply_text( a_str_reply, "DRS #%d %s к чтению", l_drs_num, l_flag_ready? "готова": "не готова");
         }break;
+      case CMD_SHIFT:{
+          const char * l_page_str = NULL;
+          dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-page",  &l_page_str);
+          unsigned l_page = l_page_str ? atoi(l_page_str) : 0;
+          dap_string_t * l_reply = dap_string_new("");
+          dap_string_append_printf(l_reply, "DRS read shift for page %u :\n",l_page );
+
+          // Пробегаем по всем DRS, либо только по выбранной
+          for(unsigned n = l_drs_num == -1? 0 : l_drs_num; n < DRS_COUNT; n++){
+              if( drs_check_flag (n) ){
+                  dap_string_append_printf(l_reply, "  #%u: shift=%u shift_bank=%u\n", n, drs_get_shift(n,l_page),drs_get_shift_bank(n,l_page) );
+              }
+              if (l_drs_num != -1)
+                break;
+          }
+          *a_str_reply = dap_string_free(l_reply, false);
+      } break;
+
         case CMD_STATUS:{
             dap_string_t * l_reply = dap_string_new("DRS read status:\n");
             // Пробегаем по всем DRS, либо только по выбранной
@@ -900,14 +927,16 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_REG,
         CMD_DAC,
         CMD_FLAG_END_READ,
-        CMD_DELAY
+        CMD_DELAY,
+        CMD_SPLASH_GAUNTLET
     };
     const char *l_cmd_str_c[] ={
         [CMD_MODE] = "mode",
         [CMD_REG] = "reg",
         [CMD_DAC] = "dac",
         [CMD_FLAG_END_READ] = "flag_end_read",
-        [CMD_DELAY] = "delay"
+        [CMD_DELAY] = "delay",
+        [CMD_SPLASH_GAUNTLET] = "splash_gauntlet"
     };
 
     if(a_argc < 3) {
@@ -991,6 +1020,12 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             drs_data_set_zap_delay_ns(l_drs_num, l_delay );
             dap_cli_server_cmd_set_reply_text(a_str_reply, "Теперь у DRS #%u стоит задержка в %u наносекунд, ура!", l_drs_num, l_delay );
         }
+        case CMD_SPLASH_GAUNTLET:{
+            const char * l_gauntlet_str = a_argv[2];
+            unsigned l_gauntlet = l_gauntlet_str? atoi(l_gauntlet_str) : DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
+            drs_cal_set_splash_gauntlet(l_gauntlet);
+            dap_cli_server_cmd_set_reply_text(a_str_reply, "Предел изменения соседних данных в ячейках тепреь равен %u", l_gauntlet);
+        }break;
         case CMD_REG:{
             const char * l_reg_str = a_argv[2];
             const char * l_value_str = a_argv[3];
@@ -1010,6 +1045,7 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
                 l_value_str += 2;
             }
 
+            l_reg = strtoul(l_reg_str,&l_parse_end, l_reg_base);
             l_value = strtoul(l_value_str,&l_parse_end, l_value_base);
 
             drs_reg_write(l_reg, l_value);
@@ -1043,9 +1079,9 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             }
 
             if (l_is_ch9){
-                drs_dac_shift_set_ch9(l_shifts[0],g_ini_ch9.gain, g_ini_ch9.offset);
+                drs_set_dac_shift_ch9(l_shifts[0]);
             } else {
-                drs_dac_shift_set_quants(l_drs->id, l_shifts,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+                drs_set_dac_shift(l_drs->id, l_shifts);
             }
         } break;
         default:

@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+#include <math.h>
+
 #include <dap_common.h>
 #include <dap_time.h>
 
@@ -34,6 +36,8 @@
 
 #define DRS_DAC_COUNT (DRS_DCA_COUNT_ALL/DRS_COUNT)
 
+#define DRS_REG_DVGA_GAINS   		2
+#define DRS_REG_DVGA_START    		1
 #define DRS_REG_CMD_DRS_1		14
 #define DRS_REG_CMD_DRS_2		15
 #define DRS_MODE_REG			16
@@ -148,6 +152,11 @@ typedef struct{
     unsigned int shift_bank;
     unsigned int shift;
 
+    struct{
+        double gain[DRS_CHANNELS_COUNT];
+        double offset[DRS_CHANNELS_COUNT];
+    } hw;
+
     double avr_level; // Level for channels averaging
     coefficients_t coeffs;
 } drs_t;
@@ -192,16 +201,26 @@ static const char* c_freq_str[] = {
 #define DRS_INIT_ENABLE_DRS_1              0x00000002
 
 // Выставляет частоту один раз после загрузки
-#define DRS_INIT_SET_ONCE_FREQ             0x10000000
+#define DRS_INIT_SET_ONCE_FREQ             0x10010000
 // Выставляет частоту всегда при инициализации
-#define DRS_INIT_SET_ALWAYS_FREQ           0x20020000
+#define DRS_INIT_SET_ALWAYS_FREQ           0x20010000
 
+#define DRS_INIT_SET_ONCE_GAIN_QUANTS_DEFAULT     0x10020000
+#define DRS_INIT_SET_ALWAYS_GAIN_QUANTS_DEFAULT   0x20020000
 
 
 // Отрезает в начале массива указанное число ячеек при чтении
 #define DRS_INIT_SET_DATA_CUT_FROM_BEGIN   0x40000000
 //   Отрезает в конце массива указанное число ячеек при чтении
 #define DRS_INIT_SET_DATA_CUT_FROM_END     0x80000000
+
+// Верхний порог шкалы гейна ( в Дб)
+#define DRS_GAIN_BEGIN  -6.0
+// Нижний порог шкалы гейна (в Дб)
+#define DRS_GAIN_END    26.0
+
+#define DRS_GAIN_QUANTS_BEGIN    0
+#define DRS_GAIN_QUANTS_END      32
 
 extern unsigned g_drs_data_cut_from_begin;
 extern unsigned g_drs_data_cut_from_end;
@@ -224,17 +243,14 @@ void drs_deinit();
 int drs_ini_load(const char *inifile, parameter_t *prm);
 
 
-void drs_dac_shift_set_quants(int a_drs_num, const double shiftDAC[DRS_CHANNELS_COUNT],float *DAC_gain,float *DAC_offset);
-
-static inline void drs_dac_shift_set(int a_drs_num, const double a_shifts[DRS_CHANNELS_COUNT])
-{
-    drs_dac_shift_set_quants (a_drs_num, a_shifts, g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
-}
-
-void drs_dac_shift_set_ch9(double a_shiftDAC,float DAC_gain,float DAC_offset);
+void drs_set_dac_shift(int a_drs_num, const double shiftDAC[DRS_CHANNELS_COUNT]);
+void drs_set_dac_shift_ch9(double a_shiftDAC);
 
 
-void drs_dac_shift_write_reg(int a_drs_num, unsigned short *shiftValue);
+void drs_set_dac_shift_quants_all(int a_drs_num, unsigned int value);
+void drs_set_dac_shift_ch9_quants(unsigned int a_value);
+unsigned drs_get_dac_shift_quants_all(int a_drs_num);
+unsigned drs_get_dac_shift_ch9_quants();
 
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
@@ -243,11 +259,6 @@ static inline void drs_set_avr_level (drs_t * a_drs, const double a_avr_level) {
 
 drs_mode_t drs_get_mode(int a_drs_num);
 
-void drs_dac_shift_input_set(int a_drs_num, unsigned int value);
-void drs_dac_shift_input_set_ch9(unsigned int a_value);
-
-unsigned drs_dac_shift_input_get(int a_drs_num);
-unsigned drs_dac_shift_input_get_ch9();
 
 
 void drs_dac_set( unsigned int onAH);
@@ -276,6 +287,50 @@ static bool drs_get_read_ready(unsigned a_drs_num){
 static inline bool drs_check_flag(unsigned a_drs_num){
     return g_drs_flags & (0x1 << a_drs_num);
 }
+
+/**
+ * @brief drs_set_gain_quants_all
+ * @details Выставляет гейны в квантах от 0 до 32 для всех каналов всех DRS
+ * @param a_gains массив гейнов размером в число всех каналов, в квантах от 0 до 32
+ */
+static inline void drs_set_gain_quants_all(const unsigned short a_gain_quants[DRS_COUNT * DRS_CHANNELS_COUNT] )
+{
+#if DRS_COUNT ==2 && DRS_CHANNELS_COUNT == 2
+    unsigned int l_value = 0;
+    if ( g_drs_flags &  (0x1 << 0)  ){ //
+        l_value |= (((unsigned int) (g_drs[0].hw.gain[0] = a_gain_quants[0] ) )&0x3f) <<0;
+        l_value |= (((unsigned int)(g_drs[0].hw.gain[1] = a_gain_quants[1] ))&0x3f) <<6;
+    }
+    if ( g_drs_flags &  (0x1 << 1 ) ){ //
+        l_value |= (((unsigned int)(g_drs[1].hw.gain[0] = a_gain_quants[2] ))&0x3f) <<12;
+        l_value |= (((unsigned int)(g_drs[1].hw.gain[1] = a_gain_quants[3] ))&0x3f) <<18;
+    }
+
+    drs_reg_write(DRS_REG_DVGA_GAINS , l_value);
+    drs_reg_write(DRS_REG_DVGA_START, 1);
+#else
+#error "Нужно переделать работу с регистрами, если общее число каналов не равно 4"
+#endif
+}
+
+/**
+ * @brief s_gain_to_quants
+ * @param a_gain
+ * @return
+ */
+static inline unsigned short drs_gain_to_quants(double a_gain)
+{
+    if (fabs(a_gain) != a_gain || a_gain <  DRS_GAIN_BEGIN || a_gain > DRS_GAIN_END){
+        return DRS_GAIN_QUANTS_END;
+    }
+    return ((double)DRS_GAIN_QUANTS_END) - a_gain + DRS_GAIN_BEGIN ;
+}
+void drs_set_gain_quants (int a_drs_num, int a_drs_channel, const unsigned short a_gain_quants);
+void drs_set_gain_all(const double a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] );
+
+void drs_set_gain (int a_drs_num, int a_drs_channel, const double a_gain);
+
+
 
 #ifdef __cplusplus
 }

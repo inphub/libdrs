@@ -14,7 +14,7 @@
 
 #define LOG_TAG "drs_ops"
 
-static s_debug_more = true;
+static bool s_debug_more = true;
 /**
  * @brief drs_start
  */

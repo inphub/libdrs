@@ -11,7 +11,6 @@
 #include "drs_proto_cmd.h"
 
 #include "commands.h"
-#include "calibrate.h"
 #include "drs_cal.h"
 #include "drs_cal_amp.h"
 #include "drs_cal_time_global.h"
@@ -374,7 +373,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
               log_it(L_DEBUG, "%f",shiftDAC[t]);
             }
             for (int d = 0; d < DRS_COUNT; d++)
-              drs_dac_shift_set_quants(d,&shiftDAC[d * DRS_DAC_COUNT] ,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+              drs_set_dac_shift(d,&shiftDAC[d * DRS_DAC_COUNT]);
 
             drs_dac_set(1);
             l_value=1;

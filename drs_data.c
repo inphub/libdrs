@@ -48,6 +48,7 @@ int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
     return 0;
 };
 
+
 /**
  * @brief drs_data_get_page
  * @param a_drs

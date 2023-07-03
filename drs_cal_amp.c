@@ -93,7 +93,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     double * l_levels = a_args->param.ampl.levels;
     int l_ret = 0;
 
-    unsigned l_dac_shifts_old =  drs_dac_shift_input_get(a_drs->id);
+    unsigned l_dac_shifts_old =  drs_get_dac_shift_quants_all(a_drs->id);
 
     drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
     log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, mode_old=%d, dac_shifts_old=0x%08X",a_args->param.ampl.repeats ,
@@ -145,10 +145,10 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     // Выключаем режим калибровки амплитуды
 
     drs_set_mode(a_drs->id, l_mode_old );
-    drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
+    drs_set_dac_shift_quants_all(a_drs->id, l_dac_shifts_old);
 
 
-    l_dac_shifts_old = drs_dac_shift_input_get(a_drs->id);
+    l_dac_shifts_old = drs_get_dac_shift_quants_all(a_drs->id);
 
     log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, dac_shifts=%08X", a_args->param.ampl.repeats
            , l_levels[0], l_levels[1], l_dac_shifts_old);
@@ -159,7 +159,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     return l_ret;
 lb_exit:
     drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
-    drs_dac_shift_input_set( a_drs->id, l_dac_shifts_old);
+    drs_set_dac_shift_quants_all( a_drs->id, l_dac_shifts_old);
     return l_ret;
 
 
@@ -232,11 +232,11 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
         debug_if(s_debug_more, L_INFO, "Repeat #%u", i);
         lvl = calibLvl[0]+dh*((double)i);
         if(a_ch9_only){
-            drs_dac_shift_set_ch9(lvl,g_ini_ch9.gain, g_ini_ch9.offset);
+            drs_set_dac_shift_ch9(lvl);
         }else{
             double shiftDACValues[DRS_CHANNELS_COUNT ];
             fill_array(shiftDACValues, &lvl, DRS_CHANNELS_COUNT, sizeof(lvl));
-            drs_dac_shift_set_quants(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains, g_ini->fastadc.dac_offsets);
+            drs_set_dac_shift(a_drs->id, shiftDACValues);
         }
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
@@ -351,7 +351,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     for(t=0;t<l_count;t++){
         l_lvl=calibLvl[0]+dh*((double)t);
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
-        drs_dac_shift_set_quants(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
+        drs_set_dac_shift(a_drs->id, shiftDACValues);
         if (drs_data_get_all(a_drs,DRS_OP_FLAG_SOFT_START , l_cells ) != 0){
             log_it(L_ERROR,"data not read on iteration %u", t);
             return -1;
@@ -377,7 +377,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     // Restore levels
     l_lvl = 0.0;
     fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
-    drs_dac_shift_set_quants(a_drs->id, shiftDACValues,g_ini->fastadc.dac_gains,g_ini->fastadc.dac_offsets);
+    drs_set_dac_shift(a_drs->id, shiftDACValues);
 
     return 0;
 }
@@ -513,47 +513,51 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
  */
 void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_gauntlet)
 {
-    unsigned int l_splash[DRS_CHANNELS_COUNT];
     unsigned l_cells_proc_count =  DRS_CELLS_COUNT_CHANNEL ;
     log_it(L_INFO,"Trying to find splashs, gauntlet %f...", a_gauntlet);
-    bool l_found_smth = false;
+    bool l_found_smth [DRS_CELLS_COUNT_BANK] = {};
+
     for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
-        l_splash[ch] = 1024;
-        for(unsigned l_cell_id=1;l_cell_id<l_cells_proc_count;l_cell_id++){
+        int l_splash_id = -1 ;
+        for(unsigned l_cell_id=0;l_cell_id<l_cells_proc_count;l_cell_id++){
 
-            if(absf(a_Y[DRS_IDX(ch,l_cell_id + 1)] - a_Y[DRS_IDX(ch,l_cell_id)])>a_gauntlet &&
-               absf(a_Y[DRS_IDX(ch,l_cell_id-1)]  - a_Y[DRS_IDX(ch,l_cell_id)])>a_gauntlet){
-                log_it(L_NOTICE, "Found splash for %d channel in %d cell\n",ch,(l_cell_id+ a_drs->shift_bank)&1023);
-                l_splash[ch] = ( l_cell_id + a_drs->shift_bank ) & 1023;
-                l_found_smth = true;
-                break;
+            unsigned l_cell_id_0 = l_cell_id + 1;
+            unsigned l_cell_id_1 = l_cell_id ;
+
+            unsigned l_cell_id_2 = l_cell_id ? l_cell_id -1: 1023;
+            unsigned l_cell_id_3 = l_cell_id ? l_cell_id: 1022;
+
+            if(absf(a_Y[DRS_IDX(ch,l_cell_id_0)] - a_Y[DRS_IDX(ch,l_cell_id_1)])>a_gauntlet &&
+               absf(a_Y[DRS_IDX(ch,l_cell_id_2)]  - a_Y[DRS_IDX(ch,l_cell_id_3)])>a_gauntlet){
+                log_it(L_NOTICE, "Found splash for %d channel in %d cell",ch, l_cell_id); //(l_cell_id+ a_drs->shift_bank)&1023);
+                l_splash_id = l_cell_id ? (l_cell_id + a_drs->shift_bank ) & 1023 : 0;
+                l_found_smth[l_splash_id]  = true;
             }
+
         }
-        if(   absf(a_Y[DRS_IDX(ch,1)]   - a_Y[DRS_IDX(ch,0)]    ) > a_gauntlet &&
-              absf(a_Y[DRS_IDX(ch,1023)] - a_Y[DRS_IDX(ch,1022)] ) > a_gauntlet){
-            l_splash[ch] = 0;
-            l_found_smth = true;
-            log_it(L_NOTICE,"Found splash for %u channel in %u cell",ch+1,a_drs->shift_bank);
-        }
+
     }
-    if(l_found_smth){
-        for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
-            for (unsigned b = 0; b < DRS_CHANNEL_BANK_COUNT ; b++){
-                unsigned l_cell_id = ( l_splash[ch] - a_drs->shift_bank ) & (DRS_CELLS_COUNT_BANK-1 );
-                if((l_cell_id > 0) && (l_cell_id < (DRS_CELLS_COUNT_BANK - 1) )){
-                    a_Y[DRS_IDX_BANK(ch,b,l_cell_id)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id + 1)] + a_Y[DRS_IDX_BANK(ch,b,l_cell_id - 1)]) / 2.0;
-                }
 
-                if(l_cell_id == 0){
-                    a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
-                }
+    for(unsigned n = 0; n < DRS_CELLS_COUNT_BANK; n++)
+        if(l_found_smth[n]){
+            for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
+                for (unsigned b = 0; b < DRS_CHANNEL_BANK_COUNT ; b++){
+                    unsigned l_cell_id_fix = ( n - a_drs->shift_bank ) & (DRS_CELLS_COUNT_BANK-1 );
+                    if((l_cell_id_fix > 0) && (l_cell_id_fix < (DRS_CELLS_COUNT_BANK - 1) )){
+                        a_Y[DRS_IDX_BANK(ch,b,l_cell_id_fix)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id_fix + 1)] +
+                            a_Y[DRS_IDX_BANK(ch,b,l_cell_id_fix - 1)]) / 2.0;
+                    }
 
-                if(l_cell_id == 1023){
-                    a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
+                    if(l_cell_id_fix == 0){
+                        a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
+                    }
+
+                    if(l_cell_id_fix == 1023){
+                        a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
+                    }
                 }
             }
         }
-    }else
-        log_it(L_INFO,"Splashes weren't found");
+
 }
 

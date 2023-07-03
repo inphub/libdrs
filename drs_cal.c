@@ -23,7 +23,6 @@
 #include "drs_cal_time_global.h"
 #include "drs_cal_time_local.h"
 
-#include "calibrate.h"
 #include "commands.h"
 #include "data_operations.h"
 
@@ -461,7 +460,7 @@ int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags)
         do_on_array(a_x,DRS_CELLS_COUNT_CHANNEL,s_x_to_real);
     }
 
-    if (! a_flags & DRS_CAL_APPLY_NO_CUT){
+    if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
 
         if (g_drs_data_cut_from_begin)
             memmove(a_x, a_x + g_drs_data_cut_from_begin, (DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin)* sizeof (double)  );
@@ -628,7 +627,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         }
     }
 
-    if (! a_flags & DRS_CAL_APPLY_NO_CUT){
+    if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
         if (g_drs_data_cut_from_begin)
             memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - DRS_CHANNELS_COUNT*g_drs_data_cut_from_begin)* sizeof (double)  );
 
