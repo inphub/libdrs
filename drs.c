@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <math.h>
 
+#include <pthread.h>
+
 
 #include <dap_common.h>
 #include <dap_config.h>
@@ -93,6 +95,8 @@ static int s_post_init();
 
 static bool s_debug_more = false;
 static bool s_initalized = false;
+static pthread_cond_t s_initalized_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t s_initalized_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned s_dac_shifts_values[DRS_COUNT ] ={0};
 
@@ -142,8 +146,13 @@ int drs_init(int a_drs_flags,...)
 
     log_it(L_NOTICE,"DRS config and memory are initialized");
 
+    pthread_mutex_lock(&s_initalized_mutex);
+
     dap_timerfd_start_on_worker(  dap_events_worker_get_auto(),  g_ini->init_on_start_timer_ms,
                                    s_init_on_start_timer_callback, g_ini);
+
+    pthread_cond_wait(&s_initalized_cond, &s_initalized_mutex);
+    pthread_mutex_unlock(&s_initalized_mutex);
 
     return 0;
 }
@@ -269,6 +278,15 @@ static bool s_init_on_start_timer_callback(void* a_arg)
         log_it(L_DEBUG,"DRS is already initialized so lets just pass this stage");
     }
     s_post_init();
+
+    // Чтобы точно успел ожидающий поток встать на pthread_cond_wait
+    pthread_mutex_lock(&s_initalized_mutex);
+    pthread_mutex_unlock(&s_initalized_mutex);
+
+    // А вот тут собственно и вызываем
+    pthread_cond_broadcast(&s_initalized_cond);
+
+
     return false;
 }
 
@@ -447,6 +465,23 @@ void drs_set_gain_all(const double a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] )
         }
 
     drs_set_gain_quants_all(l_gain_quants);
+}
+
+/**
+ * @brief drs_get_gain_quants_all
+ * @param a_gain
+ */
+void drs_get_gain_quants_all(unsigned short a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] )
+{
+#if DRS_COUNT ==2 && DRS_CHANNELS_COUNT == 2
+    a_gain[0]= g_drs[0].hw.gain[0];
+    a_gain[1]= g_drs[0].hw.gain[1];
+    a_gain[2]= g_drs[1].hw.gain[0];
+    a_gain[3]= g_drs[1].hw.gain[1];
+#else
+#error "Нужно переделать работу с регистрами, если общее число каналов не равно 4"
+#endif
+
 }
 
 /**

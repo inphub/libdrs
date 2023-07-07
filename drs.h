@@ -330,6 +330,8 @@ void drs_set_gain_all(const double a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] );
 
 void drs_set_gain (int a_drs_num, int a_drs_channel, const double a_gain);
 
+void drs_get_gain_quants_all(unsigned short a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] );
+
 
 
 #ifdef __cplusplus

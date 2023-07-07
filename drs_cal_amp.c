@@ -45,11 +45,13 @@ static bool s_debug_more = false;
  * @param a_progress
  * @return
  */
-int drs_cal_amp( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress)
+int drs_cal_amp(  int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress)
 {
     if (a_drs_num == -1){
         int l_ret = -10;
         log_it(L_INFO, "Amplitude calibration for all DRS");
+        unsigned l_progress_per_stage_old = a_args->cal->progress_per_stage;
+        a_args->cal->progress_per_stage /= DRS_COUNT;
         for (size_t i=0; i < DRS_COUNT; i++ ){
             l_ret = s_proc_drs(g_drs +i, a_args,a_progress);
             if ( l_ret != 0){
@@ -57,6 +59,7 @@ int drs_cal_amp( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fast32_t * 
                 break;
             }
         }
+        a_args->cal->progress_per_stage = l_progress_per_stage_old;
         return l_ret;
     }else if (a_drs_num < DRS_COUNT){
         log_it(L_INFO, "Amplitude calibration for DRS #%d", a_drs_num);
@@ -94,6 +97,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     int l_ret = 0;
 
     unsigned l_dac_shifts_old =  drs_get_dac_shift_quants_all(a_drs->id);
+    unsigned short l_dac_old_gains [DRS_COUNT * DRS_CHANNELS_COUNT];
 
     drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
     log_it(L_INFO, "Calibrate amplitude start: count=%d, begin=%f, end=%f, mode_old=%d, dac_shifts_old=0x%08X",a_args->param.ampl.repeats ,
@@ -102,8 +106,10 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
 
     drs_set_sinus_signal(false); // Выключаяем сигнал синусоиды
     drs_set_mode(a_drs->id, DRS_MODE_CAL_AMPL ); // Включаем режим калибровки амплитуды
-    //set_gains_drss(32, 32, 32, 32);
-    //start_amplifier(1);
+
+    drs_get_gain_quants_all(l_dac_old_gains);
+
+    drs_set_gain_quants(a_drs->id,-1, 32);
 
 
     // Основная калибровка
@@ -113,7 +119,6 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         l_ret = -1;
         goto lb_exit;
     }
-    if (a_progress) *a_progress +=15;
     log_it(L_NOTICE, "Calibrate fin end: count=%d, begin=%f, end=%f, shifts=%p",a_args->param.ampl.repeats, l_levels[0], l_levels[1], l_shifts);
     //drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
@@ -123,15 +128,12 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
         l_ret = -2;
         goto lb_exit;
     }
-    if (a_progress) *a_progress +=15;
     //drs_dac_shift_input_set(a_drs->id, l_dac_shifts_old);
 
 
     log_it(L_NOTICE, "Calibrate 9 channel");
     // Калибруем 9ый канал
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
-    //set_gains_drss(32, 32, 32, 32);
-    //start_amplifier(1);
 
     // Собираем данные для 9 канала
     if( s_fin_collect( a_drs, a_args, true) !=0 ) {
@@ -146,7 +148,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
 
     drs_set_mode(a_drs->id, l_mode_old );
     drs_set_dac_shift_quants_all(a_drs->id, l_dac_shifts_old);
-
+    drs_set_gain_quants_all(l_dac_old_gains);
 
     l_dac_shifts_old = drs_get_dac_shift_quants_all(a_drs->id);
 
@@ -228,6 +230,10 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
 
     log_it(L_NOTICE,"--Collecting coeficients in %u iterations, step length %f", l_count, dh);
     unsigned l_repeats = 0;
+    double l_progress_total = ((double) a_args->cal->progress_per_stage) /3.0;
+    double l_progress_step = l_progress_total / (double) (l_count * a_args->param.ampl.N);
+    double l_progress = a_args->cal->progress;
+
     for(unsigned i = 0; i < l_count; i++){
         debug_if(s_debug_more, L_INFO, "Repeat #%u", i);
         lvl = calibLvl[0]+dh*((double)i);
@@ -252,6 +258,8 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
             }
             s_collect_stats_b(a_drs,&l_ctx,i, a_ch9_only);
             l_repeats++;
+            l_progress += l_progress_step;
+            a_args->cal->progress = l_progress;
         }
 
         // Немного дополнительного отладочного вывода
@@ -348,6 +356,11 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     }
     log_it(L_INFO,"--Interchannel calibration--");
 
+    double l_progress_total = ((double) a_args->cal->progress_per_stage) /3.0;
+    double l_progress_step  = l_progress_total / (double) ( l_count );
+    double l_progress       = a_args->cal->progress;
+
+
     for(t=0;t<l_count;t++){
         l_lvl=calibLvl[0]+dh*((double)t);
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
@@ -363,6 +376,9 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
         drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );
         //s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
+
+        l_progress += l_progress_step;
+        a_args->cal->progress = l_progress;
     }
 
     for(ch=0;ch<DRS_CHANNELS_COUNT;ch++){

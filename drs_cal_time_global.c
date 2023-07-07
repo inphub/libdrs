@@ -142,7 +142,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     // Выставляем прогресс
     unsigned l_progress_old = 0;
-    const double l_progress_total = 20.0;
+    const double l_progress_total = a_args->cal->progress_per_stage;
     double l_progress_step = l_progress_total / a_args->param.time_global.num_cycle;
     if (a_progress)
       l_progress_old = *a_progress;

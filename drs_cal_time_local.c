@@ -149,7 +149,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     dap_nanotime_t l_ts_start = dap_nanotime_now();
 
-    const double l_progress_total = 40.0;
+    const double l_progress_total = a_args->cal->progress_per_stage;
 
 
     double l_progress = 0, l_progress_step = l_progress_total / a_args->param.time_local.min_N ;

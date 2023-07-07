@@ -99,7 +99,18 @@ static void * s_thread_routine(void * a_arg)
     drs_t * l_drs = l_cal->drs;
     assert(l_drs);
 
-    l_cal->progress = 5;
+
+    unsigned l_stages = 0;
+    if (l_args->keys.do_amplitude)
+      l_stages++;
+
+    if (l_args->keys.do_time_global)
+      l_stages++;
+
+    if (l_args->keys.do_time_local)
+      l_stages++;
+
+    l_cal->progress_per_stage = l_stages?  100 / l_stages : 100;
 
     log_it( L_NOTICE, "Start calibration for DRS #%u", l_drs->id);
     log_it(L_DEBUG, "Amplitude  : repeats_count=%u levels_count=%u begin=%f end=%f",
@@ -119,41 +130,43 @@ static void * s_thread_routine(void * a_arg)
     log_it(L_DEBUG, "DAC shifts: %s", l_dca_shifts_str->str);
     dap_string_free(l_dca_shifts_str, true);
 
-    l_cal->progress = 10;
-
-    //drs_set_num_pages(l_cal->drs, 1);
-    l_cal->progress = 15;
     //setSizeSamples(1024);//Peter fix
     if(l_args->keys.do_amplitude){
         log_it(L_NOTICE, "start amplitude calibrate. Levels %p, shifts %p\n",
                l_args->param.ampl.levels, l_args->param.ampl.levels+2 );
+        unsigned l_progress_old = l_cal->progress;
         int l_ret = drs_cal_amp( l_cal->drs->id, l_args, &l_cal->progress);
+
         if(l_ret == 0){
             log_it(L_INFO, "end amplitude calibrate");
         }else{
             log_it(L_ERROR, "amplitude calibrate error, code %d", l_ret);
         }
+        l_cal->progress = l_progress_old + l_args->cal->progress_per_stage;
     }
-    l_cal->progress = 40;
+
     if( l_args->keys.do_time_local ){
         log_it(L_NOTICE, "start time local calibrate");
         int l_ret = drs_cal_time_local(l_cal->drs->id, l_args, &l_cal->progress);
+        unsigned l_progress_old = l_cal->progress;
         if(l_ret == 0){
             log_it(L_INFO, "end time local calibrate");
         }else{
             log_it(L_ERROR, "time local calibrate error, code %d", l_ret);
         }
+        l_cal->progress = l_progress_old + l_args->cal->progress_per_stage;
     }
 
-    l_cal->progress = 80;
     if( l_args->keys.do_time_global ){
         log_it(L_NOTICE, "start time global calibrate");
+        unsigned l_progress_old = l_cal->progress;
         int l_ret = drs_cal_time_global(l_cal->drs->id, l_args, &l_cal->progress);
         if(l_ret == 0){
             log_it(L_INFO, "end time global calibrate");
         }else{
             log_it(L_ERROR, "time global calibrate error, code %d", l_ret);
         }
+        l_cal->progress = l_progress_old + l_args->cal->progress_per_stage;
     }
 
     l_cal->progress = 100;
