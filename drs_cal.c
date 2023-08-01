@@ -656,41 +656,6 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 }
 
 /**
- * @brief drs_cal_y_ch_equalize
- * @param a_drs
- * @param a_y_in
- * @param a_y_out
- * @param a_avr_level
- * @return
- */
-int drs_cal_y_ch_equalize(drs_t * a_drs, const double *a_y_in, double * a_y_out, double a_avr_level)
-{
-    assert(a_drs);
-    assert(a_y_in);
-    assert(a_y_out);
-
-    long double l_avr[DRS_CHANNELS_COUNT] = {};
-    long double l_avr_level;
-    for (unsigned ch = 0; ch < DRS_CHANNELS_COUNT; ch++){
-        for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
-            l_avr[ch] +=  (a_y_in[ DRS_IDX(ch,n) ] / (double) DRS_CELLS_COUNT_CHANNEL) ;
-        }
-        if (ch == 0){
-            l_avr_level = l_avr[ch];
-            continue;
-
-        }else {
-            double l_delta = l_avr_level - l_avr[ch];
-            for (unsigned n = 0; n < DRS_CELLS_COUNT_CHANNEL; n++){
-                a_y_out[DRS_IDX(ch,n)] = a_y_in[DRS_IDX(ch,n)] + l_delta;
-            }
-        }
-    }
-
-    return 0;
-}
-
-/**
  * @brief drs_cal_state_print
  * @param a_reply
  * @param a_cal

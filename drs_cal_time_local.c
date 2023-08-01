@@ -158,7 +158,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     for(n=0; l_value_min < l_N_min && n < a_args->param.time_local.max_repeats; n++, l_progress += l_progress_step ) {
 
         //debug_if(s_debug_more, L_INFO, "prod drs #%u, min=%u\tminValue=%f",a_drs->id, l_N_min,l_value_min);
-        int l_ret = drs_data_get_all(a_drs, DRS_OP_FLAG_SOFT_START , l_page_buffer);
+        int l_ret = drs_data_get_page_first(a_drs, DRS_OP_FLAG_SOFT_START , l_page_buffer);
         if(l_ret!=0){
             log_it(L_ERROR,"data_get_all not read");
             drs_set_mode(a_drs->id, DRS_MODE_SOFT_START);

@@ -157,7 +157,6 @@ typedef struct{
         double offset[DRS_CHANNELS_COUNT];
     } hw;
 
-    double avr_level; // Level for channels averaging
     coefficients_t coeffs;
 } drs_t;
 
@@ -236,14 +235,9 @@ extern "C" {
 #endif
 
 int drs_init(int a_drs_flags,...);
-bool drs_get_inited();
-
-
 void drs_deinit();
-int drs_ini_load(const char *inifile, parameter_t *prm);
 
-
-void drs_set_dac_shift(int a_drs_num, const double shiftDAC[DRS_CHANNELS_COUNT]);
+void drs_set_dac_shift(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT]);
 void drs_set_dac_shift_ch9(double a_shiftDAC);
 
 
@@ -255,13 +249,8 @@ unsigned drs_get_dac_shift_ch9_quants();
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
 
-static inline void drs_set_avr_level (drs_t * a_drs, const double a_avr_level) { a_drs->avr_level = a_avr_level; }
-
 drs_mode_t drs_get_mode(int a_drs_num);
 
-
-
-void drs_dac_set( unsigned int onAH);
 void drs_set_freq(enum drs_freq a_freq);
 double drs_get_freq_value(enum drs_freq a_freq);
 

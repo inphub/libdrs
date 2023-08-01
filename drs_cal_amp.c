@@ -246,7 +246,7 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
         }
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
-            if(drs_data_get(a_drs,DRS_OP_FLAG_CALIBRATE| DRS_OP_FLAG_SOFT_START, l_ctx.cells, l_cells_count * sizeof (unsigned short) )!=0){
+            if(drs_data_get_page_from_first(a_drs,DRS_OP_FLAG_CALIBRATE| DRS_OP_FLAG_SOFT_START, l_ctx.cells, l_cells_count * sizeof (unsigned short) )!=0){
                 log_it(L_ERROR, "data not read on %u::%u iteration", i,k);
                 l_ret = -1;
                 goto lb_exit;
@@ -365,7 +365,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
         l_lvl=calibLvl[0]+dh*((double)t);
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
         drs_set_dac_shift(a_drs->id, shiftDACValues);
-        if (drs_data_get_all(a_drs,DRS_OP_FLAG_SOFT_START , l_cells ) != 0){
+        if (drs_data_get_page_first(a_drs,DRS_OP_FLAG_SOFT_START , l_cells ) != 0){
             log_it(L_ERROR,"data not read on iteration %u", t);
             return -1;
         }

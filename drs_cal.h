@@ -153,8 +153,6 @@ double * drs_cal_y_produce(drs_t * a_drs,int a_flags);
 
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *buffer,double *dBuf, int a_flags);
 
-int drs_cal_y_ch_equalize(drs_t * a_drs, const double *a_y_in, double * a_y_out, double a_avg_level);
-
 void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_state,unsigned a_limits, int a_flags );
 
 

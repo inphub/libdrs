@@ -163,7 +163,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
 
     for( unsigned i = 0; i < a_args->param.time_global.num_cycle; i++){
-        int l_ret = drs_data_get(a_drs,DRS_OP_FLAG_SOFT_START, l_y_raw,sizeof (l_y_raw) );
+        int l_ret = drs_data_get_page_from_first(a_drs,DRS_OP_FLAG_SOFT_START, l_y_raw,sizeof (l_y_raw) );
         if ( l_ret != 0){
             log_it(L_ERROR,"data get returned with error, code %d", l_ret);
             drs_set_sinus_signal(false);

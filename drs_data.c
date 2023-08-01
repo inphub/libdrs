@@ -34,12 +34,12 @@ static bool s_debug_more=false;
  * @param a_buffer
  * @return
  */
-int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
+int drs_data_get_page_first(drs_t * a_drs, int a_flags , unsigned short * a_buffer)
 {
     if (a_drs){
-        return drs_data_get(a_drs, a_flags, a_buffer, DRS_CELLS_COUNT *sizeof(unsigned short) );
+        return drs_data_get_page_from_first(a_drs, a_flags, a_buffer, DRS_CELLS_COUNT *sizeof(unsigned short) );
     }else for (size_t d=0; d < DRS_COUNT; d++){
-        int l_ret = drs_data_get(&g_drs[d],0,(unsigned short *) (((byte_t *) a_buffer) + DRS_CELLS_COUNT *sizeof(unsigned short) ), DRS_CELLS_COUNT *sizeof(unsigned short)  );
+        int l_ret = drs_data_get_page_from_first(&g_drs[d],0,(unsigned short *) (((byte_t *) a_buffer) + DRS_CELLS_COUNT *sizeof(unsigned short) ), DRS_CELLS_COUNT *sizeof(unsigned short)  );
         if (l_ret!= 0){
             log_it(L_ERROR,"data not read on DRS #%u", d);
             return l_ret;

@@ -276,7 +276,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
 
                 drs_set_num_pages(l_drs, 1);
                 //setSizeSamples(1024);//Peter fix
-                drs_data_get_all( l_drs, DRS_OP_FLAG_SOFT_START, l_buf);
+                drs_data_get_page_first( l_drs, DRS_OP_FLAG_SOFT_START, l_buf);
             }else{
                 drs_read_pages(l_drs, a_cmd_args[1], l_value* 8192, l_buf, sizeof(unsigned short) * DRS_CELLS_COUNT );
             }
@@ -326,7 +326,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             size_t c_out_size = DRS_CELLS_COUNT * sizeof (double);
 
             if( l_pages_num==1  || l_pages_num == 0 ){//1 page
-                drs_data_get_all( l_drs, l_flags_data_read , l_buf);
+                drs_data_get_page_first( l_drs, l_flags_data_read , l_buf);
                 double * l_out = DAP_NEW_Z_SIZE(double,c_out_size);
                 drs_cal_y_apply(l_drs, l_buf, l_out ,l_flags_apply );
                 drs_proto_out_add_mem(DRS_PROTO(a_es), l_out, c_out_size ,  DRS_PROTO_DATA_MEM_FREE_AFTER );
@@ -375,7 +375,6 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             for (int d = 0; d < DRS_COUNT; d++)
               drs_set_dac_shift(d,&shiftDAC[d * DRS_DAC_COUNT]);
 
-            drs_dac_set(1);
             l_value=1;
             dap_events_socket_write_unsafe(a_es, &l_value, sizeof(l_value));
         }break;

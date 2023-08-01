@@ -35,9 +35,9 @@ extern "C" {
 
 int drs_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags);
 
-int drs_data_get_all(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
+int drs_data_get_page_first(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
 int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned short * a_buffer, size_t a_buffer_size); /// Если a_drs NULL то он копирует для всех DRS
-static inline int drs_data_get(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size){
+static inline int drs_data_get_page_from_first(drs_t * a_drs, int a_flags, unsigned short * a_buffer, size_t  a_buffer_size){
     return drs_data_get_page(a_drs, a_flags,0,a_buffer, a_buffer_size);
 }
 

@@ -55,11 +55,9 @@ drs_dac_ch_params_t g_ini_ch9;
 drs_t g_drs[DRS_COUNT]={
     [0]={
         .id = 0,
-        .avr_level = 8182.0,
     },
     [1]={
         .id = 1,
-        .avr_level = 8182.0,
     }
 };
 enum drs_freq g_current_freq=DRS_FREQ_5GHz;
@@ -85,6 +83,13 @@ static int fd;
 static volatile unsigned int *control_mem;
 static void *control_map;
 
+static bool s_debug_more = false;
+static bool s_initalized = false;
+static pthread_cond_t s_initalized_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t s_initalized_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+unsigned s_dac_shifts_values[DRS_COUNT ] ={0};
+
 static bool s_init_on_start_timer_callback(void* a_arg); // Init on start timeout callback
 static int s_init_mem(void);
 static uint32_t s_memr(off_t byte_addr);
@@ -92,13 +97,18 @@ static void s_memw(off_t byte_addr, uint32_t data);
 static void s_hw_init();
 static int s_post_init();
 
+static void s_dac_set(unsigned int onAH);
+static int s_ini_load(const char *a_ini_path, parameter_t *a_prm);
 
-static bool s_debug_more = false;
-static bool s_initalized = false;
-static pthread_cond_t s_initalized_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t s_initalized_mutex = PTHREAD_MUTEX_INITIALIZER;
+/**
+ * @brief dap_get_inited
+ * @return
+ */
+static inline bool s_get_inited()
+{
+    return dap_file_test(s_drs_check_file);
+}
 
-unsigned s_dac_shifts_values[DRS_COUNT ] ={0};
 
 /**
  * @brief drs_init
@@ -124,7 +134,7 @@ int drs_init(int a_drs_flags,...)
     s_init_mem();
 
     g_ini = DAP_NEW_Z(parameter_t);
-    drs_ini_load("/media/card/config.ini", g_ini );
+    s_ini_load("/media/card/config.ini", g_ini );
 
     if(g_drs_flags & DRS_INIT_SET_ONCE_FREQ ||  g_drs_flags & DRS_INIT_SET_ALWAYS_FREQ ){
         g_current_freq = va_arg(s_drs_flags_vars, enum drs_freq );
@@ -271,7 +281,7 @@ cleanup:
 static bool s_init_on_start_timer_callback(void* a_arg)
 {
     UNUSED(a_arg);
-    if( ! drs_get_inited() ){
+    if( ! s_get_inited() ){
         log_it(L_INFO,"Timeout for init on start passed, initializing DRS...");
         s_hw_init();
     }else{
@@ -326,7 +336,7 @@ static int s_post_init()
  */
 static void s_hw_init()
 {
-    if( drs_get_inited() ){
+    if( s_get_inited() ){
         log_it(L_WARNING, "Already initialized");
         return;
     }
@@ -582,7 +592,7 @@ void drs_init_old(parameter_t *a_params)
     usleep(3);
     drs_reg_write(13,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
     usleep(3);
-    drs_dac_set(1);
+    s_dac_set(1);
 //	drs_reg_write(0x0,1<<3|0<<2|0<<1|0);//Start_DRS Reset_DRS Stop_DRS Soft reset
 
 }
@@ -592,7 +602,7 @@ void drs_init_old(parameter_t *a_params)
  * @param a_ini_path
  * @param a_prm
  */
-int drs_ini_load(const char *a_ini_path, parameter_t *a_prm)
+static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
 {
     char sDAC_gain[]="DAC_gain_X";
     char sADC_offset[]="ADC_offset_X";
@@ -679,7 +689,7 @@ void drs_set_dac_shift_quants_all(int a_drs_num,unsigned int a_value)
     s_dac_shifts_values[a_drs_num] = a_value;
     drs_reg_write(0x8+a_drs_num,a_value);
     usleep(100);
-    drs_dac_set(1);
+    s_dac_set(1);
 }
 
 /**
@@ -690,7 +700,7 @@ void drs_set_dac_shift_ch9_quants(unsigned int a_value)
 {
     drs_reg_write(DRS_REG_DATA_DAC_CH9 ,a_value);
     usleep(100);
-    drs_dac_set(1);
+    s_dac_set(1);
 
 }
 
@@ -712,10 +722,10 @@ unsigned drs_get_dac_shift_ch9_quants()
 }
 
 /**
- * @brief setDAC
+ * @brief s_dac_set
  * @param onAH
  */
-void drs_dac_set(unsigned int onAH)//fix
+static void s_dac_set(unsigned int onAH)//fix
 {
     //unsigned int onAH=1,dacSelect=2;
     drs_reg_write(0x07,(onAH&1));
@@ -737,12 +747,12 @@ void drs_dac_shift_write_reg(int a_drs_num, unsigned short *shiftValue)//fix
  * @brief drs_set_dac_shift
  * @details Устанавливает смещение ЦАПов
  * @param a_drs_num                       Номер ДРС
- * @param a_dac_shifts_values             сдвиги с фронтпанели
+ * @param a_values             сдвиги с фронтпанели
  */
-void drs_set_dac_shift(int a_drs_num, const double a_dac_shifts_values[DRS_CHANNELS_COUNT])
+void drs_set_dac_shift(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT])
 {
     int i;
-    assert(a_dac_shifts_values);
+    assert(a_values);
     float *DAC_gain = g_ini->fastadc.dac_gains;
     float * DAC_offset = g_ini->fastadc.dac_offsets;
 
@@ -750,9 +760,9 @@ void drs_set_dac_shift(int a_drs_num, const double a_dac_shifts_values[DRS_CHANN
     assert(DAC_offset);
     unsigned short l_dac_shifts[DRS_CHANNELS_COUNT] ={0};
     for(i=0;i<DRS_CHANNELS_COUNT;i++) {
-        l_dac_shifts[i]= fabs((a_dac_shifts_values[i]+ 0.5)*16384.0) ;
+        l_dac_shifts[i]= fabs((a_values[i]+ 0.5)*16384.0) ;
         l_dac_shifts[i]=(l_dac_shifts[i]*DAC_gain[i]+DAC_offset[i]);
-        log_it(L_DEBUG, "shiftDAC[%d]=%f",i,a_dac_shifts_values[i]);
+        log_it(L_DEBUG, "shiftDAC[%d]=%f",i,a_values[i]);
     }
     drs_set_dac_shift_quants_all(a_drs_num,((l_dac_shifts[0]<<16)&0xFFFF0000)|l_dac_shifts[1]);
     usleep(60);
@@ -771,17 +781,8 @@ void drs_set_dac_shift_ch9(double a_shift)
     l_shift_DAC_value=(l_shift_DAC_value*a_gain +a_offset );
     log_it(L_DEBUG, "Set CH9 DAC shift: a_shift_DAC=%f\tl_shift_DAC_value=%d",a_shift,l_shift_DAC_value);
     drs_set_dac_shift_ch9_quants( l_shift_DAC_value);
-    drs_dac_set(1);
+    s_dac_set(1);
     usleep(60);
-}
-
-/**
- * @brief dap_get_inited
- * @return
- */
-bool drs_get_inited()
-{
-    return dap_file_test(s_drs_check_file);
 }
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)
