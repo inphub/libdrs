@@ -56,6 +56,8 @@
 
 #define DRS_REG_DATA_DAC_CH9		31
 
+#define DRS_REG_DATA_DAC_CH9		31
+
 #define DRS_REG_WAIT_DRS_A              49
 #define DRS_REG_WAIT_DRS_B              50
 
@@ -200,18 +202,18 @@ static const char* c_freq_str[] = {
 #define DRS_INIT_ENABLE_DRS_1              0x00000002
 
 // Выставляет частоту один раз после загрузки
-#define DRS_INIT_SET_ONCE_FREQ             0x10010000
+#define DRS_INIT_SET_ONCE_FREQ             0x00000004
 // Выставляет частоту всегда при инициализации
-#define DRS_INIT_SET_ALWAYS_FREQ           0x20010000
+#define DRS_INIT_SET_ALWAYS_FREQ           0x00000008
 
-#define DRS_INIT_SET_ONCE_GAIN_QUANTS_DEFAULT     0x10020000
-#define DRS_INIT_SET_ALWAYS_GAIN_QUANTS_DEFAULT   0x20020000
+#define DRS_INIT_SET_ONCE_GAIN_QUANTS_DEFAULT     0x00000010
+#define DRS_INIT_SET_ALWAYS_GAIN_QUANTS_DEFAULT   0x00000020
 
 
 // Отрезает в начале массива указанное число ячеек при чтении
-#define DRS_INIT_SET_DATA_CUT_FROM_BEGIN   0x40000000
+#define DRS_INIT_SET_DATA_CUT_FROM_BEGIN   0x00000040
 //   Отрезает в конце массива указанное число ячеек при чтении
-#define DRS_INIT_SET_DATA_CUT_FROM_END     0x80000000
+#define DRS_INIT_SET_DATA_CUT_FROM_END     0x00000080
 
 // Верхний порог шкалы гейна ( в Дб)
 #define DRS_GAIN_BEGIN  -6.0

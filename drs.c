@@ -106,7 +106,11 @@ static int s_ini_load(const char *a_ini_path, parameter_t *a_prm);
  */
 static inline bool s_get_inited()
 {
-    return dap_file_test(s_drs_check_file);
+    return false;
+    if (dap_config_get_item_bool_default(g_config,"drs","check_hw_init", false))
+        return dap_file_test(s_drs_check_file);
+    else
+        return false;
 }
 
 
@@ -336,6 +340,7 @@ static int s_post_init()
  */
 static void s_hw_init()
 {
+
     if( s_get_inited() ){
         log_it(L_WARNING, "Already initialized");
         return;
@@ -352,34 +357,43 @@ static void s_hw_init()
         //set_size_dma_drs2(0x00004000);  		//    drs_reg_write(0x0000001a, 0x4000);
     }
 
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         set_shift_addr_drs1(0x0bf40000);		//    drs_reg_write(0x0000001c, 0xBF40000);
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
+    }
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
         set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
+    }
 
-    if(g_drs_flags &DRS_INIT_SET_ONCE_FREQ  )
-        drs_set_freq( g_current_freq );
+    //if(g_drs_flags &DRS_INIT_SET_ONCE_FREQ  ){
+    drs_set_freq( g_current_freq );
+    //}
+    clk_select(1);
 
     clk_phase(40);							//    drs_reg_write(0x00000006, 0x00000028);
     clk_start(1);							//    drs_reg_write(0x00000005, 0x00000001);
 
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         set_dac_offs_drs1(30000, 30000);		//    drs_reg_write(0x00000008, 0x83e683e6);
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
+    }
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
         set_dac_offs_drs2(30000, 30000);		//    drs_reg_write(0x00000009, 0x83e683e6);
+    }
+
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
     //set_dac_rofs_O_ofs_drs1(35000, 30000);
     drs_reg_write(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
+    }
 
     //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    drs_reg_write(0x0000000c, 0x7d009e98);
     drs_reg_write(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
 
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
         set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
+    }
     set_dac_9ch_ofs(30000);					//    drs_reg_write(0x0000001f, 0x00007530);
     start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
 
@@ -399,10 +413,12 @@ static void s_hw_init()
     }
 
     set_mode_drss(MODE_SOFT_START);			//    drs_reg_write(0x00000010, 0x00000000);
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0)
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         init_drs1();							//    drs_reg_write(0x0000000e, 0x00000001);
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1)
+    }
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
         init_drs2();							//    drs_reg_write(0x0000000f, 0x00000001);
+    }
 
     // Start all
     drs_reg_write(0x00000001, 0x0000001);

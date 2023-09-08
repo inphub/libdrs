@@ -109,7 +109,7 @@ int drs_data_wait_for_ready(drs_t * a_drs)
             break;
 
         i++;
-        if(i>100){
+        if(i>1000){
             log_it(L_ERROR, "Was waiting for write_ready flag but without success");
             return -1;
         }

@@ -16,42 +16,42 @@
 static int s_callback_drs_server(int a_argc, char ** a_argv, char **a_str_reply);
 
 /**
- * @brief Точка входа в сервер
+ * @brief РўРѕС‡РєР° РІС…РѕРґР° РІ СЃРµСЂРІРµСЂ
  * @param argc
  * @param argv
  * @return
  */
 int main(int argc, const char **argv)
 {
-    // Имя приложения
+    // РРјСЏ РїСЂРёР»РѕР¶РµРЅРёСЏ
     dap_set_appname("drs_server");
     dap_sdk_init(NULL);
     //dap_sdk_parse_args(argc, argv);
 
     log_it(L_DEBUG, "DRS init...");
-    if(drs_init() != 0){
+    if(drs_init(0) != 0){
         log_it(L_CRITICAL, "Can't init drs protocol");
         return -12;
     }
 
-    // Инициализация протокола
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїСЂРѕС‚РѕРєРѕР»Р°
     if(drs_proto_init( g_dap_vars.io.server.tcp ) != 0){
         log_it(L_CRITICAL, "Can't init drs protocol");
         return -13;
     }
 
-    // Добавление кастомной команды
+    // Р”РѕР±Р°РІР»РµРЅРёРµ РєР°СЃС‚РѕРјРЅРѕР№ РєРѕРјР°РЅРґС‹
     dap_cli_server_cmd_add ("drs_server", s_callback_drs_server, "DRS server brief",
                 "DRS Server brief output command\n"
              );
 
 
-    // Вечный цикл, пока приложение работает
+    // Р’РµС‡РЅС‹Р№ С†РёРєР», РїРѕРєР° РїСЂРёР»РѕР¶РµРЅРёРµ СЂР°Р±РѕС‚Р°РµС‚
     int l_rc = 0;
     l_rc = dap_events_wait();
     log_it( l_rc ? L_CRITICAL : L_NOTICE, "Server loop stopped with return code %d", l_rc );
 
-    // Деинициализация
+    // Р”РµРёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
     dap_sdk_deinit();
     drs_proto_deinit();
     drs_deinit();

@@ -76,6 +76,7 @@ int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned shor
       }
 
       drs_cmd( -1, l_cmds);
+      //drs_cmd( a_drs->id, l_cmds);
 
       bool l_is_ready = drs_data_wait_for_ready(a_drs) == 0;
       if(l_is_ready ){

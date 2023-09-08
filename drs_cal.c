@@ -641,12 +641,14 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     }
 
     if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
-        if (g_drs_data_cut_from_begin)
-            memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - DRS_CHANNELS_COUNT*g_drs_data_cut_from_begin)* sizeof (double)  );
+        size_t l_zero_count = (g_drs_data_cut_from_end + g_drs_data_cut_from_begin) * DRS_CHANNELS_COUNT;
+        if (g_drs_data_cut_from_begin){
+            memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - l_zero_count)* sizeof (double)  );
+        }
 
-        if (g_drs_data_cut_from_end){
-            size_t l_end_count = DRS_CELLS_COUNT - g_drs_data_cut_from_begin * DRS_CHANNELS_COUNT;
-            memset(a_out + l_end_count * DRS_CHANNELS_COUNT, 0, g_drs_data_cut_from_begin * DRS_CHANNELS_COUNT  * sizeof (double) );
+        if (l_zero_count){
+            size_t l_end_count = DRS_CELLS_COUNT - l_zero_count;
+            memset(a_out + l_end_count , 0, l_zero_count * sizeof (double) );
         }
     }
 
