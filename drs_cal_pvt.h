@@ -28,8 +28,8 @@ typedef struct drs_calibrate{
 
     bool is_running; // Запущен ли прямо сейчас
 
-    atomic_uint_fast32_t progress; // Progress between 0 and 100
-    unsigned progress_per_stage; // Количество прогресса на один тип калибровки
+    atomic_uint progress; // Progress between 0 and 100
+    double progress_per_stage; // Количество прогресса на один тип калибровки
 
     pthread_t thread_id; // Айди потока
     drs_t * drs; // Объект DRS

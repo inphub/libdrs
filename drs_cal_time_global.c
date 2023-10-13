@@ -142,8 +142,8 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     // Выставляем прогресс
     unsigned l_progress_old = 0;
-    const double l_progress_total = a_args->cal->progress_per_stage;
-    double l_progress_step = l_progress_total / a_args->param.time_global.num_cycle;
+    double l_progress_total = a_args->cal->progress_per_stage;
+    double l_progress_step = l_progress_total / ((double) a_args->param.time_global.num_cycle);
     if (a_progress)
       l_progress_old = *a_progress;
 
@@ -181,7 +181,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
         s_collect_stats(a_drs,  a_progress, i, l_x,l_y, l_sum_delta_ref,l_stats);
         if (a_progress)
-          *a_progress = l_progress_old + ((double) i)*l_progress_step ;
+            *a_progress = l_progress_old + ((unsigned) floor(((double) i)*l_progress_step));
 
     }
 
@@ -207,7 +207,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
     // Обновляем прогресс бар
     if (a_progress)
-      *a_progress = l_progress_old +l_progress_total;
+      *a_progress = l_progress_old +((unsigned)floor(l_progress_total));
 
 
     return 0;

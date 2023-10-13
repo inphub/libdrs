@@ -152,7 +152,8 @@ double drs_ch_get_average(double *a_cells, unsigned a_cells_count, unsigned a_ch
 {
     double l_acc=0.0;
     double l_min=0.0, l_max=0.0;
-    for(unsigned n=0; n<a_cells_count ; n++){
+    unsigned l_cells_count = a_cells_count - g_drs_data_cut_from_end - g_drs_data_cut_from_begin;
+    for(unsigned n=g_drs_data_cut_from_begin; n< (a_cells_count - g_drs_data_cut_from_end) ; n++){
         unsigned l_idx = n* DRS_CHANNELS_COUNT + a_ch_id;
         double l_cell = a_cells[l_idx];
         l_acc += l_cell;
@@ -162,10 +163,10 @@ double drs_ch_get_average(double *a_cells, unsigned a_cells_count, unsigned a_ch
             l_max = l_cell;
     }
 
-    double l_ret = l_acc / ((double) a_cells_count);
+    double l_ret = l_acc / ((double) (l_cells_count ));
 
-    debug_if(s_debug_more,L_DEBUG,"drs_ch_get_average: l_acc=%f, l_ret=%f, l_min=%f, l_max=%f, a_cells_count=%u",
-             l_acc, l_ret, l_min, l_max, a_cells_count);
+    debug_if(s_debug_more,L_DEBUG,"drs_ch_get_average: l_acc=%f, l_ret=%f, l_min=%f, l_max=%f, l_cells_count=%u",
+             l_acc, l_ret, l_min, l_max, l_cells_count);
 
     return l_ret;
 }

@@ -27,7 +27,8 @@
 
 #define DRS_DATA_MAP_SIZE        0x4000
 
-#define DRS_CELLS_COUNT_BANK      1024
+#define DRS_CELLS_COUNT_BANK       1024
+#define DRS_BANK_MASK              1023
 #define DRS_CELLS_COUNT_CHANNEL   4*DRS_CELLS_COUNT_BANK
 #define DRS_CELLS_COUNT           DRS_CHANNELS_COUNT*DRS_CELLS_COUNT_CHANNEL
 #define DRS_CELLS_COUNT_ALL       DRS_COUNT*DRS_CELLS_COUNT
@@ -230,6 +231,8 @@ extern drs_dac_ch_params_t g_ini_ch9;
 extern drs_t g_drs[DRS_COUNT];
 extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
 extern int g_drs_flags;
+
+#define DRS_DATA_CUT_LENGTH (g_drs_data_cut_from_begin + g_drs_data_cut_from_end)
 
 
 #ifdef __cplusplus

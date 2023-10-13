@@ -139,7 +139,7 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
         default:
             log_it(L_ERROR, "Wrong DRS number, could be 0, 1 or -1 for both");
     }
-    usleep(100);
+    usleep(300);
 }
 
 /**

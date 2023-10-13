@@ -56,11 +56,18 @@ int drs_cli_init()
     // Calibrate
     dap_cli_server_cmd_add ("calibrate", s_callback_calibrate, "Калибровка DRS",
                 "\n"
-                "calibrate run [-drs <DRS number>]  -flags <AMPL,TIME_GLOBAL,TIME_LOCAL> [-repeats <repeats for Ampl>\n"
+                "calibrate run [-drs <DRS number>]  [-flags <ALL,AMPL,AMPL_CELL,AMPL_INTER,AMPL_9CH,TIME_GLOBAL,TIME_LOCAL>] [-repeats <repeats for Ampl>\n"
                 "               -begin <Begin level> -end <End level> -shifts <Shifts for every DCA, splitted with \",\">\n"
                 "               -N <Number of levels for ampl cal>] [-num_cycle <Cycles number for time global>]\n "
                 "               [-min_N <Minimal N for time local calibration>]\n"
                 "\tRun calibration process for specified DRS number or for all channels if number is not specified\n"
+                "\t ALL - Включает в себя все остальные флаги. Применяется по умолчанию, если не указан параметр -flags вообще"
+                "\t AMPL - enable AMPL_CELL,AMPL_INTER and AMPL_9CH"
+                "\t AMPL_CELL - амплитудная калибровка для ячеек"
+                "\t AMPL_INTER - межканальная калибровка"
+                "\t AMPL_9CH - калибровка 9ого канала"
+                "\t TIME_GLOBAL - временная глобальная калибровка"
+                "\t TIME_LOCAL - временная локальная калибровка"
                 "\n"
                 "calibrate state [-drs <DRS number>] [-coeffs <SPLASH,DELTA_TIME,CHAN_K,CHAN_B,K_TIME,K,B,K9,B9>| ALL] [-limit <Array print limits>]\n"
                 "\tCheck calibration status for specified DRS number or for all channels if number is not specified\n"
@@ -619,20 +626,8 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
 
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-flags",        &l_flags_str);
 
-            // Проверяем наличие флагов
-            if ( ! (l_flags_str)  ){
-                dap_cli_server_cmd_set_reply_text(a_str_reply, "Flags arguments is missed, check help for the command");
-                return -2;
-            }
-
             // Конверстируем аргументы и проверяем их корректность
 
-            // Конвертируем флаги
-            char ** l_flags_strs = dap_strsplit(l_flags_str, ",",3);
-            if (l_flags_strs == NULL){
-                dap_cli_server_cmd_set_reply_text(a_str_reply, "Flags argument is empty");
-                return -21;
-            }
             uint32_t l_flags = 0;
             unsigned l_min_N = DRS_CAL_MIN_N_DEFAULT;
             unsigned l_max_repeats = DRS_CAL_MAX_REPEATS_DEFAULT;
@@ -642,17 +637,38 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
             unsigned l_repeats = DRS_CAL_REPEATS;
             unsigned l_num_cycle = DRS_CAL_NUM_CYCLE_DEFAULT;
             unsigned l_N = DRS_CAL_N_DEFAULT;
+            // Проверяем наличие флагов
+            if ( l_flags_str ){
+                // Конвертируем флаги
+                char ** l_flags_strs = dap_strsplit(l_flags_str, ",",3);
+                if (l_flags_strs == NULL){
+                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Flags argument is empty");
+                    return -21;
+                }
 
-            for (size_t i = 0; l_flags_strs[i]; i ++){
-                // Подготавливаем флаги
-                if ( dap_strcmp(l_flags_strs[i], "AMPL") == 0)
-                    l_flags |= DRS_CAL_FLAG_AMPL;
-                if ( dap_strcmp(l_flags_strs[i], "TIME_LOCAL") == 0)
-                    l_flags |= DRS_CAL_FLAG_TIME_LOCAL;
-                if ( dap_strcmp(l_flags_strs[i], "TIME_GLOBAL") == 0)
-                    l_flags |= DRS_CAL_FLAG_TIME_GLOBAL;
-            }
-            dap_strfreev(l_flags_strs);
+                for (size_t i = 0; l_flags_strs[i]; i ++){
+                    // Подготавливаем флаги
+                    if ( dap_strcmp(l_flags_strs[i], "ALL") == 0)
+                                        l_flags |= DRS_CAL_FLAG_AMPL | DRS_CAL_FLAG_AMPL_INTER | DRS_CAL_FLAG_AMPL_9CH
+                                            | DRS_CAL_FLAG_TIME_GLOBAL | DRS_CAL_FLAG_TIME_LOCAL;
+                    else if ( dap_strcmp(l_flags_strs[i], "AMPL") == 0)
+                        l_flags |= DRS_CAL_FLAG_AMPL | DRS_CAL_FLAG_AMPL_INTER | DRS_CAL_FLAG_AMPL_9CH;
+                    else if ( dap_strcmp(l_flags_strs[i], "AMPL_CELL") == 0)
+                        l_flags |= DRS_CAL_FLAG_AMPL;
+                    else if ( dap_strcmp(l_flags_strs[i], "AMPL_INTER") == 0)
+                        l_flags |= DRS_CAL_FLAG_AMPL_INTER;
+                    else if ( dap_strcmp(l_flags_strs[i], "AMPL_9CH") == 0)
+                        l_flags |= DRS_CAL_FLAG_AMPL_9CH;
+                    else if ( dap_strcmp(l_flags_strs[i], "TIME_LOCAL") == 0)
+                        l_flags |= DRS_CAL_FLAG_TIME_LOCAL;
+                    else if ( dap_strcmp(l_flags_strs[i], "TIME_GLOBAL") == 0)
+                        l_flags |= DRS_CAL_FLAG_TIME_GLOBAL;
+                }
+                dap_strfreev(l_flags_strs);
+            }else
+                l_flags = DRS_CAL_FLAG_AMPL | DRS_CAL_FLAG_AMPL_INTER | DRS_CAL_FLAG_AMPL_9CH
+                  | DRS_CAL_FLAG_TIME_GLOBAL | DRS_CAL_FLAG_TIME_LOCAL;
+
 
             // Амплитудная калибровка
             if (l_flags & DRS_CAL_FLAG_AMPL){

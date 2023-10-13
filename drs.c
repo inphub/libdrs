@@ -803,13 +803,16 @@ void drs_set_dac_shift_ch9(double a_shift)
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)
 {
+    static pthread_mutex_t l_reg_write_mutex = PTHREAD_MUTEX_INITIALIZER;
     /* get the delay_ctrl peripheral's base address */
-    control_mem = (unsigned int *) (control_map + reg_adr*4);
+    pthread_mutex_lock(&l_reg_write_mutex);
+    unsigned int * l_control_mem = (unsigned int *) (control_map + reg_adr*4);
     debug_if(s_debug_more, L_DEBUG, "write: adr=0x%08x (%u), val=0x%08x", reg_adr, reg_adr, reg_data);
 
     /* write the value */
-    *control_mem = reg_data;
-    usleep(100);
+    *l_control_mem = reg_data;
+    usleep(1000);
+    pthread_mutex_unlock(&l_reg_write_mutex);
 }
 
 unsigned int drs_reg_read(unsigned int reg_adr)

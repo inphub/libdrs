@@ -110,9 +110,10 @@ static void * s_thread_routine(void * a_arg)
     if (l_args->keys.do_time_local)
       l_stages++;
 
-    l_cal->progress_per_stage = l_stages?  100 / l_stages : 100;
+    l_cal->progress = 0.0;
+    l_cal->progress_per_stage = l_stages?  100.0 / (double) l_stages : 100.0;
 
-    log_it( L_NOTICE, "Start calibration for DRS #%u", l_drs->id);
+    log_it( L_NOTICE, "Start calibration for DRS #%u (progress per stage %f%%", l_drs->id, l_cal->progress_per_stage);
     log_it(L_DEBUG, "Amplitude  : repeats_count=%u levels_count=%u begin=%f end=%f",
            l_args->param.ampl.repeats, l_args->param.ampl.N, l_args->param.ampl.levels[0], l_args->param.ampl.levels[1]);
     log_it(L_DEBUG, "Time local : min_N=%u", l_args->param.time_local.min_N);
@@ -142,19 +143,19 @@ static void * s_thread_routine(void * a_arg)
         }else{
             log_it(L_ERROR, "amplitude calibrate error, code %d", l_ret);
         }
-        l_cal->progress = l_progress_old + l_args->cal->progress_per_stage;
+        l_cal->progress = l_progress_old + ((unsigned) floor(l_args->cal->progress_per_stage));
     }
 
     if( l_args->keys.do_time_local ){
         log_it(L_NOTICE, "start time local calibrate");
-        int l_ret = drs_cal_time_local(l_cal->drs->id, l_args, &l_cal->progress);
         unsigned l_progress_old = l_cal->progress;
+        int l_ret = drs_cal_time_local(l_cal->drs->id, l_args, &l_cal->progress);
         if(l_ret == 0){
             log_it(L_INFO, "end time local calibrate");
         }else{
             log_it(L_ERROR, "time local calibrate error, code %d", l_ret);
         }
-        l_cal->progress = l_progress_old + l_args->cal->progress_per_stage;
+        l_cal->progress = l_progress_old + ((unsigned) floor(l_args->cal->progress_per_stage));
     }
 
     if( l_args->keys.do_time_global ){
@@ -166,7 +167,7 @@ static void * s_thread_routine(void * a_arg)
         }else{
             log_it(L_ERROR, "time global calibrate error, code %d", l_ret);
         }
-        l_cal->progress = l_progress_old + l_args->cal->progress_per_stage;
+        l_cal->progress = l_progress_old + ((unsigned) floor(l_args->cal->progress_per_stage));
     }
 
     l_cal->progress = 100;
@@ -641,7 +642,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     }
 
     if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
-        size_t l_zero_count = (g_drs_data_cut_from_end + g_drs_data_cut_from_begin) * DRS_CHANNELS_COUNT;
+        size_t l_zero_count = DRS_DATA_CUT_LENGTH * DRS_CHANNELS_COUNT;
         if (g_drs_data_cut_from_begin){
             memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - l_zero_count)* sizeof (double)  );
         }
