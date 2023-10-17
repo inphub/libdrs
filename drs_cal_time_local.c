@@ -93,9 +93,9 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
         for(unsigned b=0;b <  (l_is_9_channel? 1: DRS_CHANNEL_BANK_COUNT) ;b++) {
             for( unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++) {
                 unsigned idx = n + b* DRS_CELLS_COUNT_BANK;
-                unsigned int l_cell_id_shifted =( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&DRS_BANK_MASK ) )&DRS_BANK_MASK;
+                unsigned int l_cell_id_bank_shifted =( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&DRS_BANK_MASK ) + a_drs->shift )&DRS_BANK_MASK;
                 a_output[idx] = l_tmpX;
-                l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_shifted] / l_average[ch];
+                l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_bank_shifted] / l_average[ch];
             }
         }
         if (l_is_9_channel)

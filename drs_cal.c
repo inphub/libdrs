@@ -557,9 +557,11 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     //double  **l_ki = a_drs->coeffs.k;
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
-    bool l_need_to_rotate =  ( ! (a_flags & DRS_CAL_APPLY_NO_ROTATE) ) ||
+    bool l_need_to_rotate =  (
+                             ( ! (a_flags & DRS_CAL_APPLY_NO_ROTATE) ) ||
                              ( (a_flags & DRS_CAL_APPLY_ROTATE_BANK) )  ||
-                             ( (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL) ) ;
+                             ( (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL) )    ) &&
+                             ( ! (a_flags & DRS_CAL_APPLY_CH9_ONLY) )  ;
     double * l_out = l_need_to_rotate ?
           DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
@@ -620,23 +622,14 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
     if ( l_need_to_rotate ){
         if (a_flags & DRS_CAL_APPLY_ROTATE_BANK){
-            if (a_flags & DRS_CAL_APPLY_CH9_ONLY){
-                drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
-                drs_data_rotate_bank9(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
-            }else
-                drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
+            drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
         if (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL){
             drs_data_rotate_global(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
 
         if(  (! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK))  ){
-            if (a_flags & DRS_CAL_APPLY_CH9_ONLY){
-                drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
-                drs_data_rotate_bank9(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
-            }else
-                drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
-
+            drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
             drs_data_rotate_global(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
     }
