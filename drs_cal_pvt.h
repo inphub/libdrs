@@ -37,6 +37,8 @@ typedef struct drs_calibrate{
     atomic_uint progress; // Progress between 0 and 100
     double progress_per_stage; // Количество прогресса на один тип калибровки
 
+    atomic_uint stage; // Текущий этап калибровки
+
     pthread_t thread_id; // Айди потока
     drs_t * drs; // Объект DRS
 

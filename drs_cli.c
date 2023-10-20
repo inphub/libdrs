@@ -82,12 +82,20 @@ int drs_cli_init()
     // Set some vars
     dap_cli_server_cmd_add ("set", s_cli_set, "Установить значение для параметра DRS",
                             "\n"
-                            "set mode -drs <Номер DRS> -- <Режим>\n"
+                            "set mode -- <Режим>\n"
                             "\t Установить режим работы DRS\n"
                             "\t Возможные режимы: SOFT_START,EXT_START,PAGE_MODE,CAL_AMPL,CAL_TIME,OFF_INPUTS\n"
                             "\n"
                             "set dac shifts <DAC shifts lists>\n"
                             "\t Установить смещения АЦП в виде списка через запятую\n"
+                            "\n"
+                            "set freq <Частота>\n"
+                            "\t Рабочая частота устройства, допускаются значения: 1,2,3,4 и 5 \n"
+                            "\t\t 1 = 1.024 ГГц\n"
+                            "\t\t 2 = 2.048 ГГц\n"
+                            "\t\t 3 = 3.072 ГГц\n"
+                            "\t\t 4 = 4.096 ГГц\n"
+                            "\t\t 5 = 4.915200 ГГц\n"
                             "\n"
                             "set flag_end_read -drs <Номер DRS>\n"
                             "\t Установить флаг завершения чтения\n"
@@ -944,7 +952,8 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_DAC,
         CMD_FLAG_END_READ,
         CMD_DELAY,
-        CMD_SPLASH_GAUNTLET
+        CMD_SPLASH_GAUNTLET,
+        CMD_FREQ
     };
     const char *l_cmd_str_c[] ={
         [CMD_MODE] = "mode",
@@ -952,7 +961,8 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         [CMD_DAC] = "dac",
         [CMD_FLAG_END_READ] = "flag_end_read",
         [CMD_DELAY] = "delay",
-        [CMD_SPLASH_GAUNTLET] = "splash_gauntlet"
+        [CMD_SPLASH_GAUNTLET] = "splash_gauntlet",
+        [CMD_FREQ] = "freq"
     };
 
     if(a_argc < 3) {
@@ -976,17 +986,22 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
 
     // Читаем общие аргументы
     int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 значит для всех
-    if (l_drs_num < -1){
-        return -100;
-    }
 
     switch(l_cmd_num){
+        case CMD_FREQ:{
+            const char * l_freq_str = a_argv[2];
+            if ( dap_strncmp(l_freq_str,"1",1)==0 )
+                drs_set_freq(DRS_FREQ_1GHz);
+            else if ( dap_strncmp(l_freq_str,"2",1)==0 )
+                drs_set_freq(DRS_FREQ_2GHz);
+            else if ( dap_strncmp(l_freq_str,"3",1)==0 )
+                drs_set_freq(DRS_FREQ_3GHz);
+            else if ( dap_strncmp(l_freq_str,"4",1)==0 )
+                drs_set_freq(DRS_FREQ_4GHz);
+            else if ( dap_strncmp(l_freq_str,"5",1)==0 )
+                drs_set_freq(DRS_FREQ_5GHz);
+        } break;
         case CMD_MODE:{
-            if( l_drs_num == -1 ){
-                dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
-                return -2;
-            }
-            drs_t * l_drs = &g_drs[l_drs_num];
 
             const char * l_arg_mode = NULL;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-mode", &l_arg_mode);
@@ -1016,14 +1031,15 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
                 break;
             }
 
-            drs_set_mode(l_drs->id, l_mode);
-            dap_cli_server_cmd_set_reply_text(a_str_reply, "DRS #%u mode is %s now",l_drs->id, l_arg_mode);
+            drs_set_mode(-1, l_mode);
+            dap_cli_server_cmd_set_reply_text(a_str_reply, "Mode is %s now", l_arg_mode);
         } break;
         case CMD_DELAY:{
             if( l_drs_num == -1 ){
                 dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
                 return -2;
             }
+
             const char * l_delay_str = NULL;
             dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "--",  &l_delay_str);
 
@@ -1068,6 +1084,10 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         }
         break;
         case CMD_FLAG_END_READ:{
+            if( l_drs_num == -1 ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Command requires DRS number with argument -drs <DRS number>");
+                return -2;
+            }
             drs_set_flag_end_read(l_drs_num, true);
         }break;
         case CMD_DAC:{

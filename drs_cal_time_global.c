@@ -50,8 +50,9 @@ static const unsigned s_period_max_count[] = {
     //[DRS_FREQ_5GHz] = 28
 };
 
+static bool s_debug_warns = false;
 static bool s_debug_more = false;
-static bool s_debug_dump_data = true;
+static bool s_debug_dump_data = false;
 
 static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,unsigned a_iteration, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats);
 

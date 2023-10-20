@@ -4,6 +4,7 @@
  *  Created on: 22 November 2022
  *      Author: Dmitriy Gerasimov <dmitry.gerasimov@demlabs.net>
  */
+#include <pthread.h>
 #include <assert.h>
 #include <math.h>
 
@@ -25,7 +26,7 @@
 bool s_debug_more = true;
 
 static double s_get_deltas_min (double*               a_buffer,  double*          a_sum_delta_ref,
-                                double*               a_stats,   unsigned int     a_shift);
+                                double*               a_stats,   pthread_rwlock_t * a_stats_rw, unsigned int     a_shift);
 static int    s_proc_drs       (drs_t*                a_drs,     drs_cal_args_t*  a_args,
                                 atomic_uint_fast32_t* a_progress);
 
@@ -117,20 +118,24 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     double l_value_min=0;
 
     double *l_sum_delta_ref =  DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT_BANK);
-    double *l_stats =  DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT_BANK);
 
     double *l_cells = DAP_NEW_Z_SIZE(double, sizeof(double)*DRS_CELLS_COUNT);
     unsigned short *l_page_buffer = DAP_NEW_Z_SIZE(unsigned short, sizeof(unsigned short)*DRS_CELLS_COUNT);
-    assert(l_sum_delta_ref && l_stats && l_cells && l_page_buffer);
+
+    assert(l_sum_delta_ref &&  l_cells && l_page_buffer);
 
     unsigned l_N_min = a_args->param.time_local.min_N;
-    coefficients_t * coef = &a_drs->coeffs;
+    coefficients_t * l_coeffs = &a_drs->coeffs;
+
+    double *l_stats = l_coeffs->time_local.stats;
+    memset(l_stats,0,sizeof (l_coeffs->time_local.stats));
+
 
     unsigned l_progress_old = 0;
     if (a_progress)
       l_progress_old = *a_progress;
 
-    if((coef->indicator&1)!=1){
+    if((l_coeffs->indicator&1)!=1){
             log_it(L_WARNING, "before timer calibration you need to do the amplitude calibration");
             l_rc = -1;
             goto lb_exit;
@@ -168,7 +173,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
 
 
         double l_value_min_old = l_value_min;
-        l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats,a_drs->shift_bank);
+        l_value_min=s_get_deltas_min(l_cells,l_sum_delta_ref,l_stats, &a_drs->coeffs.time_local.stats_rw, a_drs->shift_bank);
         if (l_value_min_old != l_value_min){
           if (a_progress)
               *a_progress = l_progress_old + ((unsigned) floor(l_value_min * l_progress_step ));
@@ -184,25 +189,26 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     }
     double l_ts_diff  =  ((double) (dap_nanotime_now() - l_ts_start))/ 1000000000.0  ;
     log_it(L_NOTICE,"Finished local time calibration in %.3f seconds (%u repeats)", l_ts_diff,n);
+    //pthread_rwlock_rdlock(&a_drs->coeffs.time_local.stats_rw);
     for(unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++){
         if(l_stats[n]){
-            coef->deltaTimeRef[n]= l_sum_delta_ref[n]/l_stats[n];
+            l_coeffs->deltaTimeRef[n]= l_sum_delta_ref[n]/l_stats[n];
             if(n < 10)
                 debug_if(s_debug_more, L_INFO, "l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f ) deltaTime=%.5f",
-                   n, l_stats[n], l_sum_delta_ref[n],coef->deltaTimeRef[n]);
+                   n, l_stats[n], l_sum_delta_ref[n],l_coeffs->deltaTimeRef[n]);
         }else{
             log_it(L_WARNING, "Zero l_stats[n:%u]=%.5f ( l_sum_delta_ref[n]=%.5f )", n, l_stats[n], l_sum_delta_ref[n]);
-            coef->deltaTimeRef[n] = 0.0;
+            l_coeffs->deltaTimeRef[n] = 0.0;
         }
     }
+    //pthread_rwlock_unlock(&a_drs->coeffs.time_local.stats_rw);
     drs_set_mode(a_drs->id, l_mode_old);
     drs_set_sinus_signal(false);
 
-    coef->indicator|=2;
+    l_coeffs->indicator|=2;
 lb_exit:
     DAP_DELETE( l_page_buffer );
     DAP_DELETE( l_sum_delta_ref );
-    DAP_DELETE( l_stats );
     DAP_DELETE( l_cells );
     if (a_progress)
       *a_progress = l_progress_old + ((unsigned) floor(l_progress_total));
@@ -211,12 +217,31 @@ lb_exit:
 }
 
 /**
+ * @brief drs_cal_time_local_stats_out
+ * @param a_drs_num
+ * @param a_stats_out
+ */
+void drs_cal_time_local_stats_out(int a_drs_num, double * a_stats_out)
+{
+    assert (a_drs_num < 0 || a_drs_num >= DRS_COUNT);
+
+    drs_t * l_drs = &g_drs[a_drs_num];
+    pthread_rwlock_t * l_stats_rw = &l_drs->coeffs.time_local.stats_rw;
+    double * a_stats = l_drs->coeffs.time_local.stats;
+
+    pthread_rwlock_rdlock(l_stats_rw);
+    memcpy(a_stats_out, a_stats, sizeof(double) * DRS_CELLS_COUNT_BANK );
+    pthread_rwlock_unlock(l_stats_rw);
+}
+
+/**
  * double *buffer			массив с данными;
  * double *sumDeltaRef			массив дельт;
  * double *statistic			массив статистики по дельтам;
+ * pthread_rwloclk_t                    RWLOCK для статистики по дельтам
  * unsigned int shift			двиг в данных;
  */
-static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a_stats,unsigned int a_shift)
+static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a_stats, pthread_rwlock_t * a_stats_rw, unsigned int a_shift)
 {
     unsigned int n, pz, pz1;
     double l_vmin,l_vmax, l_vtmp,l_min;
@@ -248,16 +273,21 @@ static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a
 
             double l_delta_current =  fabs( l_cell_n - l_cell_pz1 );
             a_sum_delta_ref[pz] += l_delta_current;
+            //pthread_rwlock_wrlock(a_stats_rw);
             a_stats[pz]++;
+            //pthread_rwlock_unlock(a_stats_rw);
             //if ( pz ==0  )
             //  debug_if(s_debug_more, L_INFO, "a_stats[%u]=%f l_delta_current=%f", pz, a_stats[pz], l_delta_current);
         }
     }
-
+    //pthread_rwlock_rdlock(a_stats_rw);
     l_min=a_stats[0];
+    //pthread_rwlock_unlock(a_stats_rw);
     for(n=0;n< l_cells_count;n++) {
         if(a_stats[n] < l_min) {
+            //pthread_rwlock_rdlock(a_stats_rw);
             l_min = a_stats[n];
+            //pthread_rwlock_unlock(a_stats_rw);
         }
     }
     return l_min;

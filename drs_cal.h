@@ -46,6 +46,7 @@ typedef struct{
     bool is_running; // Запущен ли прямо сейчас
 
     uint32_t progress; // Progress between 0 and 100
+    unsigned stage;
 
     pthread_t thread_id; // Айди потока
 
@@ -100,6 +101,26 @@ typedef struct{
 
 extern struct drs_cal_apply_flags{ const char* brief; const char * descr;} g_drs_cal_apply_to_str[];
 
+extern const char * g_drs_cal_stage_to_str[];
+
+
+/**
+ * @brief drs_cal_stage_to_str
+ * @param a_stage
+ * @return
+ */
+static inline const char * drs_cal_stage_to_str(unsigned a_stage)
+{
+    switch(a_stage){
+        case 0: return "";
+        case DRS_CAL_FLAG_AMPL_CELL: return "Амплитудная калибровка";
+        case DRS_CAL_FLAG_TIME_LOCAL: return  "Локальная временная калибровка";
+        case DRS_CAL_FLAG_TIME_GLOBAL: return "Глобальная временная калибровка";
+        default: return "Неизвестный науке этап калибровки";
+    }
+};
+
+
 #define dap_string_append_array(a_reply, a_name, a_fmt, a_array, a_limits )\
     {\
         size_t l_array_count = (sizeof(a_array))/sizeof(a_array[0]); \
@@ -136,6 +157,7 @@ int drs_cal_load(const char * a_file_path);
 
 int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags);
 int drs_cal_get_y(drs_t * a_drs,double * a_y, unsigned a_page, int a_flags_get, int a_flags_apply);
+unsigned drs_cal_get_stage(int a_drs_num);
 
 static inline unsigned drs_cal_get_y_count_after_cuts()
 {

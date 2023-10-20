@@ -55,9 +55,19 @@ drs_dac_ch_params_t g_ini_ch9;
 drs_t g_drs[DRS_COUNT]={
     [0]={
         .id = 0,
+        .coeffs = {
+            .time_local = {
+                .stats_rw = PTHREAD_RWLOCK_INITIALIZER
+            }
+        }
     },
     [1]={
         .id = 1,
+        .coeffs = {
+            .time_local = {
+                .stats_rw = PTHREAD_RWLOCK_INITIALIZER
+            }
+        }
     }
 };
 enum drs_freq g_current_freq=DRS_FREQ_5GHz;

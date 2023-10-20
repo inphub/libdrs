@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 #include <math.h>
+#include <pthread.h>
 
 #include <dap_common.h>
 #include <dap_time.h>
@@ -148,6 +149,11 @@ typedef struct
     double deltaTimeRef[DRS_CELLS_COUNT_BANK];
     unsigned int indicator;
     unsigned int splash[DRS_CHANNELS_COUNT];
+
+    struct {
+        double stats[DRS_CELLS_COUNT_BANK];
+        pthread_rwlock_t stats_rw;
+    } time_local;
 } DAP_ALIGN_PACKED coefficients_t;
 
 typedef struct{

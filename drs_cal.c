@@ -136,6 +136,7 @@ static void * s_thread_routine(void * a_arg)
         log_it(L_NOTICE, "start amplitude calibrate. Levels %p, shifts %p\n",
                l_args->param.ampl.levels, l_args->param.ampl.levels+2 );
         unsigned l_progress_old = l_cal->progress;
+        l_cal->stage = DRS_CAL_FLAG_AMPL_CELL;
         int l_ret = drs_cal_amp( l_cal->drs->id, l_args, &l_cal->progress);
 
         if(l_ret == 0){
@@ -149,6 +150,7 @@ static void * s_thread_routine(void * a_arg)
     if( l_args->keys.do_time_local ){
         log_it(L_NOTICE, "start time local calibrate");
         unsigned l_progress_old = l_cal->progress;
+        l_cal->stage = DRS_CAL_FLAG_TIME_LOCAL;
         int l_ret = drs_cal_time_local(l_cal->drs->id, l_args, &l_cal->progress);
         if(l_ret == 0){
             log_it(L_INFO, "end time local calibrate");
@@ -161,6 +163,7 @@ static void * s_thread_routine(void * a_arg)
     if( l_args->keys.do_time_global ){
         log_it(L_NOTICE, "start time global calibrate");
         unsigned l_progress_old = l_cal->progress;
+        l_cal->stage = DRS_CAL_FLAG_TIME_GLOBAL;
         int l_ret = drs_cal_time_global(l_cal->drs->id, l_args, &l_cal->progress);
         if(l_ret == 0){
             log_it(L_INFO, "end time global calibrate");
@@ -175,6 +178,7 @@ static void * s_thread_routine(void * a_arg)
     pthread_rwlock_wrlock( &l_cal->rwlock);
     l_cal->is_running = false;
     l_cal->ts_end = dap_nanotime_now();
+    l_cal->stage = 0;
     pthread_rwlock_unlock( &l_cal->rwlock);
 
     DAP_DELETE(l_args);
@@ -256,6 +260,15 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
     return 0;
 }
 
+/**
+ * @brief drs_cal_get_stage
+ * @param a_drs_num
+ */
+unsigned drs_cal_get_stage(int a_drs_num)
+{
+    assert(a_drs_num <0 || a_drs_num >= DRS_COUNT);
+    return s_state[a_drs_num].stage;
+}
 
 /**
  * @brief drs_calibrate_run
@@ -344,7 +357,7 @@ drs_calibrate_state_t* drs_calibrate_get_state(int a_drs_num)
     l_ret->ts_start = s_state[a_drs_num].ts_start;
     l_ret->ts_end = s_state[a_drs_num].ts_end;
     l_ret->cal = &s_state[a_drs_num];
-
+    l_ret->stage = s_state[a_drs_num].stage;
     return l_ret;
 }
 
@@ -665,7 +678,10 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
     drs_calibrate_t *l_cal_pvt = a_cal->cal;
     pthread_rwlock_rdlock(&l_cal_pvt->rwlock);
     dap_string_append_printf( a_reply, "Running:     %s\n\n", a_cal->is_running? "yes" : "no" );
-    dap_string_append_printf( a_reply, "Progress:    %d%%\n\n", a_cal->progress );
+    dap_string_append_printf( a_reply, "Progress:    %d%%\n", a_cal->progress );
+    dap_string_append_printf( a_reply, "Stage:       %s(0x%08X)\n\n", drs_cal_stage_to_str(a_cal->stage),
+                              DRS_CAL_FLAG_ALL
+                              ,a_cal->stage );
     if (a_cal->ts_end || true){
         coefficients_t * l_params = &l_cal_pvt->drs->coeffs;
         if ( a_flags & DRS_COEF_SPLASH)
