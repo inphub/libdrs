@@ -50,7 +50,7 @@ static const unsigned s_period_max_count[] = {
     //[DRS_FREQ_5GHz] = 28
 };
 
-static bool s_debug_warns = false;
+static bool s_debug_warns = true;
 static bool s_debug_more = false;
 static bool s_debug_dump_data = false;
 
@@ -274,7 +274,8 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
 
                 }
                 if ( l_period_delt[l_count-1] < 90){
-                    log_it(L_WARNING,"l_period_delt[%u] = %f",l_count-1,l_period_delt[l_count-1] );
+                    if (s_debug_warns)
+                        log_it(L_WARNING,"l_period_delt[%u] = %f",l_count-1,l_period_delt[l_count-1] );
 
                     if (s_debug_dump_data){
                         char * l_file_name = dap_strdup_printf("time_global_bad_dump_y_shift_%u", drs_get_shift(a_drs->id,0));
