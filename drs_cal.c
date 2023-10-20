@@ -612,10 +612,6 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
             break;
     }
-    if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
-    {
-        drs_cal_amp_remove_splash(a_drs, l_out, drs_cal_get_splash_gauntlet() );
-    }
 
     // Разворачиваем всё вместе
 
@@ -645,6 +641,12 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             memset(a_out + l_end_count , 0, l_zero_count * sizeof (double) );
         }
     }
+
+    if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
+    {
+        drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_gauntlet() );
+    }
+
 
     //if( a_flags & DRS_CAL_APPLY_Y_EQUALIZE){
     //    drs_cal_y_ch_equalize(a_drs, l_out, l_out, a_drs->avr_level);

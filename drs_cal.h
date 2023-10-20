@@ -139,7 +139,9 @@ int drs_cal_get_y(drs_t * a_drs,double * a_y, unsigned a_page, int a_flags_get, 
 
 static inline unsigned drs_cal_get_y_count_after_cuts()
 {
-    return DRS_CELLS_COUNT - DRS_CHANNELS_COUNT*(g_drs_data_cut_from_begin+ g_drs_data_cut_from_end);
+    return
+         drs_get_mode(-1) == DRS_MODE_CAL_TIME ?  DRS_CELLS_COUNT_BANK * DRS_CHANNELS_COUNT
+        :   DRS_CELLS_COUNT - DRS_CHANNELS_COUNT*(g_drs_data_cut_from_begin+ g_drs_data_cut_from_end);
 }
 
 static inline unsigned drs_cal_get_x_count_after_cuts()

@@ -262,12 +262,18 @@ void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned shor
  * @param a_buffer
  * @param a_buffer_size
  */
-void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_offset,  unsigned short *a_buffer, size_t a_buffer_size)
+int drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_offset,  unsigned short *a_buffer, size_t a_buffer_size)
 {
     size_t l_offset = 0;
     bool l_loop = true;
     for (unsigned t=0; t< a_page_count && l_loop; t++){
         size_t l_read_size;
+        if (a_page_count > DRS_PAGE_COUNT_MAX){
+            log_it(L_ERROR, "Too many pages %u when maximum is %u", a_page_count, DRS_PAGE_COUNT_MAX);
+            return -1;
+        }
+
+
         if (l_offset + DRS_PAGE_READ_SIZE <= a_buffer_size)
             l_read_size = DRS_PAGE_READ_SIZE;
         else{
@@ -275,9 +281,11 @@ void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_off
             l_loop = false;
             log_it(L_ERROR, "Page read function goes out of input buffer, size %zd is not enought, requires %zd ( page read size %zd, num pages %u",
                     a_buffer_size, a_page_count * DRS_PAGE_READ_SIZE, DRS_PAGE_READ_SIZE, a_page_count );
+            return -2;
         }
         drs_read_page(a_drs,t,&a_buffer[t*a_offset], l_read_size);
     }
+    return 0;
 }
 
 

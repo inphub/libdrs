@@ -66,7 +66,7 @@
 #define DRS_REG_NPAGES_DRS_B            76
 
 #define DRS_PAGE_ALL_SIZE       (DRS_CELLS_COUNT_ALL * sizeof(unsigned short))
-#define DRS_PAGE_COUNT_MAX              1024
+#define DRS_PAGE_COUNT_MAX              4096
 
 // Задержка после чтения, в микросекундах
 #define DRS_PAGE_READ_DELAY             50000
@@ -220,6 +220,8 @@ static const char* c_freq_str[] = {
 #define DRS_GAIN_BEGIN  -6.0
 // Нижний порог шкалы гейна (в Дб)
 #define DRS_GAIN_END    26.0
+
+#define DRS_CH9_SHIFT_DEFAULT    0.25
 
 #define DRS_GAIN_QUANTS_BEGIN    0
 #define DRS_GAIN_QUANTS_END      32

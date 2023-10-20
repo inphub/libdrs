@@ -14,7 +14,6 @@ void do_on_array(double *array,int length,void (*operation)(double *num));
 void pageModeStart(unsigned int num);
 unsigned int onceGet(unsigned short *buffer,unsigned int *shift,unsigned int calibrate,unsigned int extStart,unsigned int drsnum);
 unsigned int getShiftIndex(unsigned int drsnum);
-double absf(double value);
 
 /**
  * @brief fill_array

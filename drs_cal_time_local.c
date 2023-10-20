@@ -140,6 +140,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     drs_set_mode(a_drs->id, DRS_MODE_CAL_TIME);
     drs_set_sinus_signal(true);
 
+
     log_it(L_NOTICE, "Process time calibration for DRS #%u with maximum repeats %u and minumum N %u", a_drs->id,
            a_args->param.time_local.max_repeats,
                     a_args->param.time_local.min_N);
@@ -245,7 +246,7 @@ static double s_get_deltas_min(double*a_buffer,double *a_sum_delta_ref,double *a
             ( (l_cell_pz1 <=l_vmax) &&  (l_cell_pz1 >= l_vmin) ) &&
             ( l_cell_pz1 > l_cell_n )){
 
-            double l_delta_current =  absf( l_cell_n - l_cell_pz1 );
+            double l_delta_current =  fabs( l_cell_n - l_cell_pz1 );
             a_sum_delta_ref[pz] += l_delta_current;
             a_stats[pz]++;
             //if ( pz ==0  )

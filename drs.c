@@ -682,6 +682,10 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
     assert(a_drs_num >= -1 && a_drs_num < DRS_COUNT );
     s_mode[a_drs_num] = a_mode;
     drs_reg_write(DRS_MODE_REG, a_mode);
+
+    //
+    if (a_mode == DRS_MODE_CAL_TIME)
+        drs_set_dac_shift_ch9(DRS_CH9_SHIFT_DEFAULT);
 }
 
 /**

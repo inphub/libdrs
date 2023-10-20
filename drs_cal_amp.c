@@ -1,11 +1,11 @@
 #include <assert.h>
 #include <unistd.h>
-#include <dap_common.h>
 #include <math.h>
+
+#include <dap_common.h>
 
 #include "data_operations.h"
 #include "commands.h"
-
 
 #include "drs.h"
 #include "drs_data.h"
@@ -544,51 +544,60 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
  */
 void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_gauntlet)
 {
-    unsigned l_cells_proc_count =  DRS_CELLS_COUNT_CHANNEL ;
+
+    const unsigned l_cells_proc_count = drs_cal_get_y_count_after_cuts()/DRS_CHANNELS_COUNT -3;
+
     log_it(L_INFO,"Trying to find splashs, gauntlet %f...", a_gauntlet);
-    bool l_found_smth [DRS_CELLS_COUNT_BANK] = {};
+    bool l_found_smth [DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL ] = {};
 
     for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
-        int l_splash_id = -1 ;
         for(unsigned l_cell_id=0;l_cell_id<l_cells_proc_count;l_cell_id++){
+            double y[] = { a_Y[DRS_IDX(ch,l_cell_id)],
+                             a_Y[DRS_IDX(ch,l_cell_id + 1)],
+                             a_Y[DRS_IDX(ch,l_cell_id + 2)]};
 
-            unsigned l_cell_id_0 = l_cell_id + 1;
-            unsigned l_cell_id_1 = l_cell_id ;
+            double dY[] ={ fabs( y[0] - y[1]) ,
+                             fabs( y[1] - y[2]) };
 
-            unsigned l_cell_id_2 = l_cell_id ? l_cell_id -1: 1023;
-            unsigned l_cell_id_3 = l_cell_id ? l_cell_id: 1022;
 
-            if(absf(a_Y[DRS_IDX(ch,l_cell_id_0)] - a_Y[DRS_IDX(ch,l_cell_id_1)])>a_gauntlet &&
-               absf(a_Y[DRS_IDX(ch,l_cell_id_2)]  - a_Y[DRS_IDX(ch,l_cell_id_3)])>a_gauntlet){
-                log_it(L_NOTICE, "Found splash for %d channel in %d cell",ch, l_cell_id); //(l_cell_id+ a_drs->shift_bank)&1023);
-                l_splash_id = l_cell_id ? (l_cell_id + a_drs->shift_bank ) & 1023 : 0;
-                l_found_smth[l_splash_id]  = true;
+            if(
+                dY[0] > a_gauntlet && // Сравниваем dY он должен превышать барьер
+                dY[1] > a_gauntlet &&
+               //fabs(dY[0] - dY[1] ) < a_gauntlet/2.0 && // тут не должен превышать половину барьера
+
+                  (   // тут проверяем форму всплеска по сути
+                    ( y[1] > y[0] && y[1] > y[2] ) ||
+                    ( y[1] < y[0] && y[1] < y[2] )
+                  )
+                ){
+                //l_splash_id = (l_cell_id +1 ) & DRS_BANK_MASK ;
+                log_it(L_NOTICE, "Found splash for %d channel in %d cell ( dY_0 = %f, dY_1 = %f )",ch, l_cell_id+1,
+                       dY[0], dY[1]); //(l_cell_id+ a_drs->shift_bank)&1023);
+                l_found_smth[ch][l_cell_id+1]  = true;
+                l_cell_id++;
             }
 
         }
 
     }
 
-    for(unsigned n = 0; n < DRS_CELLS_COUNT_BANK; n++)
-        if(l_found_smth[n]){
-            for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
-                for (unsigned b = 0; b < DRS_CHANNEL_BANK_COUNT ; b++){
-                    unsigned l_cell_id_fix = ( n - a_drs->shift_bank ) & (DRS_CELLS_COUNT_BANK-1 );
-                    if((l_cell_id_fix > 0) && (l_cell_id_fix < (DRS_CELLS_COUNT_BANK - 1) )){
-                        a_Y[DRS_IDX_BANK(ch,b,l_cell_id_fix)] = (a_Y[DRS_IDX_BANK(ch,b,l_cell_id_fix + 1)] +
-                            a_Y[DRS_IDX_BANK(ch,b,l_cell_id_fix - 1)]) / 2.0;
-                    }
+    for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
+        for(unsigned n = 1; n < l_cells_proc_count+1; n++){
+            if(l_found_smth[ch][n]){
+                unsigned idx = DRS_IDX(ch,n);
 
-                    if(l_cell_id_fix == 0){
-                        a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
-                    }
-
-                    if(l_cell_id_fix == 1023){
-                        a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
-                    }
+                 a_Y[idx] = (a_Y[DRS_IDX(ch, n - 1)] +
+                         a_Y[DRS_IDX(ch, n + 1)]) / 2.0;
+                /*if(l_cell_id_fix == 0){
+                    a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
                 }
+
+                if(l_cell_id_fix >= 1022){
+                    a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,1023)] + a_Y[DRS_IDX_BANK(ch,b,1022)] ) / 2.0;
+                }*/
             }
         }
+    }
 
 }
 

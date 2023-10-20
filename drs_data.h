@@ -33,7 +33,7 @@ extern "C" {
 #define DRS_DATA_DUMP_ADD_PATH_VAR_LIB                0x00000004
 #define DRS_DATA_DUMP_ADD_TIMESTAMP                   0x00000008
 
-int adc_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags);
+int drs_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags);
 
 int drs_data_get_page_first(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
 int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned short * a_buffer, size_t a_buffer_size); /// Если a_drs NULL то он копирует для всех DRS
@@ -100,7 +100,7 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
 
 void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buffer, size_t a_buffer_size);
 
-void drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_offset,  unsigned short *a_buffer, size_t a_buffer_size);
+int drs_read_pages(drs_t * a_drs, unsigned int a_page_count, unsigned int a_offset,  unsigned short *a_buffer, size_t a_buffer_size);
 
 void drs_data_rotate_bank9(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size);
 void drs_data_rotate_bank(drs_t * a_drs, const void * a_mem_in, void * a_mem_out, size_t a_mem_size, const size_t a_cell_size);

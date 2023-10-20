@@ -189,16 +189,6 @@ void getAverageInt(double *a_average,unsigned short *a_cells,unsigned int a_ch_c
     }
 }
 
- double absf(double value)
- {
-	 if(value<0)
-	 {
-		 return value*-1;
-	 }else{
-		 return value;
-	 }
- }
-
  /**
   * unsigned short *buffer		массив данных
   * unsigned int *shift			сдвиг;

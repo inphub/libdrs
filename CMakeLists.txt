@@ -4,8 +4,8 @@ set(CMAKE_C_STANDARD 11)
 
 add_definitions("-D_GNU_SOURCE") 
 
-option(ADC_OPT_DATA_GET_NODELAYS "Switch off all DRS data get delays " OFF)
-option(ADC_BUILD_STATIC          "Static project build scheme" OFF)
+option(DRS_OPT_DATA_GET_NODELAYS "Switch off all DRS data get delays " OFF)
+option(DRS_BUILD_STATIC          "Static project build scheme" OFF)
 
 if ("${DAP_SDK_PATH}" STREQUAL "")
         message("DAP SDK is not specified, set default path")
@@ -41,7 +41,7 @@ include_directories(${DAP_SDK_PATH}/include)
 
 #add_subdirectory(driver)
 
-if(ADC_BUILD_STATIC OR BUILD_STATIC)
+if(DRS_BUILD_STATIC OR BUILD_STATIC)
         message("Build static library ${PROJECT_NAME}")
         add_library(${PROJECT_NAME} STATIC ${DRS_SRCS} ${DRS_HEADERS})
 else()
