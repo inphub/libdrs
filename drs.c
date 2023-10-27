@@ -713,7 +713,7 @@ static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
     return 0;
 }
 
-static drs_mode_t s_mode[DRS_COUNT] = {0};
+static drs_mode_t s_mode = 0;
 
 /**
  * @brief drs_set_mode
@@ -721,8 +721,7 @@ static drs_mode_t s_mode[DRS_COUNT] = {0};
  */
 void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
 {
-    assert(a_drs_num >= -1 && a_drs_num < DRS_COUNT );
-    s_mode[a_drs_num] = a_mode;
+    s_mode = a_mode;
     drs_reg_write(DRS_MODE_REG, a_mode);
 
     //
@@ -737,7 +736,7 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
  */
 drs_mode_t drs_get_mode(int a_drs_num)
 {
-    return s_mode[a_drs_num];
+    return s_mode;
 }
 
 /**

@@ -557,13 +557,9 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
     // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
     unsigned l_mode = drs_get_mode(a_drs->id);
-    /*if (l_mode == DRS_MODE_CAL_TIME){
-        a_flags |= DRS_CAL_APPLY_CH9_ONLY  ;
-        //a_flags |= DRS_CAL_APPLY_NO_ROTATE ;
-        a_flags |= DRS_CAL_APPLY_ROTATE_BANK  ;
-    }*/
+    bool l_ch_9_mode =  (l_mode == DRS_MODE_CAL_TIME) || (a_flags & DRS_CAL_APPLY_CH9_ONLY);
 
-    unsigned l_cells_proc_count =  a_flags & DRS_CAL_APPLY_CH9_ONLY ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
+    unsigned l_cells_proc_count =  l_ch_9_mode ? DRS_CELLS_COUNT_BANK : DRS_CELLS_COUNT_CHANNEL;
     //double * l_bi = s_bi; // a_drs->coeffs.b
     //double * l_ki = s_ki; // a_drs->coeffs.k
     //double  **l_bi = a_drs->coeffs.b;
@@ -574,26 +570,26 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
                              ( ! (a_flags & DRS_CAL_APPLY_NO_ROTATE) ) ||
                              ( (a_flags & DRS_CAL_APPLY_ROTATE_BANK) )  ||
                              ( (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL) )    ) &&
-                             ( ! (a_flags & DRS_CAL_APPLY_CH9_ONLY) )  ;
+                             ( ! l_ch_9_mode )  ;
     double * l_out = l_need_to_rotate ?
           DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
     for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
-        if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
+        if(l_ch_9_mode)
             l_ch_id = DRS_CHANNEL_9;
 
         for(l_cell_id=0; l_cell_id<l_cells_proc_count;l_cell_id++){
-            size_t l_cell_id_masked = a_flags & DRS_CAL_APPLY_CH9_ONLY ? l_cell_id :
+            size_t l_cell_id_masked = l_ch_9_mode ? l_cell_id :
                                                                         l_cell_id&3072 ;
             unsigned l_inout_id = l_cell_id * DRS_CHANNELS_COUNT + l_ch_id;
 
-            koefIndex=  a_flags & DRS_CAL_APPLY_CH9_ONLY ?
+            koefIndex=  l_ch_9_mode ?
                 (a_drs->shift_bank + l_cell_id ) & 1023
                 :(a_drs->shift_bank + (l_cell_id&1023) ) & 1023 ;
             l_out[l_inout_id] = a_in[l_inout_id];
             if((a_flags & DRS_CAL_APPLY_Y_CELLS)!=0){
                 double l_bi, l_ki;
-                if (a_flags & DRS_CAL_APPLY_CH9_ONLY){
+                if (l_ch_9_mode){
                     l_bi = a_drs->coeffs.b9 [koefIndex ];
                     l_ki = a_drs->coeffs.k9 [koefIndex ];
                 }else{
@@ -622,7 +618,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             }
 
         }
-        if(a_flags & DRS_CAL_APPLY_CH9_ONLY)
+        if(l_ch_9_mode)
             break;
     }
 
@@ -643,7 +639,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         }
     }
 
-    if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
+    if ( (a_flags & DRS_CAL_APPLY_NO_CUT) ){
         size_t l_zero_count = DRS_DATA_CUT_LENGTH * DRS_CHANNELS_COUNT;
         if (g_drs_data_cut_from_begin){
             memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - l_zero_count)* sizeof (double)  );
