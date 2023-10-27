@@ -28,6 +28,7 @@
 #define DRS_CAL_REPEATS         1
 #define DRS_CAL_MIN_N_DEFAULT   50
 
+#define DRS_CAL_AMP_BAD_CELLS   1023,2047,3071,4095
 
 typedef struct drs_calibrate{
     pthread_rwlock_t rwlock;

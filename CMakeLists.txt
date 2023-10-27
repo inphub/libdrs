@@ -8,14 +8,14 @@ option(DRS_OPT_DATA_GET_NODELAYS "Switch off all DRS data get delays " OFF)
 option(DRS_BUILD_STATIC          "Static project build scheme" OFF)
 
 if ("${DAP_SDK_PATH}" STREQUAL "")
-        message("DAP SDK is not specified, set default path")
-        set(DAP_SDK_PATH "/opt/dap-sdk")
+    message("DAP SDK is not specified, set default path")
+    set(DAP_SDK_PATH "/opt/dap-sdk")
 endif()
 
 message("DAP SDK path: ${DAP_SDK_PATH}")
 
 if ( NOT DAP_RELEASE AND NOT DAP_DEBUG)
-        include(${DAP_SDK_PATH}/share/cmake/OS_Detection.cmake)
+    include(${DAP_SDK_PATH}/share/cmake/OS_Detection.cmake)
 endif()
 
 if (DRS_OPT_DATA_GET_NODELAYS)
@@ -24,10 +24,10 @@ if (DRS_OPT_DATA_GET_NODELAYS)
 endif()
 
 file(GLOB DRS_SRCS 
-      *.c 
+    *.c
 )
 file(GLOB DRS_HEADERS 
-      *.h 
+    *.h
 )
 
 set(BINDIR ${CMAKE_INSTALL_PREFIX}/bin)
@@ -42,11 +42,11 @@ include_directories(${DAP_SDK_PATH}/include)
 #add_subdirectory(driver)
 
 if(DRS_BUILD_STATIC OR BUILD_STATIC)
-        message("Build static library ${PROJECT_NAME}")
-        add_library(${PROJECT_NAME} STATIC ${DRS_SRCS} ${DRS_HEADERS})
+    message("Build static library ${PROJECT_NAME}")
+    add_library(${PROJECT_NAME} STATIC ${DRS_SRCS} ${DRS_HEADERS})
 else()
-        message("Build shared library ${PROJECT_NAME}")
-        add_library(${PROJECT_NAME} SHARED ${DRS_SRCS} ${DRS_HEADERS})
+    message("Build shared library ${PROJECT_NAME}")
+    add_library(${PROJECT_NAME} SHARED ${DRS_SRCS} ${DRS_HEADERS})
 endif()
 
 
@@ -61,4 +61,5 @@ endif()
 
 INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${LIBDIR})
 INSTALL(FILES ${DRS_HEADERS} DESTINATION ${INCDIR})
+#INSTALL(FILES examples/* DESTINATION ${SHAREDIR}/examples )
 

@@ -28,6 +28,7 @@
 #include "drs_ops.h"
 #include "drs_cal.h"
 #include "drs_cli.h"
+#include "drs_macs.h"
 
 #include "commands.h"
 #include "data_operations.h"
@@ -76,8 +77,9 @@ void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2,
 int g_drs_flags = 0;
 va_list s_drs_flags_vars;
 
-unsigned g_drs_data_cut_from_begin = 0;
-unsigned g_drs_data_cut_from_end = 0;
+unsigned g_drs_data_cut_from_begin = DRS_DATA_CUT_BEGIN_DEFAULT;
+unsigned g_drs_data_cut_from_end   = DRS_DATA_CUT_END_DEFAULT;
+
 unsigned short g_drs_gain_default = DRS_GAIN_QUANTS_END;
 
 static const unsigned int freqREG[]= {
@@ -110,6 +112,9 @@ static int s_post_init();
 static void s_dac_set(unsigned int onAH);
 static int s_ini_load(const char *a_ini_path, parameter_t *a_prm);
 
+#define MAC_ADDR_SIZE 6
+static int s_read_mac(char * a_mac_buf);
+
 /**
  * @brief dap_get_inited
  * @return
@@ -123,7 +128,22 @@ static inline bool s_get_inited()
         return false;
 }
 
+/**
+ * @brief s_read_mac
+ * @param a_mac_buf
+ */
+static int s_read_mac(char * a_mac_buf)
+{
+    char * l_ret = NULL;
+    char * l_cmd = "cat ";
+    int l_ret_code;
 
+    if ( (l_ret_code = exec_with_ret(&l_ret, l_cmd)) != 0 ){
+        log_it(L_CRITICAL, "Can't read mac address, return code %d", l_ret_code);
+        return l_ret_code;
+    }
+    return 0;
+}
 /**
  * @brief drs_init
  * @param a_drs_flags
@@ -148,6 +168,8 @@ int drs_init(int a_drs_flags,...)
     s_init_mem();
 
     g_ini = DAP_NEW_Z(parameter_t);
+
+
     s_ini_load("/media/card/config.ini", g_ini );
 
     if(g_drs_flags & DRS_INIT_SET_ONCE_FREQ ||  g_drs_flags & DRS_INIT_SET_ALWAYS_FREQ ){
@@ -640,6 +662,16 @@ static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
         log_it(L_CRITICAL, "Can't load ini file from path %s", a_ini_path);
         return -1 ;
     }
+
+    // Определяем девайс
+    char l_mac_addr[6] = {};
+    const char * l_prefix = "/media/card/configs/";
+    dap_config_t * l_cfg_device = NULL;
+    //if(s_read_mac(l_mac_addr) == 0  ){
+    //}else  {
+    //    dap_config_load(a_ini_path);
+    //}
+
 
   //  char IP[16];
   //  long n;
