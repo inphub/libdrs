@@ -130,6 +130,7 @@ int drs_cli_init()
                             "\t  CELLS         Амплитудная калибровка\n"
                             "\t  INTERCHANNEL  Межканальная калибровка\n"
                             "\t  SPLASHS       Удаление всплесков\n"
+                            "\t  SPLASHS_FIX_BAD_CELLS Удаление \"плохих\" отчётов тем же алгоритмом\n"
                             "\t  NO_ROTATE     Не разворачивать данные\n"
                             "\t  ROTATE_BANK   Разворачивать внутри банка\n"
                             "\t  ROTATE_GLOBAL Разворачивать глобально\n"
@@ -451,6 +452,8 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
                         l_apply_flags |= DRS_CAL_APPLY_Y_INTERCHANNEL;
                     }else if (dap_strcmp(l_str,"SPLASHS") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_Y_SPLASHS;
+                    }else if (dap_strcmp(l_str, "SPLASHS_FIX_BAD_CELLS") == 0 ){
+                        l_apply_flags |= DRS_CAL_APPLY_Y_SPLASHS_FIX_BAD_CELLS;
                     }else if (dap_strcmp(l_str,"NO_ROTATE") == 0 ){
                         l_apply_flags |= DRS_CAL_APPLY_NO_ROTATE;
                     }else if (dap_strcmp(l_str,"ROTATE_BANK") == 0 ){

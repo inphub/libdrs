@@ -91,7 +91,7 @@
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
 #define MAX_SLOW_ADC_SIZE_IN_BYTE MAX_SLOW_ADC_CHAN_SIZE*8*2
 
-#define MAX_PAGE_COUNT 1000
+#define MAX_PAGE_COUNT 4096
 
 #define ADC_FAST_SIZE MAX_PAGE_COUNT*1024*8*8
 
@@ -231,6 +231,9 @@ static const char* c_freq_str[] = {
 
 #define DRS_GAIN_QUANTS_BEGIN    0
 #define DRS_GAIN_QUANTS_END      32
+
+#define DRS_DATA_CUT_BEGIN_DEFAULT      0
+#define DRS_DATA_CUT_END_DEFAULT        10
 
 extern unsigned g_drs_data_cut_from_begin;
 extern unsigned g_drs_data_cut_from_end;

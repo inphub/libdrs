@@ -540,18 +540,32 @@ static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, un
  * @brief drs_cal_amp_remove_splash
  * @param a_drs
  * @param a_Y
- * @param a_gauntlet
+ * @param a_treshold
+ * @param a_flags
  */
-void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_gauntlet)
+void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int a_flags)
 {
 
     const unsigned l_cells_proc_count = drs_cal_get_y_count_after_cuts()/DRS_CHANNELS_COUNT -3;
 
-    log_it(L_INFO,"Trying to find splashs, gauntlet %f...", a_gauntlet);
+    log_it(L_INFO,"Trying to find splashs, gauntlet %f...", a_treshold);
     bool l_found_smth [DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL ] = {};
+    static const unsigned c_bad_cells[]={DRS_CAL_AMP_BAD_CELLS};
+
+    if(a_flags & DRS_CAL_APPLY_Y_SPLASHS_FIX_BAD_CELLS){
+        for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++){
+            for (unsigned i = 0; i < sizeof (c_bad_cells)/ sizeof (unsigned); i++)
+                l_found_smth[ch][c_bad_cells[i]] = true;
+        }
+    }
 
     for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
         for(unsigned l_cell_id=0;l_cell_id<l_cells_proc_count;l_cell_id++){
+            if (l_found_smth[ch][l_cell_id+2] ){ // проверяем, вдруг эта ячейка уже и так исключена
+                l_cell_id += 2;
+                continue;
+            }
+
             double y[] = { a_Y[DRS_IDX(ch,l_cell_id)],
                              a_Y[DRS_IDX(ch,l_cell_id + 1)],
                              a_Y[DRS_IDX(ch,l_cell_id + 2)]};
@@ -561,8 +575,8 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_gauntlet)
 
 
             if(
-                dY[0] > a_gauntlet && // Сравниваем dY он должен превышать барьер
-                dY[1] > a_gauntlet &&
+                dY[0] > a_treshold && // Сравниваем dY он должен превышать барьер
+                dY[1] > a_treshold &&
                //fabs(dY[0] - dY[1] ) < a_gauntlet/2.0 && // тут не должен превышать половину барьера
 
                   (   // тут проверяем форму всплеска по сути

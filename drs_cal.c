@@ -618,7 +618,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
 
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
-                l_out[l_inout_id]=(l_out[l_inout_id] + g_ini->fastadc.adc_offsets[l_ch_id]) * g_ini->fastadc.adc_gains[l_ch_id];
+                l_out[l_inout_id]= (l_out[l_inout_id] + g_ini->fastadc.adc_offsets[l_ch_id]) * g_ini->fastadc.adc_gains[l_ch_id];
             }
 
         }
@@ -657,7 +657,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
     if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
     {
-        drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_gauntlet() );
+        drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_gauntlet(), a_flags );
     }
 
 
@@ -680,8 +680,7 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
     dap_string_append_printf( a_reply, "Running:     %s\n\n", a_cal->is_running? "yes" : "no" );
     dap_string_append_printf( a_reply, "Progress:    %d%%\n", a_cal->progress );
     dap_string_append_printf( a_reply, "Stage:       %s(0x%08X)\n\n", drs_cal_stage_to_str(a_cal->stage),
-                              DRS_CAL_FLAG_ALL
-                              ,a_cal->stage );
+                              DRS_CAL_FLAG_ALL, a_cal->stage );
     if (a_cal->ts_end || true){
         coefficients_t * l_params = &l_cal_pvt->drs->coeffs;
         if ( a_flags & DRS_COEF_SPLASH)
