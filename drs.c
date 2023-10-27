@@ -857,7 +857,7 @@ void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)
 
     /* write the value */
     *l_control_mem = reg_data;
-    usleep(1000);
+    usleep(100);
     pthread_mutex_unlock(&l_reg_write_mutex);
 }
 

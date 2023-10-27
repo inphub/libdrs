@@ -488,13 +488,13 @@ int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags)
     }
 
     if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
-
-        if (g_drs_data_cut_from_begin)
+        if (g_drs_data_cut_from_begin){
             memmove(a_x, a_x + g_drs_data_cut_from_begin, (DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin)* sizeof (double)  );
+        }
 
         if (g_drs_data_cut_from_end){
-            size_t l_end_count = DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin;
-            memset(a_x + l_end_count, 0, l_end_count * sizeof (double) );
+            size_t l_end_count = DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin - g_drs_data_cut_from_end;
+            memset(a_x + l_end_count, 0, g_drs_data_cut_from_end * sizeof (double) );
         }
     }
 
@@ -651,7 +651,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
         if (l_zero_count){
             size_t l_end_count = DRS_CELLS_COUNT - l_zero_count;
-            memset(a_out + l_end_count , 0, l_zero_count * sizeof (double) );
+            memset(a_out + l_end_count , 0, g_drs_data_cut_from_end * sizeof (double) );
         }
     }
 

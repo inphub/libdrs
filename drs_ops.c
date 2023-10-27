@@ -14,20 +14,22 @@
 
 #define LOG_TAG "drs_ops"
 
-static bool s_debug_more = true;
+static bool s_debug_more = false;
 /**
  * @brief drs_start
  */
 void drs_start(int a_drs_num, int a_flags, unsigned a_pages_num)
 {
     debug_if(s_debug_more, L_INFO,"drs_start() a_flags = 0x%08X", a_flags);
-    drs_cmd( -1, a_flags);
-
     if(a_pages_num > 1){
         drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
         drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
         log_it(L_DEBUG, "Pages count %u", drs_reg_read(DRS_REG_NPAGES_MAX_DRS_A));
     }
+
+    for (unsigned n=1; n<= DRS_CMD_MAX; n <<= 1 )
+        if (a_flags & n )
+            drs_cmd( -1, n);
 }
 
 
@@ -125,6 +127,8 @@ int drs_data_wait_for_ready(drs_t * a_drs)
  */
 void drs_cmd(int a_drs_num, unsigned int a_cmd)
 {
+    debug_if(s_debug_more, L_DEBUG,"drs_cmd() a_flags = 0x%08X", a_cmd);
+
     switch (a_drs_num){
         case -1:
             drs_reg_write(DRS_REG_CMD_DRS_1, a_cmd);
