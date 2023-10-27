@@ -487,18 +487,6 @@ int drs_cal_get_x(drs_t * a_drs, double * a_x, int a_flags)
         do_on_array(a_x,DRS_CELLS_COUNT_CHANNEL,s_x_to_real);
     }
 
-    if (! (a_flags & DRS_CAL_APPLY_NO_CUT)){
-        if (g_drs_data_cut_from_begin){
-            memmove(a_x, a_x + g_drs_data_cut_from_begin, (DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin)* sizeof (double)  );
-        }
-
-        if (g_drs_data_cut_from_end){
-            size_t l_end_count = DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin - g_drs_data_cut_from_end;
-            memset(a_x + l_end_count, 0, g_drs_data_cut_from_end * sizeof (double) );
-        }
-    }
-
-
     return 0;
 }
 

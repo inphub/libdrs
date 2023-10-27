@@ -455,6 +455,8 @@ static void s_hw_init()
     // Start all
     drs_reg_write(0x00000001, 0x0000001);
 
+    drs_reg_write(DRS_REG_AMPL_INIT, 1);
+
     // Touch file
     FILE * f = fopen(s_drs_check_file,"w");
     fclose(f);

@@ -40,6 +40,9 @@
 
 #define DRS_REG_DVGA_GAINS   		2
 #define DRS_REG_DVGA_START    		1
+
+#define DRS_REG_AMPL_INIT    		3
+
 #define DRS_REG_CMD_DRS_1		14
 #define DRS_REG_CMD_DRS_2		15
 #define DRS_MODE_REG			16
