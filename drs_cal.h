@@ -23,7 +23,7 @@ typedef struct{
                                // при нуле будут выполняться два прохода для уровней BegServ и EndServ(о них ниже),
                                // при не нулевом значении, между  BegServ и EndServ будут включены count дополнительных уровней
                                // цапов для амплитудной калибровки
-        double splash_gauntlet; // Уровень отсечения всплесков
+        double splash_treshold; // Уровень отсечения всплесков
         double levels[DRS_DCA_COUNT_ALL+2];
     } ampl;
 
@@ -173,8 +173,8 @@ static inline unsigned drs_cal_get_x_count_after_cuts()
     return DRS_CELLS_COUNT_CHANNEL - g_drs_data_cut_from_begin - g_drs_data_cut_from_end;
 }
 
-void drs_cal_set_splash_gauntlet(unsigned a_gauntlet);
-unsigned drs_cal_get_splash_gauntlet();
+void drs_cal_set_splash_treshold(unsigned a_treshold);
+unsigned drs_cal_get_splash_treshold();
 
 double* drs_cal_x_produce(drs_t * a_drs, int a_flags);
 double * drs_cal_y_produce(drs_t * a_drs,int a_flags);

@@ -192,7 +192,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 .ampl = {
                     .repeats = a_cmd_args[5],
                     .N = a_cmd_args[2],
-                    .splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT
+                    .splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT
                 },
                 .time_global = {
                     .num_cycle = a_cmd_args[4]

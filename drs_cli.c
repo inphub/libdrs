@@ -105,7 +105,7 @@ int drs_cli_init()
                             "\n"
                             "set delay -drs <Номер ДРС> -- <Значение задержки в наносекундах>\n"
                             "\n"
-                            "set splash_gauntlet <значение предела срабатывания алгоритма>"
+                            "set splash_treshold <значение предела срабатывания алгоритма>"
                             ""
                             );
 
@@ -787,7 +787,7 @@ static int s_callback_calibrate(int a_argc, char ** a_argv, char **a_str_reply)
                 .ampl = {
                     .repeats = l_repeats,
                     .N = l_N,
-                    .splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT
+                    .splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT
                 },
                 .time_global = {
                     .num_cycle = l_num_cycle
@@ -955,7 +955,7 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_DAC,
         CMD_FLAG_END_READ,
         CMD_DELAY,
-        CMD_SPLASH_GAUNTLET,
+        CMD_SPLASH_TRESHOLD,
         CMD_FREQ
     };
     const char *l_cmd_str_c[] ={
@@ -964,7 +964,7 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         [CMD_DAC] = "dac",
         [CMD_FLAG_END_READ] = "flag_end_read",
         [CMD_DELAY] = "delay",
-        [CMD_SPLASH_GAUNTLET] = "splash_gauntlet",
+        [CMD_SPLASH_TRESHOLD] = "splash_treshold",
         [CMD_FREQ] = "freq"
     };
 
@@ -1055,11 +1055,11 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             drs_data_set_zap_delay_ns(l_drs_num, l_delay );
             dap_cli_server_cmd_set_reply_text(a_str_reply, "Теперь у DRS #%u стоит задержка в %u наносекунд, ура!", l_drs_num, l_delay );
         }
-        case CMD_SPLASH_GAUNTLET:{
-            const char * l_gauntlet_str = a_argv[2];
-            unsigned l_gauntlet = l_gauntlet_str? atoi(l_gauntlet_str) : DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
-            drs_cal_set_splash_gauntlet(l_gauntlet);
-            dap_cli_server_cmd_set_reply_text(a_str_reply, "Предел изменения соседних данных в ячейках тепреь равен %u", l_gauntlet);
+        case CMD_SPLASH_TRESHOLD:{
+            const char * l_treshold_str = a_argv[2];
+            unsigned l_treshold = l_treshold_str? atoi(l_treshold_str) : DRS_CAL_SPLASH_TRESHOLD_DEFAULT;
+            drs_cal_set_splash_treshold(l_treshold);
+            dap_cli_server_cmd_set_reply_text(a_str_reply, "Предел изменения соседних данных в ячейках тепреь равен %u", l_treshold);
         }break;
         case CMD_REG:{
             const char * l_reg_str = a_argv[2];

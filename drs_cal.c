@@ -59,7 +59,7 @@ drs_calibrate_t s_state[DRS_COUNT] = {};
 
 static char * s_cal_file_path = NULL;
 static bool s_debug_more = true;
-static unsigned s_splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
+static unsigned s_splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT;
 
 // Поток калибровки
 static void *     s_thread_routine(void * a_arg);
@@ -69,20 +69,20 @@ static void       s_x_to_real     (double* x                                    
 static void       s_remove_splash (drs_t * a_drs, double* a_Y, bool a_ch9_only                           );
 
 /**
- * @brief drs_cal_set_splash_gauntlet
- * @param a_gauntlet
+ * @brief drs_cal_set_splash_treshold
+ * @param a_treshold
  */
-void drs_cal_set_splash_gauntlet(unsigned a_gauntlet)
+void drs_cal_set_splash_treshold(unsigned a_treshold)
 {
-    s_splash_gauntlet = a_gauntlet;
+    s_splash_treshold = a_treshold;
 }
 
 /**
- * @brief drs_cal_get_splash_gauntlet
+ * @brief drs_cal_get_splash_treshold
  */
-unsigned drs_cal_get_splash_gauntlet()
+unsigned drs_cal_get_splash_treshold()
 {
-  return s_splash_gauntlet;
+  return s_splash_treshold;
 }
 
 /**
@@ -641,7 +641,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
     if((a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0)
     {
-        drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_gauntlet(), a_flags );
+        drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_treshold(), a_flags );
     }
 
 
@@ -728,7 +728,7 @@ void drs_calibrate_params_set_defaults(drs_calibrate_params_t *a_params)
     a_params->ampl.N = DRS_CAL_N_DEFAULT;
     a_params->ampl.repeats = DRS_CAL_REPEATS;
 
-    a_params->ampl.splash_gauntlet = DRS_CAL_SPLASH_GAUNTLET_DEFAULT;
+    a_params->ampl.splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT;
     a_params->time_local.min_N = DRS_CAL_MIN_N_DEFAULT;
     a_params->time_local.max_repeats = DRS_CAL_MAX_REPEATS_DEFAULT;
     a_params->time_global.num_cycle = DRS_CAL_NUM_CYCLE_DEFAULT;
