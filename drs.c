@@ -27,6 +27,7 @@
 #include "drs.h"
 #include "drs_ops.h"
 #include "drs_cal.h"
+#include "drs_cal_pvt.h"
 #include "drs_cli.h"
 #include "drs_macs.h"
 
@@ -600,7 +601,11 @@ void drs_set_freq(enum drs_freq a_freq)
     drs_reg_write(0x4, 1);//select frequency (0 - external, 1 - internal
     drs_reg_write(30,   freqREG[g_current_freq]);//select ref frequency
     drs_reg_write(0x5, 1);// write frequency
-    log_it(L_NOTICE, "Set frequency %s", c_freq_str[a_freq]);
+
+    drs_cal_file_path_update();
+    drs_cal_load();
+    log_it(L_NOTICE, "Set frequency %s", c_freq_str_full[a_freq]);
+
 }
 
 double drs_get_freq_value(enum drs_freq a_freq)

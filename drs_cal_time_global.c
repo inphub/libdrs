@@ -171,7 +171,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             drs_set_mode(a_drs->id, l_mode_old);
             break;
         }
-        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_CH9_ONLY | DRS_CAL_APPLY_ROTATE_BANK  );
+        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS  );
 
 
         // Заполняем массив X

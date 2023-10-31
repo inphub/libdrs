@@ -198,12 +198,20 @@ static const double c_freq_DRS[]= {
   [DRS_FREQ_5GHz]=  4.915200
 };
 
-static const char* c_freq_str[] = {
+static const char* c_freq_str_full[] = {
   [DRS_FREQ_1GHz] = "1.024 GHz",
   [DRS_FREQ_2GHz] = "2.048 GHz",
   [DRS_FREQ_3GHz] = "3.072 GHz",
   [DRS_FREQ_4GHz] = "4.096 GHz",
   [DRS_FREQ_5GHz]=  "4.915200 GHz"
+};
+
+static const char* c_freq_str_short[] = {
+  [DRS_FREQ_1GHz] = "1.024",
+  [DRS_FREQ_2GHz] = "2.048",
+  [DRS_FREQ_3GHz] = "3.072",
+  [DRS_FREQ_4GHz] = "4.096",
+  [DRS_FREQ_5GHz]=  "4.915200"
 };
 
 // ---Флаги выставлять в том же порядке, что и перечислены ниже ---

@@ -68,6 +68,8 @@ static inline int s_run           (int a_drs_num, uint32_t a_cal_flags, drs_cali
 static void       s_x_to_real     (double* x                                                             );
 static void       s_remove_splash (drs_t * a_drs, double* a_Y, bool a_ch9_only                           );
 
+static void s_cal_file_path_update();
+
 /**
  * @brief drs_cal_set_splash_treshold
  * @param a_treshold
@@ -203,16 +205,27 @@ int drs_calibrate_init()
         s_state[i].drs = &g_drs[i];
     }
 
-    dap_string_t * l_file_coeffs = dap_string_new(g_dap_vars.core.sys_dir);
-    dap_string_append(l_file_coeffs,"/var/lib/");
-    dap_mkdir_with_parents(l_file_coeffs->str);
-    dap_string_append(l_file_coeffs,"/cal_coeffs.bin");
 
-    s_cal_file_path = dap_string_free(l_file_coeffs, false);
     s_debug_more = dap_config_get_item_bool_default(g_config,"debug","drs_cal", false);
-    drs_cal_load(s_cal_file_path);
+
+    drs_cal_file_path_update();
+    drs_cal_load();
 
     return 0;
+}
+
+/**
+ * @brief drs_cal_file_path_update
+ */
+void drs_cal_file_path_update()
+{
+  dap_string_t * l_file_coeffs = dap_string_new(g_dap_vars.core.sys_dir);
+  dap_string_append(l_file_coeffs,"/var/lib/");
+  dap_mkdir_with_parents(l_file_coeffs->str);
+  dap_string_append_printf(l_file_coeffs,"/cal_coeffs_freq_%sGHz.bin",c_freq_str_short[g_current_freq] );
+
+  DAP_DEL_Z(s_cal_file_path);
+  s_cal_file_path = dap_string_free(l_file_coeffs, false);
 }
 
 /**
@@ -554,11 +567,19 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
     //double  **l_ki = a_drs->coeffs.k;
     //double average[4];
     //getAverageInt(average,buffer,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
-    bool l_need_to_rotate =  (
-                             ( ! (a_flags & DRS_CAL_APPLY_NO_ROTATE) ) ||
-                             ( (a_flags & DRS_CAL_APPLY_ROTATE_BANK) )  ||
-                             ( (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL) )    ) &&
-                             ( ! l_ch_9_mode )  ;
+
+    if (l_ch_9_mode
+          &&   ! (a_flags& DRS_CAL_APPLY_NO_ROTATE )
+          &&   ! (a_flags& DRS_CAL_APPLY_ROTATE_GLOBAL )
+          &&   ! (a_flags& DRS_CAL_APPLY_ROTATE_BANK )){
+        a_flags |= DRS_CAL_APPLY_ROTATE_BANK;
+    }
+
+    bool l_need_to_rotate = ( (! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK)) ) ||
+        (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL || a_flags & DRS_CAL_APPLY_ROTATE_BANK ) ;
+
+
+
     double * l_out = l_need_to_rotate ?
           DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
@@ -621,7 +642,8 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
             drs_data_rotate_global(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
 
-        if(  (! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK))  ){
+        if(    ((! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK)) ) ||
+               (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL && a_flags & DRS_CAL_APPLY_ROTATE_BANK ) )  {
             drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
             drs_data_rotate_global(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
@@ -663,8 +685,7 @@ void drs_cal_state_print(dap_string_t * a_reply, drs_calibrate_state_t *a_cal, u
     pthread_rwlock_rdlock(&l_cal_pvt->rwlock);
     dap_string_append_printf( a_reply, "Running:     %s\n\n", a_cal->is_running? "yes" : "no" );
     dap_string_append_printf( a_reply, "Progress:    %d%%\n", a_cal->progress );
-    dap_string_append_printf( a_reply, "Stage:       %s(0x%08X)\n\n", drs_cal_stage_to_str(a_cal->stage),
-                              DRS_CAL_FLAG_ALL, a_cal->stage );
+    dap_string_append_printf( a_reply, "Stage:       %s(0x%08X)\n\n", drs_cal_stage_to_str(a_cal->stage), a_cal->stage );
     if (a_cal->ts_end || true){
         coefficients_t * l_params = &l_cal_pvt->drs->coeffs;
         if ( a_flags & DRS_COEF_SPLASH)
@@ -744,18 +765,16 @@ typedef struct cal_file_hdr
 
 /**
  * @brief drs_cal_save
- * @param a_drs
- * @param a_file_path
  * @return
  */
-int drs_cal_save(const char * a_file_path)
+int drs_cal_save()
 {
     cal_file_hdr_t l_hdr = {
         .magic     =  CAL_FILE_MAGIC,
         .version   = 0x1,
         .drs_count = DRS_COUNT
     };
-    FILE * f = fopen(a_file_path, "w");
+    FILE * f = fopen(s_cal_file_path, "w");
     if ( f == NULL){
         int l_errno = errno;
         char l_strerr[255];
@@ -767,7 +786,7 @@ int drs_cal_save(const char * a_file_path)
     for(unsigned i = 0; i < DRS_COUNT; i++)
       fwrite(&g_drs[i].coeffs , sizeof (g_drs[i].coeffs),1, f);
     fclose(f);
-    log_it(L_NOTICE, "Saved DRS calibration coeffs to %s", a_file_path);
+    log_it(L_NOTICE, "Saved DRS calibration coeffs to %s", s_cal_file_path);
     return 0;
 }
 
@@ -776,11 +795,11 @@ int drs_cal_save(const char * a_file_path)
  * @param a_file_path
  * @return
  */
-int drs_cal_load(const char * a_file_path)
+int drs_cal_load()
 {
     cal_file_hdr_t l_hdr = {};
 
-    FILE * f = fopen(a_file_path, "r");
+    FILE * f = fopen(s_cal_file_path, "r");
     if ( f == NULL){
         int l_errno = errno;
         char l_strerr[255];
@@ -802,6 +821,6 @@ int drs_cal_load(const char * a_file_path)
     for(unsigned i = 0; i < DRS_COUNT; i++)
       fread(&g_drs[i].coeffs , sizeof (g_drs[i].coeffs),1, f);
     fclose(f);
-    log_it(L_NOTICE, "Loaded calibration params from %s", a_file_path);
+    log_it(L_NOTICE, "Loaded calibration params from %s", s_cal_file_path);
     return 0;
 }
