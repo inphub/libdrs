@@ -11,6 +11,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+#include <unistd.h>
+#include <stdlib.h>
+
 #include <math.h>
 #include <pthread.h>
 
@@ -73,7 +76,7 @@
 #define DRS_PAGE_COUNT_MAX              4096
 
 // Задержка после чтения, в микросекундах
-#define DRS_PAGE_READ_DELAY             50000
+#define DRS_PAGE_READ_DELAY             1000
 
 #define DRS_COEF_SPLASH           0x00000001
 #define DRS_COEF_DELTA_TIME       0x00000002
@@ -324,6 +327,7 @@ static inline void drs_set_gain_quants_all(const unsigned short a_gain_quants[DR
 
     drs_reg_write(DRS_REG_DVGA_GAINS , l_value);
     drs_reg_write(DRS_REG_DVGA_START, 1);
+    usleep(10);
 #else
 #error "Нужно переделать работу с регистрами, если общее число каналов не равно 4"
 #endif

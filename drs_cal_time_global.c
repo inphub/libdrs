@@ -42,17 +42,17 @@ static const double s_period_length[] = {
 
 //26,315789473684210526315789473684- максимальное количество периодов в 1024 отсчетах->27, +1 для нуля;
 static const unsigned s_period_max_count[] = {
-  [DRS_FREQ_1GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_1GHz] * 1000.0 )/50.0 ) + 2,
-  [DRS_FREQ_2GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_2GHz] * 1000.0 )/50.0 ) + 2,
-  [DRS_FREQ_3GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_3GHz] * 1000.0 )/50.0 ) + 2,
-  [DRS_FREQ_4GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_4GHz] * 1000.0 )/50.0 ) + 2,
-    [DRS_FREQ_5GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_5GHz] * 1000.0 )/50.0 ) + 2
+  [DRS_FREQ_1GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_1GHz] * 1000.0 )/50.0 ) + 2.0,
+  [DRS_FREQ_2GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_2GHz] * 1000.0 )/50.0 ) + 2.0,
+  [DRS_FREQ_3GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_3GHz] * 1000.0 )/50.0 ) + 2.0,
+  [DRS_FREQ_4GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_4GHz] * 1000.0 )/50.0 ) + 2.0,
+    [DRS_FREQ_5GHz] = 1024/( ( c_freq_DRS[DRS_FREQ_5GHz] * 1000.0 )/50.0 ) + 2.0
     //[DRS_FREQ_5GHz] = 28
 };
 
 static bool s_debug_warns = true;
-static bool s_debug_more = false;
-static bool s_debug_dump_data = false;
+static bool s_debug_more = true;
+static bool s_debug_dump_data = true;
 
 static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,unsigned a_iteration, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats);
 
@@ -95,7 +95,7 @@ int drs_cal_time_global( int a_drs_num, drs_cal_args_t * a_args, atomic_uint_fas
  * @param n
  * @param b
  */
-static inline unsigned s_y_idx(unsigned n, unsigned b){
+static inline unsigned s_x_idx(unsigned n, unsigned b){
   return n + b*DRS_CELLS_COUNT_BANK;
 };
 
@@ -107,20 +107,21 @@ static inline unsigned s_y_idx(unsigned n, unsigned b){
  */
 void drs_cal_time_global_apply( drs_t * a_drs,  double *a_in,   double *a_out )
 {
-    double tmpX = 0.0;
-    a_in[0]=0.0;
+    double l_current_x = 0.0;
+    a_out[0]=0.0;
     for(unsigned b=0;b<DRS_CHANNEL_BANK_COUNT ;b++){
         for(unsigned n=0, pz_bank, pz;n< DRS_CELLS_COUNT_BANK;n++){
             //pz = ( a_drs->shift + n)&1023;
             pz = n + b*DRS_CELLS_COUNT_BANK;
             pz_bank = pz & 1023;
-            if( n == 0 && b == 0)
-                tmpX = 0.0;
+
+            if (n == 0 && b == 0)
+                continue;
             else if(n == 0 && b != 0)
-                tmpX += (a_out[s_y_idx(n,b)] - a_out[s_y_idx(DRS_CELLS_COUNT_BANK-1,b-1)])* a_drs->coeffs.kTime[ pz_bank ];
+                l_current_x += ((a_in[s_x_idx(n,b)] - a_in[s_x_idx(DRS_CELLS_COUNT_BANK-1,b-1)])* a_drs->coeffs.kTime[ pz_bank ]);
             else
-                tmpX += (a_out[s_y_idx(n,b)] - a_out[s_y_idx(n-1,b)])* a_drs->coeffs.kTime[ pz_bank ];
-            a_in[n + b*DRS_CELLS_COUNT_BANK] = tmpX;
+                l_current_x += ((a_in[s_x_idx(n,b)] - a_in[s_x_idx(n-1,b)])* a_drs->coeffs.kTime[ pz_bank ]);
+            a_out[ s_x_idx(n,b) ] = l_current_x;
         }
     }
 }
@@ -171,7 +172,19 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             drs_set_mode(a_drs->id, l_mode_old);
             break;
         }
-        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS  );
+        static bool l_do_once = true;
+        if (l_do_once){
+            char * l_file_name = dap_strdup_printf("time_global_good_dump_y_raw_shift_%u", drs_get_shift(a_drs->id,0));
+            drs_data_dump_in_files(l_file_name, l_y_raw, DRS_CELLS_COUNT,
+                                  DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
+                                  DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
+            DAP_DELETE(l_file_name);
+
+
+            l_do_once = false;
+        }
+
+        drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );
 
 
         // Заполняем массив X
@@ -206,6 +219,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
     double l_ts_diff  =  ((double) (dap_nanotime_now() - l_ts_start))/ 1000000000.0  ;
     log_it(L_NOTICE,"Finished local time calibration in %.3f seconds", l_ts_diff);
 
+     a_drs->coeffs.indicator |= 4;
     // Обновляем прогресс бар
     if (a_progress)
       *a_progress = l_progress_old +((unsigned)floor(l_progress_total));
@@ -258,7 +272,7 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
                 deltX += 1024.0;
             }
 
-            l_zero_cross_x[l_count] = (deltX / (a_y[n_9idx]-l_last_y)) * (average - l_last_y) + l_last_x;
+            l_zero_cross_x[l_count] =  deltX * ( (average - l_last_y) / (a_y[n_9idx]-l_last_y) ) + l_last_x;
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_zero_cross_x[l_count] - l_zero_cross_x[l_count - 1];
                 if (s_debug_dump_data){
@@ -271,7 +285,8 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
                         DAP_DELETE(l_file_name);
                         l_wasnt_good_dumped = false;
                     }
-
+                    s_debug_dump_data = false;
+                    s_debug_warns = false;
                 }
                 if ( l_period_delt[l_count-1] < 90){
                     if (s_debug_warns)

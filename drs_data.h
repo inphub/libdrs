@@ -33,7 +33,8 @@ extern "C" {
 #define DRS_DATA_DUMP_ADD_PATH_VAR_LIB                0x00000004
 #define DRS_DATA_DUMP_ADD_TIMESTAMP                   0x00000008
 
-int drs_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags);
+int drs_data_dump_in_files_double(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags);
+int drs_data_dump_in_files_unsigned(const char * a_filename, const unsigned * a_data, size_t a_data_count, int a_flags);
 
 int drs_data_get_page_first(drs_t * a_drs, int a_flags , unsigned short * a_buffer); /// Если a_drs NULL то он копирует для всех DRS
 int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned short * a_buffer, size_t a_buffer_size); /// Если a_drs NULL то он копирует для всех DRS

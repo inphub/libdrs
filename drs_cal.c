@@ -58,7 +58,7 @@ struct drs_cal_apply_flags g_drs_cal_apply_to_str[]={
 drs_calibrate_t s_state[DRS_COUNT] = {};
 
 static char * s_cal_file_path = NULL;
-static bool s_debug_more = true;
+static bool s_debug_more = false;
 static unsigned s_splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT;
 
 // Поток калибровки
@@ -553,7 +553,7 @@ int drs_cal_get_y(drs_t * a_drs,double * a_y,unsigned a_page, int a_flags_get, i
  */
 void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_flags)
 {
-    debug_if(s_debug_more, L_INFO, "drs_cal_y_apply() a_flags = 0x%08X", a_flags);
+    debug_if(s_debug_more,L_INFO, "drs_cal_y_apply() a_flags = 0x%08X", a_flags);
     unsigned int l_ch_id,l_cell_id,koefIndex;
 
     // Если мы сейчас в режиме 9ого канала, то автоматически взводим этот флаг
@@ -572,16 +572,21 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
           &&   ! (a_flags& DRS_CAL_APPLY_NO_ROTATE )
           &&   ! (a_flags& DRS_CAL_APPLY_ROTATE_GLOBAL )
           &&   ! (a_flags& DRS_CAL_APPLY_ROTATE_BANK )){
-        a_flags |= DRS_CAL_APPLY_ROTATE_BANK;
+        a_flags |= DRS_CAL_APPLY_NO_ROTATE;
     }
 
-    bool l_need_to_rotate = ( (! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK)) ) ||
-        (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL || a_flags & DRS_CAL_APPLY_ROTATE_BANK ) ;
+    bool l_need_to_rotate =  ( ( (! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))
+                                 && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK)) &&
+                                 (!(a_flags & DRS_CAL_APPLY_NO_ROTATE))) ||
+        (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL || a_flags & DRS_CAL_APPLY_ROTATE_BANK ) );// &&
+                              //( !(a_flags & DRS_CAL_APPLY_Y_CELLS) );
+
+    //l_need_to_rotate = true;
 
 
+    //double * l_out = l_need_to_rotate ?
+    //      DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
-    double * l_out = l_need_to_rotate ?
-          DAP_NEW_STACK_SIZE(double, DRS_CELLS_COUNT * sizeof (double)) : a_out;
 
     for(l_ch_id=0; l_ch_id<DRS_CHANNELS_COUNT;l_ch_id++){
         if(l_ch_9_mode)
@@ -594,8 +599,10 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
             koefIndex=  l_ch_9_mode ?
                 (a_drs->shift_bank + l_cell_id ) & 1023
-                :(a_drs->shift_bank + (l_cell_id&1023) ) & 1023 ;
-            l_out[l_inout_id] = a_in[l_inout_id];
+                : (a_drs->shift_bank + (l_cell_id&1023) ) & 1023 ;
+
+            a_out[l_inout_id] = a_in[l_inout_id];
+
             if((a_flags & DRS_CAL_APPLY_Y_CELLS)!=0){
                 double l_bi, l_ki;
                 if (l_ch_9_mode){
@@ -607,12 +614,12 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
                 }
 
 
-                l_out[l_inout_id] =  ( l_out[l_inout_id] - l_bi ) /
+                a_out[l_inout_id] =  ( a_out[l_inout_id] - l_bi ) /
                                                  (l_ki +1.0 );
             }
 
             if((a_flags & DRS_CAL_APPLY_Y_INTERCHANNEL)!=0){
-                l_out[l_inout_id] -=  a_drs->coeffs.chanB[l_ch_id] +  (DRS_ADC_TOP_LEVEL/2.0 ) * (a_drs->coeffs.chanK[l_ch_id] );
+                a_out[l_inout_id] -=  a_drs->coeffs.chanB[l_ch_id] +  (DRS_ADC_TOP_LEVEL/2.0 ) * (a_drs->coeffs.chanK[l_ch_id] );
                 //l_out[l_inout_id] =  (l_out[l_inout_id] - a_drs->coeffs.chanB[l_ch_id])/( a_drs->coeffs.chanK[l_ch_id] )+  (DRS_ADC_TOP_LEVEL/2.0 );
             }
 
@@ -623,7 +630,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
 
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
-                l_out[l_inout_id]= (l_out[l_inout_id] + g_ini->fastadc.adc_offsets[l_ch_id]) * g_ini->fastadc.adc_gains[l_ch_id];
+                a_out[l_inout_id]= (a_out[l_inout_id] + g_ini->fastadc.adc_offsets[l_ch_id]) * g_ini->fastadc.adc_gains[l_ch_id];
             }
 
         }
@@ -633,23 +640,21 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
     // Разворачиваем всё вместе
 
-
     if ( l_need_to_rotate ){
         if (a_flags & DRS_CAL_APPLY_ROTATE_BANK){
-            drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
+            drs_data_rotate_bank(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
         if (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL){
-            drs_data_rotate_global(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
+            drs_data_rotate_global(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
 
-        if(    ((! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK)) ) ||
-               (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL && a_flags & DRS_CAL_APPLY_ROTATE_BANK ) )  {
-            drs_data_rotate_bank(a_drs, l_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
+        if(    ((! (a_flags & DRS_CAL_APPLY_ROTATE_GLOBAL))  && (!(a_flags & DRS_CAL_APPLY_ROTATE_BANK)) )  )  {
+            drs_data_rotate_bank(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
             drs_data_rotate_global(a_drs, a_out, a_out, DRS_CELLS_COUNT * sizeof (double), sizeof(double));
         }
     }
 
-    if ( (a_flags & DRS_CAL_APPLY_NO_CUT) ){
+    if ( !(a_flags & DRS_CAL_APPLY_NO_CUT) ){
         size_t l_zero_count = DRS_DATA_CUT_LENGTH * DRS_CHANNELS_COUNT;
         if (g_drs_data_cut_from_begin){
             memmove(a_out, a_out + DRS_CHANNELS_COUNT* g_drs_data_cut_from_begin, (DRS_CELLS_COUNT - l_zero_count)* sizeof (double)  );
@@ -666,10 +671,6 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_treshold(), a_flags );
     }
 
-
-    //if( a_flags & DRS_CAL_APPLY_Y_EQUALIZE){
-    //    drs_cal_y_ch_equalize(a_drs, l_out, l_out, a_drs->avr_level);
-    //}
 }
 
 /**

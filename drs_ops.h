@@ -9,9 +9,9 @@
 #include "drs.h"
 
 // Разрешение программного старта записи сигнала
-#define DRS_CMD_SOFT_START           0x00000001
+#define DRS_CMD_SOFT_START           0x00000002
 // Загрузка всех заданных установок и запуск непосредственно самой DRS
-#define DRS_CMD_LOAD_N_RUN           0x00000002
+#define DRS_CMD_LOAD_N_RUN           0x00000001
 //Разрешение внешнего старта записи сигнала
 #define DRS_CMD_EXT_START            0x00000004
 //Разрешение внешнего старта записи сигнала

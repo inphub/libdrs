@@ -48,8 +48,6 @@ size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX]={
     [CMD_CALIBRATE_PROGRESS ]      = 1 * sizeof(uint32_t),
 };
 
-#define MAX_PAGE_COUNT 1000
-//#define SIZE_FAST MAX_PAGE_COUNT*1024*8*8
 static int s_read_y_flags_add = 0;
 static bool s_debug_more = true ;
 
@@ -420,7 +418,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                     log_it(L_NOTICE,"Page mode ");
                     drs_set_mode(l_drs_num, DRS_MODE_PAGE_MODE);
                     drs_set_flag_end_read(l_drs_num, true);
-                    drs_start(l_drs_num, DRS_CMD_LOAD_N_RUN | DRS_CMD_EXT_START, a_cmd_args[2]);
+                    drs_start(l_drs_num, DRS_CMD_EXT_START, a_cmd_args[2]);
 
                     /*
                     drs_set_num_pages(l_drs, a_cmd_args[2]);
@@ -439,7 +437,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                     //drs_set_sinus_signal(true);
                     //drs_set_mode(l_drs_num, MODE_SOFT_START);
                     drs_set_flag_end_read(l_drs_num, true);
-                    drs_start(l_drs_num, DRS_CMD_SOFT_START | DRS_CMD_LOAD_N_RUN, 1);
+                    drs_start(l_drs_num, DRS_CMD_SOFT_START, 1);
                     drs_data_wait_for_ready(l_drs);
                     //drs_reg_write(0x00000015, 0);  //page mode disable
 
@@ -459,7 +457,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 case 4: //04 - external start and read (one page)
                     log_it(L_DEBUG, "04 - external start, pages = %u", a_cmd_args[2]);
                     drs_set_flag_end_read(l_drs_num, true);
-                    drs_start(l_drs_num, DRS_CMD_EXT_START | DRS_CMD_LOAD_N_RUN, a_cmd_args[2]);
+                    drs_start(l_drs_num, DRS_CMD_EXT_START, a_cmd_args[2]);
                 break;
 
                 default:

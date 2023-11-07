@@ -24,7 +24,8 @@ void drs_start(int a_drs_num, int a_flags, unsigned a_pages_num)
     if(a_pages_num > 1){
         drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A, a_pages_num);
         drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B, a_pages_num);
-        log_it(L_DEBUG, "Pages count %u", drs_reg_read(DRS_REG_NPAGES_MAX_DRS_A));
+        //usleep(10);
+        log_it(L_DEBUG, "Pages count %u", a_pages_num);
     }
 
     for (unsigned n=1; n<= DRS_CMD_MAX; n <<= 1 )
@@ -41,7 +42,7 @@ void drs_set_num_pages_all(unsigned int a_num)
 {
     drs_reg_write(DRS_REG_NPAGES_MAX_DRS_A,a_num);
     drs_reg_write(DRS_REG_NPAGES_MAX_DRS_B,a_num);
-    usleep(100);
+    //usleep(100);
 }
 
 /**
@@ -52,7 +53,7 @@ void drs_set_num_pages_all(unsigned int a_num)
 void drs_set_num_pages(drs_t * a_drs, unsigned int a_num)
 {
     drs_reg_write(DRS_BASE_NUM_PAGE + a_drs->id, a_num);
-    usleep(100);
+    //usleep(100);
 }
 
 
@@ -85,7 +86,7 @@ void drs_set_flag_end_read(int a_drs_num, bool a_enable)
  */
 bool drs_get_flag_write_ready(int l_drs_num )
 {
-    usleep(100);
+    //usleep(100);
     //log_it(L_DEBUG, "get flag write ready for DRS %d", l_drs_num);
     switch(l_drs_num){
         case 0 : return drs_reg_read(DRS_REG_WAIT_DRS_A);
@@ -136,14 +137,15 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
         break;
         case 0:
             drs_reg_write(DRS_REG_CMD_DRS_1, a_cmd);
+            drs_reg_write(DRS_REG_CMD_DRS_1, a_cmd);
         break;
         case 1:
+            drs_reg_write(DRS_REG_CMD_DRS_2, a_cmd);
             drs_reg_write(DRS_REG_CMD_DRS_2, a_cmd);
         break;
         default:
             log_it(L_ERROR, "Wrong DRS number, could be 0, 1 or -1 for both");
     }
-    usleep(300);
 }
 
 /**
@@ -153,5 +155,5 @@ void drs_cmd(int a_drs_num, unsigned int a_cmd)
 void drs_set_sinus_signal(bool a_sinus_signal)
 {
     drs_reg_write( DRS_REG_CALIB_SIN_ON_CH9, a_sinus_signal ? 0 : 1 );
-    usleep(100);
+    usleep(20);
 }

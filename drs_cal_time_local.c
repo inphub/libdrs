@@ -23,7 +23,7 @@
 #define LOG_TAG "drs_cal_time_local"
 
 
-bool s_debug_more = true;
+bool s_debug_more = false;
 
 static double s_get_deltas_min (double*               a_buffer,  double*          a_sum_delta_ref,
                                 double*               a_stats,   pthread_rwlock_t * a_stats_rw, unsigned int     a_shift);
@@ -94,7 +94,7 @@ void drs_cal_time_local_apply(drs_t * a_drs, double * a_values, double * a_outpu
         for(unsigned b=0;b <  (l_is_9_channel? 1: DRS_CHANNEL_BANK_COUNT) ;b++) {
             for( unsigned n=0; n<DRS_CELLS_COUNT_BANK; n++) {
                 unsigned idx = n + b* DRS_CELLS_COUNT_BANK;
-                unsigned int l_cell_id_bank_shifted =( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&DRS_BANK_MASK ) + a_drs->shift )&DRS_BANK_MASK;
+                unsigned int l_cell_id_bank_shifted =( b* DRS_CELLS_COUNT_BANK + ( ( a_drs->shift_bank+n)&DRS_BANK_MASK ) )&DRS_BANK_MASK;
                 a_output[idx] = l_tmpX;
                 l_tmpX += a_drs->coeffs.deltaTimeRef[l_cell_id_bank_shifted] / l_average[ch];
             }
@@ -169,7 +169,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             goto lb_exit;
         }
 
-        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS );
+        drs_cal_y_apply(a_drs, l_page_buffer, l_cells,DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );
 
 
         double l_value_min_old = l_value_min;

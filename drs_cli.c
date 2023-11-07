@@ -394,7 +394,7 @@ static int s_callback_read(int a_argc, char ** a_argv, char **a_str_reply)
             dap_string_t* l_reply = dap_string_new("");
             dap_string_append_printf(l_reply,"X array for DRS #%d\n", l_drs_num);
             for (size_t t = 0; t < l_limits; t++){
-                dap_string_append_printf(l_reply, "%05.02f ", l_x[t + l_start_from]);
+                dap_string_append_printf(l_reply, "%05.05f ", l_x[t + l_start_from]);
                 if ( t % 30 == 0 && t > 0)
                     dap_string_append_printf(l_reply, "\n");
             }

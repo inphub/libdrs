@@ -24,7 +24,7 @@
 #define DRS_CAL_END_CH9_DEFAULT     0.24
 
 
-#define DRS_CAL_N_DEFAULT       100
+#define DRS_CAL_N_DEFAULT       1000
 #define DRS_CAL_REPEATS         1
 #define DRS_CAL_MIN_N_DEFAULT   50
 

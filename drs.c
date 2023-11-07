@@ -36,7 +36,7 @@
 
 #define MAX_SLOWBLOCK_SIZE 1024*1024
 #define SIZE_BUF_IN 128
-#define MAX_PAGE_COUNT 1000
+//#define MAX_PAGE_COUNT 1000
 #define SIZE_NET_PACKAGE 1024//0x100000 // 0x8000 = 32k
 #define POLLDELAY 1000 //ns
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
@@ -568,11 +568,12 @@ void drs_set_gain (int a_drs_num, int a_drs_channel, const double a_gain)
                 c = a_drs_channel;
 
             // Собственно тут и заполняем массив значений
-            l_values[d*DRS_CHANNELS_COUNT + c ] =drs_gain_to_quants(a_gain);
+            l_values[ d*DRS_CHANNELS_COUNT + c ] = drs_gain_to_quants(a_gain);
 
             if ( a_drs_channel != -1)
                 break;
         }
+        usleep(3);
 
         if (a_drs_num != -1)
             break;
@@ -731,6 +732,7 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
     s_mode = a_mode;
     drs_reg_write(DRS_MODE_REG, a_mode);
 
+    drs_cmd( -1, DRS_CMD_LOAD_N_RUN);
     //
     if (a_mode == DRS_MODE_CAL_TIME)
         drs_set_dac_shift_ch9(DRS_CH9_SHIFT_DEFAULT);
@@ -756,7 +758,7 @@ void drs_set_dac_shift_quants_all(int a_drs_num,unsigned int a_value)
     log_it(L_DEBUG, "Set DAC value 0x%08X", a_value);
     s_dac_shifts_values[a_drs_num] = a_value;
     drs_reg_write(0x8+a_drs_num,a_value);
-    usleep(100);
+    //usleep(100);
     s_dac_set(1);
 }
 
@@ -767,7 +769,6 @@ void drs_set_dac_shift_quants_all(int a_drs_num,unsigned int a_value)
 void drs_set_dac_shift_ch9_quants(unsigned int a_value)
 {
     drs_reg_write(DRS_REG_DATA_DAC_CH9 ,a_value);
-    usleep(100);
     s_dac_set(1);
 
 }
@@ -833,7 +834,6 @@ void drs_set_dac_shift(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT])
         log_it(L_DEBUG, "shiftDAC[%d]=%f",i,a_values[i]);
     }
     drs_set_dac_shift_quants_all(a_drs_num,((l_dac_shifts[0]<<16)&0xFFFF0000)|l_dac_shifts[1]);
-    usleep(60);
 }
 
 /**
@@ -850,7 +850,6 @@ void drs_set_dac_shift_ch9(double a_shift)
     log_it(L_DEBUG, "Set CH9 DAC shift: a_shift_DAC=%f\tl_shift_DAC_value=%d",a_shift,l_shift_DAC_value);
     drs_set_dac_shift_ch9_quants( l_shift_DAC_value);
     s_dac_set(1);
-    usleep(60);
 }
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)
@@ -863,7 +862,7 @@ void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)
 
     /* write the value */
     *l_control_mem = reg_data;
-    usleep(100);
+    usleep(1);
     pthread_mutex_unlock(&l_reg_write_mutex);
 }
 
@@ -873,7 +872,7 @@ unsigned int drs_reg_read(unsigned int reg_adr)
     control_mem = (unsigned int *) (control_map + reg_adr*4);
     reg_data=(unsigned int)control_mem[0];
 //    printf("read: adr=0x%08x, val=0x%08x\n\r", reg_adr, reg_data), fflush(stdout);
-    usleep(100);
+    //usleep(100);
     return(reg_data);
 }
 

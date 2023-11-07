@@ -389,7 +389,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
             return -2;
         }
         drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );
-        //s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_gauntlet,false);
+        //s_find_splash( a_drs, l_d_buf, a_args->param.ampl.splash_treshold,false);
         getAverage(&average[t*DRS_CHANNELS_COUNT],l_d_buf,DRS_CELLS_COUNT_CHANNEL,DRS_CHANNELS_COUNT);
 
         l_progress += l_progress_step;
@@ -476,7 +476,7 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
             l_ch_id = DRS_CHANNEL_9;
         for(unsigned l_cell_id=0; l_cell_id < l_cells_proc_count ;l_cell_id++){
 
-            l_rotate_index=a_ch9_only? (a_drs->shift_bank + l_cell_id) & 1023:
+            l_rotate_index = a_ch9_only? (a_drs->shift_bank + l_cell_id) & 1023 :
                                        (a_drs->shift_bank + (l_cell_id&1023)) & 1023 ;
             assert( a_drs->shift_bank < l_cells_proc_count);
 
@@ -548,7 +548,7 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
 
     const unsigned l_cells_proc_count = drs_cal_get_y_count_after_cuts()/DRS_CHANNELS_COUNT -3;
 
-    log_it(L_INFO,"Trying to find splashs, gauntlet %f...", a_treshold);
+    log_it(L_INFO,"Trying to find splashs, treshold %f...", a_treshold);
     bool l_found_smth [DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL ] = {};
     static const unsigned c_bad_cells[]={DRS_CAL_AMP_BAD_CELLS};
 
@@ -577,7 +577,7 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
             if(
                 dY[0] > a_treshold && // Сравниваем dY он должен превышать барьер
                 dY[1] > a_treshold &&
-               //fabs(dY[0] - dY[1] ) < a_gauntlet/2.0 && // тут не должен превышать половину барьера
+               //fabs(dY[0] - dY[1] ) < a_treshold/2.0 && // тут не должен превышать половину барьера
 
                   (   // тут проверяем форму всплеска по сути
                     ( y[1] > y[0] && y[1] > y[2] ) ||

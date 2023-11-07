@@ -60,47 +60,47 @@ int drs_data_get_page_first(drs_t * a_drs, int a_flags , unsigned short * a_buff
  */
 int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned short * a_buffer, size_t a_buffer_size)
 {
-  assert(a_drs);
-  assert(a_buffer);
-  unsigned int l_ret=0,i=0;
-  bool l_do_commands = a_flags & DRS_OP_FLAG_SOFT_START || a_flags & DRS_OP_FLAG_EXT_START;
+    assert(a_drs);
+    assert(a_buffer);
+    unsigned int l_ret=0,i=0;
+    bool l_do_commands = a_flags & DRS_OP_FLAG_SOFT_START || a_flags & DRS_OP_FLAG_EXT_START;
 
-  if (l_do_commands ){
-      unsigned l_cmds = DRS_CMD_LOAD_N_RUN;
+    if (l_do_commands ){
+        unsigned l_cmds = 0;
 
-      if (a_flags & DRS_OP_FLAG_EXT_START){
-          log_it(L_INFO, "start ext DRS");
-          l_cmds |= DRS_CMD_EXT_START;
-      } else{
-          l_cmds |= DRS_CMD_SOFT_START;
-      }
+        if (a_flags & DRS_OP_FLAG_EXT_START){
+            log_it(L_INFO, "start ext DRS");
+            l_cmds |= DRS_CMD_EXT_START;
+        } else{
+            l_cmds |= DRS_CMD_SOFT_START;
+        }
 
-      drs_cmd( -1, l_cmds);
-      //drs_cmd( a_drs->id, l_cmds);
+        drs_cmd( -1, l_cmds);
+        //drs_cmd( a_drs->id, l_cmds);
 
-      bool l_is_ready = drs_data_wait_for_ready(a_drs) == 0;
-      if(l_is_ready ){
-          debug_if(s_debug_more, L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
-      }else{
-          log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
-          //return -1;
-      }
-  }
+        bool l_is_ready = drs_data_wait_for_ready(a_drs) == 0;
+        if(l_is_ready ){
+            debug_if(s_debug_more, L_DEBUG, "drs_data_get achieved on step #%u, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+        }else{
+            log_it(L_WARNING, "drs_data_get wasn't achieved after %u attempts, DRS is %s", i, l_is_ready ? "ready" : "not ready");
+            //return -1;
+        }
+    }
 
-  if(a_flags & DRS_OP_FLAG_ROTATE)
-      drs_read_page_rotated(a_drs, a_page, a_buffer, a_buffer_size);
-  else
-      drs_read_page(a_drs, a_page, a_buffer, a_buffer_size);
+    if(a_flags & DRS_OP_FLAG_ROTATE)
+        drs_read_page_rotated(a_drs, a_page, a_buffer, a_buffer_size);
+    else
+        drs_read_page(a_drs, a_page, a_buffer, a_buffer_size);
 
-  if( l_ret == 0 && l_do_commands ){
-      drs_set_flag_end_read(a_drs->id, true);
-  }
+//#ifndef DRS_OPT_DATA_GET_NODELAYS
+    //usleep(DRS_PAGE_READ_DELAY);
+//#endif
+    if( l_ret == 0 && l_do_commands ){
+        drs_set_flag_end_read(a_drs->id, true);
+    }
 
-#ifndef DRS_OPT_DATA_GET_NODELAYS
-  usleep(DRS_PAGE_READ_DELAY);
-#endif
 
-  return l_ret;
+    return l_ret;
 
 }
 
@@ -314,7 +314,71 @@ unsigned int drs_get_shift(unsigned int a_drs_num, unsigned int a_page_num)
     return tmpshift & 4095;
 }
 
-int drs_data_dump_in_files(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags)
+int drs_data_dump_in_files_double(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags)
+{
+
+    dap_string_t * l_file = dap_string_new("");
+
+    // Добавляем путь до var/lib внутри папки приложения
+    if ( a_flags & DRS_DATA_DUMP_ADD_PATH_VAR_LIB ){
+        char * l_path = dap_strdup_printf("%s/var/lib",g_dap_vars.core.sys_dir);
+        dap_mkdir_with_parents(l_path);
+        dap_string_append_printf(l_file, "%s/", l_path);
+    }
+
+    // Добавляем собственно имя файла
+    dap_string_append(l_file, a_filename);
+
+    // Добавляем время в юникс формате
+    if (a_flags & DRS_DATA_DUMP_ADD_TIMESTAMP ){
+        dap_nanotime_t l_ts = dap_nanotime_now();
+        //char l_ts_str[64]={0};
+        //dap_nanotime_to_str(&l_ts,l_ts_str);
+        dap_string_append_printf(l_file,"_%"DAP_UINT64_FORMAT_U"_",l_ts );
+    }
+
+
+    // Открываем CSV файл и пишем в него
+
+    if (a_flags & DRS_DATA_DUMP_CSV){
+        dap_string_t * l_fstr = dap_string_new( l_file->str);
+        // Добавляем расширение
+        dap_string_append(l_fstr, ".csv");
+        char * l_file_str = dap_string_free(l_fstr, false);
+
+
+        FILE * f = fopen(l_file_str,"w");
+        for (size_t n = 0; n < a_data_count; n++){
+            fprintf(f,"%lf;", a_data[n]);
+        }
+        fclose(f);
+
+        DAP_DELETE(l_file_str);
+    }
+
+    // Открываем BIN файл и пишем в него
+    if (a_flags & DRS_DATA_DUMP_BIN){
+        dap_string_t * l_fstr = dap_string_new( l_file->str);
+        // Добавляем расширение
+        dap_string_append(l_fstr, ".bin");
+        char * l_file_str = dap_string_free(l_fstr, false);
+
+        FILE * f = fopen(l_file_str,"w");
+        for (size_t n = 0; n < a_data_count; n++){
+            fwrite(&a_data[n],sizeof (a_data[n]),1, f);
+        }
+        fclose(f);
+
+        DAP_DELETE(l_file_str);
+    }
+
+    dap_string_free(l_file, true);
+
+    return 0;
+}
+
+
+int drs_data_dump_in_files_double(const char * a_filename, const unsigned * a_data, size_t a_data_count, int a_flags)
 {
 
     dap_string_t * l_file = dap_string_new("");
