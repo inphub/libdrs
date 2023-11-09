@@ -17,6 +17,7 @@
 #include <dap_file_utils.h>
 #include <dap_strfuncs.h>
 #include <dap_string.h>
+#include <dap_config.h>
 
 #include "commands.h"
 #include "drs.h"
@@ -26,6 +27,24 @@
 #define LOG_TAG "drs_data"
 
 static bool s_debug_more=false;
+
+/**
+ * @brief drs_data_init
+ * @return
+ */
+int drs_data_init()
+{
+    s_debug_more = dap_config_get_item_bool_default(g_config,"drs_data","debug_more", false);
+}
+
+/**
+ * @brief drs_data_deinit
+ */
+void drs_data_deinit()
+{
+
+}
+
 
 /**
  * @brief drs_data_get_all

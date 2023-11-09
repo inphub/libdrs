@@ -33,6 +33,9 @@ extern "C" {
 #define DRS_DATA_DUMP_ADD_PATH_VAR_LIB                0x00000004
 #define DRS_DATA_DUMP_ADD_TIMESTAMP                   0x00000008
 
+int drs_data_init();
+void drs_data_deinit();
+
 int drs_data_dump_in_files_double(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags);
 int drs_data_dump_in_files_unsigned(const char * a_filename, const unsigned * a_data, size_t a_data_count, int a_flags);
 

@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <dap_common.h>
+#include <dap_config.h>
 
 #include "data_operations.h"
 #include "commands.h"
@@ -37,6 +38,18 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
 static void s_get_coefficients(drs_t * a_drs, drs_cal_args_t * a_args,  struct amp_context * a_ctx, bool a_ch9_only);
 
 static bool s_debug_more = false;
+
+
+int drs_cal_amp_init()
+{
+    s_debug_more = dap_config_get_item_bool_default(g_config,"drs_cal_amp","debug_more", s_debug_more);
+    return 0;
+}
+
+void drs_cal_amp_deinit()
+{
+
+}
 
 /**
  * @brief drs_cal_amp
@@ -548,51 +561,54 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
 
     const unsigned l_cells_proc_count = drs_cal_get_y_count_after_cuts()/DRS_CHANNELS_COUNT -3;
 
-    log_it(L_INFO,"Trying to find splashs, treshold %f...", a_treshold);
     bool l_found_smth [DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL ] = {};
     static const unsigned c_bad_cells[]={DRS_CAL_AMP_BAD_CELLS};
 
     if(a_flags & DRS_CAL_APPLY_Y_SPLASHS_FIX_BAD_CELLS){
+        log_it(L_INFO,"Fixing bad cells");
         for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++){
             for (unsigned i = 0; i < sizeof (c_bad_cells)/ sizeof (unsigned); i++)
                 l_found_smth[ch][c_bad_cells[i]] = true;
         }
     }
 
-    for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
-        for(unsigned l_cell_id=0;l_cell_id<l_cells_proc_count;l_cell_id++){
-            if (l_found_smth[ch][l_cell_id+2] ){ // проверяем, вдруг эта ячейка уже и так исключена
-                l_cell_id += 2;
-                continue;
-            }
+    if (a_flags & DRS_CAL_APPLY_Y_SPLASHS){
+        log_it(L_INFO,"Trying to find splashs with treshold %f...", a_treshold);
+        for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
+            for(unsigned l_cell_id=0;l_cell_id<l_cells_proc_count;l_cell_id++){
+                if (l_found_smth[ch][l_cell_id+2] ){ // проверяем, вдруг эта ячейка уже и так исключена
+                    l_cell_id += 2;
+                    continue;
+                }
 
-            double y[] = { a_Y[DRS_IDX(ch,l_cell_id)],
-                             a_Y[DRS_IDX(ch,l_cell_id + 1)],
-                             a_Y[DRS_IDX(ch,l_cell_id + 2)]};
+                double y[] = { a_Y[DRS_IDX(ch,l_cell_id)],
+                                 a_Y[DRS_IDX(ch,l_cell_id + 1)],
+                                 a_Y[DRS_IDX(ch,l_cell_id + 2)]};
 
-            double dY[] ={ fabs( y[0] - y[1]) ,
-                             fabs( y[1] - y[2]) };
+                double dY[] ={ fabs( y[0] - y[1]) ,
+                                 fabs( y[1] - y[2]) };
 
 
-            if(
-                dY[0] > a_treshold && // Сравниваем dY он должен превышать барьер
-                dY[1] > a_treshold &&
-               //fabs(dY[0] - dY[1] ) < a_treshold/2.0 && // тут не должен превышать половину барьера
+                if(
+                    dY[0] > a_treshold && // Сравниваем dY он должен превышать барьер
+                    dY[1] > a_treshold &&
+                   //fabs(dY[0] - dY[1] ) < a_treshold/2.0 && // тут не должен превышать половину барьера
 
-                  (   // тут проверяем форму всплеска по сути
-                    ( y[1] > y[0] && y[1] > y[2] ) ||
-                    ( y[1] < y[0] && y[1] < y[2] )
-                  )
-                ){
-                //l_splash_id = (l_cell_id +1 ) & DRS_BANK_MASK ;
-                log_it(L_NOTICE, "Found splash for %d channel in %d cell ( dY_0 = %f, dY_1 = %f )",ch, l_cell_id+1,
-                       dY[0], dY[1]); //(l_cell_id+ a_drs->shift_bank)&1023);
-                l_found_smth[ch][l_cell_id+1]  = true;
-                l_cell_id++;
+                      (   // тут проверяем форму всплеска по сути
+                        ( y[1] > y[0] && y[1] > y[2] ) ||
+                        ( y[1] < y[0] && y[1] < y[2] )
+                      )
+                    ){
+                    //l_splash_id = (l_cell_id +1 ) & DRS_BANK_MASK ;
+                    log_it(L_NOTICE, "Found splash for %d channel in %d cell ( dY_0 = %f, dY_1 = %f )",ch, l_cell_id+1,
+                           dY[0], dY[1]); //(l_cell_id+ a_drs->shift_bank)&1023);
+                    l_found_smth[ch][l_cell_id+1]  = true;
+                    l_cell_id++;
+                }
+
             }
 
         }
-
     }
 
     for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){

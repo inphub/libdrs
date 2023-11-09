@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include <dap_time.h>
+#include <dap_config.h>
 
 #include "data_operations.h"
 
@@ -29,6 +30,19 @@ static double s_get_deltas_min (double*               a_buffer,  double*        
                                 double*               a_stats,   pthread_rwlock_t * a_stats_rw, unsigned int     a_shift);
 static int    s_proc_drs       (drs_t*                a_drs,     drs_cal_args_t*  a_args,
                                 atomic_uint_fast32_t* a_progress);
+
+
+
+int drs_cal_time_local_init()
+{
+    s_debug_more = dap_config_get_item_bool_default(g_config,"drs_cal_time_local","debug_more", s_debug_more);
+    return 0;
+}
+
+void drs_cal_time_local_deinit()
+{
+
+}
 
 /**
  * @brief drs_cal_time_local

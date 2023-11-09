@@ -10,6 +10,7 @@
 #include <dap_common.h>
 #include <dap_time.h>
 #include <dap_strfuncs.h>
+#include <dap_config.h>
 
 #include "data_operations.h"
 
@@ -50,14 +51,34 @@ static const unsigned s_period_max_count[] = {
     //[DRS_FREQ_5GHz] = 28
 };
 
-static bool s_debug_warns = true;
-static bool s_debug_more = true;
-static bool s_debug_dump_data = true;
+static bool s_debug_warns = false;
+static bool s_debug_more = false;
+static bool s_debug_dump_data = false;
 
 static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,unsigned a_iteration, double *a_x, double *a_y, double *a_sum_delta_ref, double *a_stats);
 
 static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32_t * a_progress);
 
+
+/**
+ * @brief drs_cal_time_init
+ * @return
+ */
+int drs_cal_time_global_init()
+{
+    s_debug_more = dap_config_get_item_bool_default(g_config,"drs_cal_time_global","debug_more", s_debug_more);
+    s_debug_warns = dap_config_get_item_bool_default(g_config,"drs_cal_time_global","debug_warns", s_debug_warns);
+    s_debug_dump_data = dap_config_get_item_bool_default(g_config,"drs_cal_time_global","debug_dump_data", s_debug_dump_data);
+    return 0;
+}
+
+/**
+ * @brief drs_cal_time_global_deinit
+ */
+void drs_cal_time_global_deinit()
+{
+
+}
 
 /**
  * @brief drs_cal_time_global
@@ -172,16 +193,18 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             drs_set_mode(a_drs->id, l_mode_old);
             break;
         }
-        static bool l_do_once = true;
-        if (l_do_once){
-            char * l_file_name = dap_strdup_printf("time_global_good_dump_y_raw_shift_%u", drs_get_shift(a_drs->id,0));
-            drs_data_dump_in_files_double(l_file_name, l_y_raw, DRS_CELLS_COUNT,
-                                  DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
-                                  DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
-            DAP_DELETE(l_file_name);
+        if ( s_debug_dump_data ){
+            static bool l_do_once = true;
+            if (l_do_once){
+                char * l_file_name = dap_strdup_printf("time_global_good_dump_first_y_raw_shift_%u", drs_get_shift(a_drs->id,0));
+                drs_data_dump_in_files_unsigned(l_file_name, l_y_raw, DRS_CELLS_COUNT,
+                                      DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
+                                      DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
+                DAP_DELETE(l_file_name);
 
 
-            l_do_once = false;
+                l_do_once = false;
+            }
         }
 
         drs_cal_y_apply(a_drs, l_y_raw,l_y, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );

@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include <dap_common.h>
+#include "dap_config.h"
 
 #include "drs.h"
 #include "drs_ops.h"
@@ -15,6 +16,24 @@
 #define LOG_TAG "drs_ops"
 
 static bool s_debug_more = false;
+
+/**
+ * @brief drs_ops_init
+ * @return
+ */
+int drs_ops_init()
+{
+    s_debug_more = dap_config_get_item_bool_default(g_config,"drs_ops","debug_more", false);
+}
+
+/**
+ * @brief drs_ops_deinit
+ */
+void drs_ops_deinit()
+{
+
+}
+
 /**
  * @brief drs_start
  */

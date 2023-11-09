@@ -25,6 +25,7 @@
 #define LOG_TAG          "drs"
 
 #include "drs.h"
+#include "drs_data.h"
 #include "drs_ops.h"
 #include "drs_cal.h"
 #include "drs_cal_pvt.h"
@@ -173,6 +174,10 @@ int drs_init(int a_drs_flags,...)
 
     s_ini_load("/media/card/config.ini", g_ini );
 
+
+    s_debug_more = dap_config_get_item_bool_default(g_config,"drs","debug_more", false);
+
+
     if(g_drs_flags & DRS_INIT_SET_ONCE_FREQ ||  g_drs_flags & DRS_INIT_SET_ALWAYS_FREQ ){
         g_current_freq = va_arg(s_drs_flags_vars, enum drs_freq );
     }
@@ -189,6 +194,8 @@ int drs_init(int a_drs_flags,...)
         g_drs_data_cut_from_end = va_arg(s_drs_flags_vars, unsigned);
 
 
+    drs_data_init();
+    drs_ops_init();
     // Инициализация параметров DRS по таймеру
 
     log_it(L_NOTICE,"DRS config and memory are initialized");
@@ -620,6 +627,8 @@ double drs_get_freq_value(enum drs_freq a_freq)
 void drs_deinit()
 {
    drs_calibrate_deinit();
+   drs_data_deinit();
+   drs_ops_deinit();
 
    DAP_DELETE(g_ini);
    g_ini = NULL;
