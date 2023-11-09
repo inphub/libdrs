@@ -378,7 +378,7 @@ int drs_data_dump_in_files_double(const char * a_filename, const double * a_data
 }
 
 
-int drs_data_dump_in_files_double(const char * a_filename, const unsigned * a_data, size_t a_data_count, int a_flags)
+int drs_data_dump_in_files_unsigned(const char * a_filename, const unsigned * a_data, size_t a_data_count, int a_flags)
 {
 
     dap_string_t * l_file = dap_string_new("");
