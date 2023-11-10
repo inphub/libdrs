@@ -73,8 +73,6 @@ typedef struct{
 // избавление от всплесков
 #define DRS_CAL_APPLY_Y_SPLASHS  BIT(2)
 
-#define DRS_CAL_APPLY_Y_SPLASHS_FIX_BAD_CELLS  BIT(3)
-
 // Временная локальная калибровка
 #define DRS_CAL_APPLY_X_TIME_LOCAL  BIT(8)
 // Временная глобальная калибровка
@@ -89,6 +87,8 @@ typedef struct{
 // Развернуть глобально
 #define DRS_CAL_APPLY_ROTATE_GLOBAL  BIT(21)
 
+# // Не обрезать плохие ячейки
+#define DRS_CAL_APPLY_Y_NO_FIX_BAD_CELLS  BIT(26)
 
 // Не обрезать начало и конец
 #define DRS_CAL_APPLY_NO_CUT  BIT(27)

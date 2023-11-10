@@ -24,6 +24,7 @@ static bool s_debug_more = false;
 int drs_ops_init()
 {
     s_debug_more = dap_config_get_item_bool_default(g_config,"drs_ops","debug_more", false);
+    return 0;
 }
 
 /**

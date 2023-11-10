@@ -376,7 +376,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
              DRS_CAL_MIN_REPEATS_DEFAULT );
       return -10;
     }
-    log_it(L_INFO,"--Interchannel calibration--");
+    log_it(L_NOTICE,"--Межканальная калибровка--");
 
     double l_progress_substages = 1.0;
     if(a_args->keys.raw & DRS_CAL_FLAG_AMPL_INTER)
@@ -562,18 +562,30 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
     const unsigned l_cells_proc_count = drs_cal_get_y_count_after_cuts()/DRS_CHANNELS_COUNT -3;
 
     bool l_found_smth [DRS_CHANNELS_COUNT][DRS_CELLS_COUNT_CHANNEL ] = {};
-    static const unsigned c_bad_cells[]={DRS_CAL_AMP_BAD_CELLS};
+    const unsigned c_bad_cells[]={DRS_CAL_AMP_BAD_CELLS};
+    unsigned l_bad_cells_shifted[]={DRS_CAL_AMP_BAD_CELLS};
 
-    if(a_flags & DRS_CAL_APPLY_Y_SPLASHS_FIX_BAD_CELLS){
-        log_it(L_INFO,"Fixing bad cells");
+    if(! (a_flags& DRS_CAL_APPLY_Y_NO_FIX_BAD_CELLS) ){
+        log_it(L_INFO,"Исправляем плохие ячейки ( shift = %u, shift_bank = %u)", a_drs->shift, a_drs->shift_bank);
         for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++){
-            for (unsigned i = 0; i < sizeof (c_bad_cells)/ sizeof (unsigned); i++)
-                l_found_smth[ch][c_bad_cells[i]] = true;
+            for (unsigned i = 0; i < sizeof (l_bad_cells_shifted)/ sizeof (unsigned); i++){
+                unsigned b = c_bad_cells[i] & DRS_BANK_OUT_MASK;
+                unsigned p = (c_bad_cells[i] & DRS_BANK_MASK  - a_drs->shift_bank ) & DRS_BANK_MASK;
+
+                l_bad_cells_shifted[i] =  ( (b + p /*- a_drs->shift*/ ) & DRS_GLOBAL_MASK ) /*-2*/;
+
+                //l_rotate_index = a_ch9_only? (a_drs->shift_bank + l_cell_id) & 1023 :
+                //                           (a_drs->shift_bank + (l_cell_id&1023)) & 1023 ;
+                log_it(L_INFO, "плохая ячейка %u/%u", l_bad_cells_shifted[i], c_bad_cells[i] );
+                l_found_smth[ch][l_bad_cells_shifted[i]] = true;
+            }
         }
+    }else{
+        log_it(L_NOTICE,"Результат возвращается без исправления плохих ячеек, кто это делает должен понимать, что он делает");
     }
 
     if (a_flags & DRS_CAL_APPLY_Y_SPLASHS){
-        log_it(L_INFO,"Trying to find splashs with treshold %f...", a_treshold);
+        log_it(L_INFO,"Пробуем найти всплески по пороговому уровню %f...", a_treshold);
         for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++) {
             for(unsigned l_cell_id=0;l_cell_id<l_cells_proc_count;l_cell_id++){
                 if (l_found_smth[ch][l_cell_id+2] ){ // проверяем, вдруг эта ячейка уже и так исключена

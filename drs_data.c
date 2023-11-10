@@ -35,6 +35,7 @@ static bool s_debug_more=false;
 int drs_data_init()
 {
     s_debug_more = dap_config_get_item_bool_default(g_config,"drs_data","debug_more", false);
+    return 0;
 }
 
 /**
@@ -432,7 +433,7 @@ int drs_data_dump_in_files_unsigned(const char * a_filename, const unsigned * a_
 
         FILE * f = fopen(l_file_str,"w");
         for (size_t n = 0; n < a_data_count; n++){
-            fprintf(f,"%lf;", a_data[n]);
+            fprintf(f,"%u;", a_data[n]);
         }
         fclose(f);
 

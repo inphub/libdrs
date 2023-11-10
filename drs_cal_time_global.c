@@ -197,7 +197,7 @@ static int s_proc_drs(drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast32
             static bool l_do_once = true;
             if (l_do_once){
                 char * l_file_name = dap_strdup_printf("time_global_good_dump_first_y_raw_shift_%u", drs_get_shift(a_drs->id,0));
-                drs_data_dump_in_files_unsigned(l_file_name, l_y_raw, DRS_CELLS_COUNT,
+                drs_data_dump_in_files_unsigned(l_file_name, (unsigned *) l_y_raw, DRS_CELLS_COUNT/DRS_CHANNELS_COUNT,
                                       DRS_DATA_DUMP_CSV |  DRS_DATA_DUMP_BIN |
                                       DRS_DATA_DUMP_ADD_TIMESTAMP | DRS_DATA_DUMP_ADD_PATH_VAR_LIB );
                 DAP_DELETE(l_file_name);

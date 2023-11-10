@@ -82,7 +82,7 @@ va_list s_drs_flags_vars;
 unsigned g_drs_data_cut_from_begin = DRS_DATA_CUT_BEGIN_DEFAULT;
 unsigned g_drs_data_cut_from_end   = DRS_DATA_CUT_END_DEFAULT;
 
-unsigned short g_drs_gain_default = DRS_GAIN_QUANTS_END;
+unsigned short g_drs_gain_default = DRS_GAIN_QUANTS_DEFAULT;
 
 static const unsigned int freqREG[]= {
   [DRS_FREQ_1GHz]=480,
@@ -111,7 +111,6 @@ static void s_memw(off_t byte_addr, uint32_t data);
 static void s_hw_init();
 static int s_post_init();
 
-static void s_dac_set(unsigned int onAH);
 static int s_ini_load(const char *a_ini_path, parameter_t *a_prm);
 
 #define MAC_ADDR_SIZE 6
@@ -366,10 +365,7 @@ static int s_post_init()
 
     if(g_drs_flags & DRS_INIT_SET_ALWAYS_GAIN_QUANTS_DEFAULT){
           drs_set_gain_quants(-1, -1, g_drs_gain_default );
-    }else{
-          drs_set_gain_quants(-1, -1, DRS_GAIN_QUANTS_END);
     }
-
 
     return 0;
 }
@@ -404,38 +400,28 @@ static void s_hw_init()
         set_shift_addr_drs2(0x0ff40000);		//    drs_reg_write(0x0000001d, 0xFF40000);
     }
 
+    drs_reg_write(DRS_REG_SELECT_FREQ, 1);//select frequency (0 - external, 1 - internal
+
+    drs_reg_write(DRS_REG_CLK_PHASE, 40);
+    drs_reg_write(DRS_REG_START_S, 1);// write frequency
+
     //if(g_drs_flags &DRS_INIT_SET_ONCE_FREQ  ){
     drs_set_freq( g_current_freq );
-    //}
-    clk_select(1);
-
-    clk_phase(40);							//    drs_reg_write(0x00000006, 0x00000028);
-    clk_start(1);							//    drs_reg_write(0x00000005, 0x00000001);
 
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
-        set_dac_offs_drs1(30000, 30000);		//    drs_reg_write(0x00000008, 0x83e683e6);
+        drs_set_dac_offset(0, g_ini->fastadc.dac_offsets[0],g_ini->fastadc.dac_offsets[1] );
+        drs_set_ROFS_n_OFS ( 0,g_ini->fastadc.ROFS[0], g_ini->fastadc.OFS[0]);
+        drs_set_dac_speed_bias (0,0, g_ini->fastadc.BIAS[0]);
     }
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
-        set_dac_offs_drs2(30000, 30000);		//    drs_reg_write(0x00000009, 0x83e683e6);
-    }
-
-    start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
-
-    //set_dac_rofs_O_ofs_drs1(35000, 30000);
-    drs_reg_write(0x0000000a, 0x7d009e98); // чтобы совпадало с логом лабвью
-
-    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
-        set_dac_speed_bias_drs1(0, 16350);		//    drs_reg_write(0x0000000b, 0x3fde0000);
-    }
-
-    //set_dac_rofs_O_ofs_drs2(35000, 30000);	//    drs_reg_write(0x0000000c, 0x7d009e98);
-    drs_reg_write(0x0000000c, 0x7d009e98); // чтобы совпадало с логом лабвью
+    log_it(L_DEBUG, "dac_offset[0] = %f",g_ini->fastadc.dac_offsets[0] );
 
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
-        set_dac_speed_bias_drs2(0, 16350);		//    drs_reg_write(0x0000000d, 0x3fde0000);
+        drs_set_dac_offset(1, g_ini->fastadc.dac_offsets[2],g_ini->fastadc.dac_offsets[3] );
+        drs_set_ROFS_n_OFS ( 0,g_ini->fastadc.ROFS[1], g_ini->fastadc.OFS[1]);
+        drs_set_dac_speed_bias (0,0, g_ini->fastadc.BIAS[1]);
     }
-    set_dac_9ch_ofs(30000);					//    drs_reg_write(0x0000001f, 0x00007530);
-    start_dac(1);							//    drs_reg_write(0x00000007, 0x00000001);
+    drs_set_dac_sin(g_ini->fastadc.DAC_SIN );					//    drs_reg_write(0x0000001f, 0x00007530);
+    drs_start_dac();
 
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
         set_starts_number_drs1(1);
@@ -446,11 +432,11 @@ static void s_hw_init()
         set_zap_delay_drs2(0);
     }
 
-    if(g_drs_flags & DRS_INIT_SET_ONCE_GAIN_QUANTS_DEFAULT){
-          drs_set_gain_quants(-1, -1, g_drs_gain_default );
-    }else{
-          drs_set_gain_quants(-1, -1, DRS_GAIN_QUANTS_END);
-    }
+    //if(g_drs_flags & DRS_INIT_SET_ONCE_GAIN_QUANTS_DEFAULT){
+    //      drs_set_gain_quants(-1, -1, g_drs_gain_default );
+    //}
+
+    drs_set_gain_quants(-1, -1, g_drs_gain_default );
 
     set_mode_drss(MODE_SOFT_START);			//    drs_reg_write(0x00000010, 0x00000000);
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
@@ -479,6 +465,83 @@ static void s_hw_init()
         log_it(L_NOTICE, "--DRS #1 initialized");
 
 }
+
+void drs_set_dac_speed_bias(int a_drs_num, unsigned short a_speed, unsigned short a_bias )
+{
+#if DRS_COUNT == 2
+  static const unsigned c_regs[]={DRS_REG_DAC_0_BIAS, DRS_REG_DAC_1_BIAS};
+  if (a_drs_num == -1){
+      for(unsigned i = 0; i < ( sizeof (c_regs)/ sizeof(*c_regs) ); i++ )
+          drs_reg_write(c_regs[i], (((unsigned int)a_bias)<<16)|((unsigned int)a_speed));
+
+      return;
+  }
+  if (a_drs_num >= DRS_COUNT || a_drs_num < 0 ){
+      log_it(L_ERROR, "Неправильный номер ДРС %u", a_drs_num);
+      return;
+  }
+  drs_reg_write(c_regs[a_drs_num], (((unsigned int)a_bias)<<16)|((unsigned int)a_speed));
+
+#else
+#error "Тут автоматически посчитать не выйдет, в какой регистр надо писать BIAS"
+#endif
+}
+
+/**
+ * @brief drs_set_ROFS_n_OFS
+ * @param a_drs_num
+ * @param a_ROFS
+ * @param a_OFS
+ */
+void drs_set_ROFS_n_OFS(int a_drs_num, unsigned short a_ROFS, unsigned short a_OFS )
+{
+#if DRS_COUNT == 2
+  static const unsigned c_regs[]={DRS_REG_DAC_0_ROFS_n_OFS ,
+                                  DRS_REG_DAC_0_ROFS_n_OFS};
+  if (a_drs_num == -1){
+      for(unsigned i = 0; i < ( sizeof (c_regs)/ sizeof(*c_regs) ); i++ )
+          drs_reg_write(c_regs[i], (((unsigned int)a_OFS)<<16)|((unsigned int)a_ROFS));
+
+      return;
+  }
+  if (a_drs_num >= DRS_COUNT || a_drs_num < 0 ){
+      log_it(L_ERROR, "Неправильный номер ДРС %u", a_drs_num);
+      return;
+  }
+  drs_reg_write(c_regs[a_drs_num],(((unsigned int)a_OFS)<<16)|((unsigned int)a_ROFS));
+
+#else
+#error "Тут автоматически посчитать не выйдет, в какой регистр надо писать BIAS"
+#endif
+}
+
+/**
+ * @brief drs_set_dac_offset
+ * @param a_drs_num
+ * @param a_offset
+ */
+void drs_set_dac_offset(int a_drs_num, unsigned short a_offset_ch0, unsigned short a_offset_ch1)
+{
+#if DRS_COUNT == 2
+    static const unsigned c_regs[]={DRS_REG_DAC_0_OFFSET ,
+                                    DRS_REG_DAC_1_OFFSET};
+    if (a_drs_num == -1){
+        for(unsigned i = 0; i < ( sizeof (c_regs)/ sizeof(*c_regs) ); i++ )
+            drs_reg_write(c_regs[i], (((unsigned int)a_offset_ch1)<<16)|((unsigned int)a_offset_ch0));
+        return;
+    }
+    if (a_drs_num >= DRS_COUNT || a_drs_num < 0 ){
+        log_it(L_ERROR, "Неправильный номер ДРС %u", a_drs_num);
+        return;
+    }
+    drs_reg_write(c_regs[a_drs_num], (((unsigned int)a_offset_ch1)<<16)|((unsigned int)a_offset_ch0));
+#else
+#error "Тут автоматически посчитать не выйдет, в какой регистр надо писать BIAS"
+#endif
+
+}
+
+
 
 /**
  * @brief drs_set_gain_quants
@@ -552,6 +615,12 @@ void drs_get_gain_quants_all(unsigned short a_gain[DRS_COUNT * DRS_CHANNELS_COUN
 
 }
 
+void drs_set_dac_sin_offset(unsigned short a_offset)
+{
+    drs_reg_write(DRS_REG_DAC_SIN, a_offset);
+}
+
+
 /**
  * @brief drs_set_gain
  * @details Выставляет значение гейна в Дб для выбранных ДРС и канала, либо для всех сразу
@@ -606,9 +675,9 @@ void drs_set_freq(enum drs_freq a_freq)
         return;
     }
     g_current_freq = a_freq;
-    drs_reg_write(0x4, 1);//select frequency (0 - external, 1 - internal
-    drs_reg_write(30,   freqREG[g_current_freq]);//select ref frequency
-    drs_reg_write(0x5, 1);// write frequency
+    drs_reg_write(DRS_REG_REF_FREQ,   freqREG[g_current_freq]);//select ref frequency
+    drs_reg_write(DRS_REG_START_S, 1);// write frequency
+    usleep(100);
 
     drs_cal_file_path_update();
     drs_cal_load();
@@ -638,41 +707,20 @@ void drs_deinit()
 }
 
 /**
- * @brief drs_init_old
- * @param prm
- */
-void drs_init_old(parameter_t *a_params)
-{
-
-    drs_reg_write(6, a_params->fastadc.CLK_PHASE);//clk_phase
-    printf("initialization\tprm->fastadc.OFS1=%u\tprm->fastadc.ROFS1=%u\n",a_params->fastadc.OFS1,a_params->fastadc.ROFS1);
-    printf("              \tprm->fastadc.OFS2=%u\tprm->fastadc.ROFS2=%u\n",a_params->fastadc.OFS2,a_params->fastadc.ROFS2);
-    printf("              \tprm->fastadc.CLK_PHASE=%u\n", a_params->fastadc.CLK_PHASE);
-    usleep(3);
-    drs_reg_write(10,((a_params->fastadc.OFS1<<16)&0xffff0000)|a_params->fastadc.ROFS1);// OFS&ROFS
-    usleep(3);
-    drs_reg_write(11,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
-    usleep(3);
-    drs_reg_write(12,((a_params->fastadc.OFS2<<16)&0xffff0000)|a_params->fastadc.ROFS2);// OFS&ROFS
-    usleep(3);
-    drs_reg_write(13,((0<<16)&0xffff0000)|30000);// DSPEED&BIAS
-    usleep(3);
-    s_dac_set(1);
-//	drs_reg_write(0x0,1<<3|0<<2|0<<1|0);//Start_DRS Reset_DRS Stop_DRS Soft reset
-
-}
-
-/**
  * @brief Загружает даные из ini файла и сохраняет в параметры
  * @param a_ini_path
  * @param a_prm
  */
 static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
 {
-    char sDAC_gain[]="DAC_gain_X";
-    char sADC_offset[]="ADC_offset_X";
-    char sADC_gain[]="ADC_gain_X";
-    char sDAC_offset[]="DAC_offset_X";
+    char l_str_DAC_gain[]="DAC_gain_X";
+    char l_str_ADC_offset[]="ADC_offset_X";
+    char l_str_ADC_gain[]="ADC_gain_X";
+    char l_str_DAC_offset[]="DAC_offset_X";
+    char l_str_DAC_offset_init_quants[]="DAC_offset_init_quants_X";
+    char l_str_DAC_bias[]="BIASX";
+
+    unsigned l_dac_init_quants[DRS_COUNT*DRS_CHANNELS_COUNT]={32768,32768};
     unsigned char t;
     dap_config_t * l_cfg = dap_config_load(a_ini_path);
     if ( l_cfg == NULL){
@@ -697,38 +745,59 @@ static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
   //  printf("Host = %s\n", IP);
   //  n = ini_gets("COMMON", "firmware", "dummy", prm->firmware_path, sizearray(prm->firmware_path), inifile);
     a_prm->init_on_start_timer_ms                  = dap_config_get_item_uint32_default(l_cfg,"COMMON","init_on_start_timer",1000);
-    a_prm->fastadc.ROFS1 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS1", 35000 );
-    a_prm->fastadc.OFS1				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS1", 30000 );
-    a_prm->fastadc.ROFS2 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS2", 35000 );
-    a_prm->fastadc.OFS2				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS2", 30000 );
+    a_prm->fastadc.ROFS[0] 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS1", 35000 );
+    a_prm->fastadc.OFS[0]				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS1", 30000 );
+    a_prm->fastadc.ROFS[1] 			= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "ROFS2", 35000 );
+    a_prm->fastadc.OFS[1]				= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "OFS2", 30000 );
     a_prm->fastadc.CLK_PHASE		= dap_config_get_item_uint32_default(l_cfg, "FASTADC_SETTINGS", "CLK_PHASE", 40 );
-    for (t=0;t<DRS_DCA_COUNT_ALL ;t++){
-        sDAC_offset[strlen(sDAC_offset)-1]=t+49;
-        a_prm->fastadc.dac_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, 0.0);
+    a_prm->fastadc.DAC_SIN		= dap_config_get_item_uint16_default(l_cfg, "FASTADC_SETTINGS", "DAC_SIN", 22000 );
+
+
+    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
+        l_str_DAC_offset[strlen(l_str_DAC_offset)-1]=t+49;
+        a_prm->fastadc.dac_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_offset, 32768.0);
     }
 
     for (t=0;t<DRS_DCA_COUNT_ALL;t++){
-        sDAC_gain[strlen(sDAC_gain)-1]=t+49;
-        a_prm->fastadc.dac_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, 1.0);
+        l_str_DAC_offset_init_quants[strlen(l_str_DAC_offset_init_quants)-1]=t+49;
+        a_prm->fastadc.dac_offsets_init_quants [t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_offset_init_quants, 32768);
+    }
+
+
+    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
+        l_str_DAC_gain[strlen(l_str_DAC_gain)-1]=t+49;
+        a_prm->fastadc.dac_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_gain, 1.0);
+    }
+
+    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
+        l_str_ADC_offset[strlen(l_str_ADC_offset)-1]=t+49;
+        a_prm->fastadc.adc_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_ADC_offset, 0.0);
     }
     for (t=0;t<DRS_DCA_COUNT_ALL;t++){
-        sADC_offset[strlen(sADC_offset)-1]=t+49;
-        a_prm->fastadc.adc_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_offset, 0.0);
+        l_str_ADC_gain[strlen(l_str_ADC_gain)-1]=t+49;
+        a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_ADC_gain, 1.0);
     }
-    for (t=0;t<DRS_DCA_COUNT_ALL;t++){
-        sADC_gain[strlen(sADC_gain)-1]=t+49;
-        a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sADC_gain, 1.0);
+
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
+        l_str_ADC_gain[strlen(l_str_DAC_bias)-1]=0 + 49;
+        a_prm->fastadc.BIAS[0] = dap_config_get_item_uint16_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_bias , 19000);
     }
+
+    if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
+        l_str_ADC_gain[strlen(l_str_DAC_bias)-1]=1 + 49;
+        a_prm->fastadc.BIAS[1] = dap_config_get_item_uint16_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_bias , 19000);
+    }
+
 
     // Для 9 канала
-    sDAC_offset[strlen(sDAC_offset)-1]=9 + 49;
-    sDAC_gain[strlen(sDAC_offset)-1]=9 + 49;
-    g_ini_ch9.offset  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, a_prm->fastadc.dac_offsets[0]);
-    g_ini_ch9.gain  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, a_prm->fastadc.dac_gains[0]);
+    l_str_DAC_offset[strlen(l_str_DAC_offset)-1]=9 + 49;
+    l_str_DAC_gain[strlen(l_str_DAC_offset)-1]=9 + 49;
+    g_ini_ch9.offset  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_offset, a_prm->fastadc.dac_offsets[0]);
+    g_ini_ch9.gain  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_gain, a_prm->fastadc.dac_gains[0]);
 
 
-    g_ini_ch9.offset  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_offset, a_prm->fastadc.dac_offsets[0]);
-    g_ini_ch9.gain  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", sDAC_gain, a_prm->fastadc.dac_gains[0]);
+    g_ini_ch9.offset  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_offset, a_prm->fastadc.dac_offsets[0]);
+    g_ini_ch9.gain  = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_DAC_gain, a_prm->fastadc.dac_gains[0]);
 
     dap_config_close( l_cfg );
     return 0;
@@ -772,17 +841,17 @@ void drs_set_dac_shift_quants_all(int a_drs_num,unsigned int a_value)
     s_dac_shifts_values[a_drs_num] = a_value;
     drs_reg_write(0x8+a_drs_num,a_value);
     //usleep(100);
-    s_dac_set(1);
+    drs_start_dac(1);
 }
 
 /**
  * @brief drs_dac_shift_input_set_ch9
  * @param a_value
  */
-void drs_set_dac_shift_ch9_quants(unsigned int a_value)
+void drs_set_dac_sin(unsigned int a_value)
 {
-    drs_reg_write(DRS_REG_DATA_DAC_CH9 ,a_value);
-    s_dac_set(1);
+    drs_reg_write(DRS_REG_DAC_SIN ,a_value);
+    drs_start_dac();
 
 }
 
@@ -800,17 +869,16 @@ unsigned drs_get_dac_shift_quants_all(int a_drs_num)
  */
 unsigned drs_get_dac_shift_ch9_quants()
 {
-    return drs_reg_read(DRS_REG_DATA_DAC_CH9);
+    return drs_reg_read(DRS_REG_DAC_SIN);
 }
 
 /**
- * @brief s_dac_set
- * @param onAH
+ * @brief drs_start_dac
  */
-static void s_dac_set(unsigned int onAH)//fix
+void drs_start_dac()
 {
     //unsigned int onAH=1,dacSelect=2;
-    drs_reg_write(0x07,(onAH&1));
+    drs_reg_write(DRS_REG_START_DAC, 1 );
     usleep(200);
 }
 
@@ -861,8 +929,8 @@ void drs_set_dac_shift_ch9(double a_shift)
     l_shift_DAC_value= fabs((a_shift+ 0.5)*16384.0) ;
     l_shift_DAC_value=(l_shift_DAC_value*a_gain +a_offset );
     log_it(L_DEBUG, "Set CH9 DAC shift: a_shift_DAC=%f\tl_shift_DAC_value=%d",a_shift,l_shift_DAC_value);
-    drs_set_dac_shift_ch9_quants( l_shift_DAC_value);
-    s_dac_set(1);
+    drs_set_dac_sin( l_shift_DAC_value);
+    drs_start_dac();
 }
 
 void drs_reg_write(unsigned int reg_adr, unsigned int reg_data)

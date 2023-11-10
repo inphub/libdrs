@@ -33,6 +33,8 @@
 
 #define DRS_CELLS_COUNT_BANK       1024
 #define DRS_BANK_MASK              1023
+#define DRS_BANK_OUT_MASK          3072
+#define DRS_GLOBAL_MASK            4095
 #define DRS_CELLS_COUNT_CHANNEL   4*DRS_CELLS_COUNT_BANK
 #define DRS_CELLS_COUNT           DRS_CHANNELS_COUNT*DRS_CELLS_COUNT_CHANNEL
 #define DRS_CELLS_COUNT_ALL       DRS_COUNT*DRS_CELLS_COUNT
@@ -41,10 +43,23 @@
 
 #define DRS_DAC_COUNT (DRS_DCA_COUNT_ALL/DRS_COUNT)
 
-#define DRS_REG_DVGA_GAINS   		2
 #define DRS_REG_DVGA_START    		1
-
+#define DRS_REG_DVGA_GAINS   		2
 #define DRS_REG_AMPL_INIT    		3
+#define DRS_REG_SELECT_FREQ    		4
+#define DRS_REG_START_S    		5
+#define DRS_REG_CLK_PHASE    		6
+#define DRS_REG_START_DAC    		7
+
+#define DRS_REG_START_DAC    		7
+
+#define DRS_REG_DAC_0_OFFSET            8
+#define DRS_REG_DAC_1_OFFSET            9
+
+#define DRS_REG_DAC_0_ROFS_n_OFS        10
+#define DRS_REG_DAC_0_BIAS              11
+#define DRS_REG_DAC_1_ROFS_n_OFS        12
+#define DRS_REG_DAC_1_BIAS              13
 
 #define DRS_REG_CMD_DRS_1		14
 #define DRS_REG_CMD_DRS_2		15
@@ -62,9 +77,8 @@
 #define DRS_REG_READY_B                 22
 #define DRS_REG_CALIB_SIN_ON_CH9        27
 
-#define DRS_REG_DATA_DAC_CH9		31
-
-#define DRS_REG_DATA_DAC_CH9		31
+#define DRS_REG_REF_FREQ		30
+#define DRS_REG_DAC_SIN                 31
 
 #define DRS_REG_WAIT_DRS_A              49
 #define DRS_REG_WAIT_DRS_B              50
@@ -124,11 +138,13 @@ typedef struct  {
 typedef struct 
 {
 //  char firmware_path[256];
-    uint32_t ROFS1;
-    uint32_t OFS1;
-    uint32_t ROFS2;
-    uint32_t OFS2;
+    uint32_t ROFS[DRS_COUNT];
+    uint32_t OFS[DRS_COUNT];
+    uint16_t BIAS[DRS_COUNT];
     uint32_t CLK_PHASE;
+    uint16_t DAC_SIN;
+
+    unsigned short dac_offsets_init_quants[4];
     float dac_offsets[4];
     float dac_gains[4];
     double adc_offsets[4];
@@ -245,6 +261,7 @@ static const char* c_freq_str_short[] = {
 
 #define DRS_GAIN_QUANTS_BEGIN    0
 #define DRS_GAIN_QUANTS_END      32
+#define DRS_GAIN_QUANTS_DEFAULT      26
 
 #define DRS_DATA_CUT_BEGIN_DEFAULT      0
 #define DRS_DATA_CUT_END_DEFAULT        10
@@ -272,7 +289,7 @@ void drs_set_dac_shift_ch9(double a_shiftDAC);
 
 
 void drs_set_dac_shift_quants_all(int a_drs_num, unsigned int value);
-void drs_set_dac_shift_ch9_quants(unsigned int a_value);
+void drs_set_dac_sin(unsigned int a_value);
 unsigned drs_get_dac_shift_quants_all(int a_drs_num);
 unsigned drs_get_dac_shift_ch9_quants();
 
@@ -326,6 +343,7 @@ static inline void drs_set_gain_quants_all(const unsigned short a_gain_quants[DR
     }
 
     drs_reg_write(DRS_REG_DVGA_GAINS , l_value);
+    _log_it("drs_h",L_INFO,"Write gains 0x%08X", l_value);
     drs_reg_write(DRS_REG_DVGA_START, 1);
     usleep(10);
 #else
@@ -340,7 +358,7 @@ static inline void drs_set_gain_quants_all(const unsigned short a_gain_quants[DR
  */
 static inline unsigned short drs_gain_to_quants(double a_gain)
 {
-    if (fabs(a_gain) != a_gain || a_gain <  DRS_GAIN_BEGIN || a_gain > DRS_GAIN_END){
+    if ( a_gain <  DRS_GAIN_BEGIN || a_gain > DRS_GAIN_END){
         return DRS_GAIN_QUANTS_END;
     }
     return ((double)DRS_GAIN_QUANTS_END) - a_gain + DRS_GAIN_BEGIN ;
@@ -353,6 +371,12 @@ void drs_set_gain (int a_drs_num, int a_drs_channel, const double a_gain);
 void drs_get_gain_quants_all(unsigned short a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] );
 
 
+void drs_set_dac_speed_bias(int a_drs_num, unsigned short a_speed, unsigned short a_bias );
+void drs_set_ROFS_n_OFS(int a_drs_num, unsigned short a_ROFS, unsigned short a_OFS );
+
+void drs_set_dac_offset(int a_drs_num, unsigned short a_offset_ch0, unsigned short a_offset_ch1 );
+
+void drs_start_dac();
 
 #ifdef __cplusplus
 }

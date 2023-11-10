@@ -677,8 +677,7 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
         }
     }
 
-    if( (a_flags& DRS_CAL_APPLY_Y_SPLASHS)!=0 || (a_flags& DRS_CAL_APPLY_Y_SPLASHS_FIX_BAD_CELLS)!=0)
-    {
+    if( (a_flags& DRS_CAL_APPLY_Y_SPLASHS) || ! (a_flags& DRS_CAL_APPLY_Y_NO_FIX_BAD_CELLS) ){
         drs_cal_amp_remove_splash(a_drs, a_out, drs_cal_get_splash_treshold(), a_flags );
     }
 
