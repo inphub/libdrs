@@ -37,7 +37,6 @@
 
 #define MAX_SLOWBLOCK_SIZE 1024*1024
 #define SIZE_BUF_IN 128
-//#define MAX_PAGE_COUNT 1000
 #define SIZE_NET_PACKAGE 1024//0x100000 // 0x8000 = 32k
 #define POLLDELAY 1000 //ns
 #define MAX_SLOW_ADC_CHAN_SIZE 0x800000
@@ -257,13 +256,13 @@ static int s_init_mem(void)
         goto cleanup;
     }
 
-    data_map_shift_drs1 = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs1);
+    data_map_shift_drs1 = mmap(NULL, DRS_PAGE_COUNT_MAX * sizeof(unsigned) , PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs1);
     if (data_map_shift_drs1 == MAP_FAILED) {
         perror("mmap");
         goto cleanup;
     }
 
-    data_map_shift_drs2 = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs2);
+    data_map_shift_drs2 = mmap(NULL, DRS_PAGE_COUNT_MAX * sizeof(unsigned), PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs2);
     if (data_map_shift_drs2 == MAP_FAILED) {
         perror("mmap");
         goto cleanup;

@@ -566,7 +566,7 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
     unsigned l_bad_cells_shifted[]={DRS_CAL_AMP_BAD_CELLS};
 
     if(! (a_flags& DRS_CAL_APPLY_Y_NO_FIX_BAD_CELLS) ){
-        log_it(L_INFO,"Исправляем плохие ячейки ( shift = %u, shift_bank = %u)", a_drs->shift, a_drs->shift_bank);
+        debug_if(s_debug_more, L_INFO,"Исправляем плохие ячейки ( shift = %u, shift_bank = %u)", a_drs->shift, a_drs->shift_bank);
         for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++){
             for (unsigned i = 0; i < sizeof (l_bad_cells_shifted)/ sizeof (unsigned); i++){
                 unsigned b = c_bad_cells[i] & DRS_BANK_OUT_MASK;
@@ -612,7 +612,7 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
                       )
                     ){
                     //l_splash_id = (l_cell_id +1 ) & DRS_BANK_MASK ;
-                    log_it(L_NOTICE, "Found splash for %d channel in %d cell ( dY_0 = %f, dY_1 = %f )",ch, l_cell_id+1,
+                    debug_if(s_debug_more, L_NOTICE, "Found splash for %d channel in %d cell ( dY_0 = %f, dY_1 = %f )",ch, l_cell_id+1,
                            dY[0], dY[1]); //(l_cell_id+ a_drs->shift_bank)&1023);
                     l_found_smth[ch][l_cell_id+1]  = true;
                     l_cell_id++;

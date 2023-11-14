@@ -26,7 +26,7 @@
 
 #define LOG_TAG "drs_data"
 
-static bool s_debug_more=false;
+static bool s_debug_more=true;
 
 /**
  * @brief drs_data_init
@@ -143,7 +143,7 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
     a_drs->shift =drs_get_shift( a_drs->id, a_page_num);
     a_drs->shift_bank =a_drs->shift & 1023;
 
-    //log_it(L_DEBUG, "Global shift: %u , local shift: %u",drs_get_shift(a_drs->id), a_drs->shift);
+    debug_if(s_debug_more, L_DEBUG, "Global shift: %u , local shift: %u",a_drs->shift & 3072, a_drs->shift_bank);
 
 }
 

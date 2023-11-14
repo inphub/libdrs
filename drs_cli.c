@@ -18,6 +18,7 @@
 #include "drs_data.h"
 #include "drs_cal.h"
 #include "drs_cal_pvt.h"
+#include "drs_proto_cmd.h"
 
 #define LOG_TAG "drs_cli"
 
@@ -29,6 +30,7 @@ static int s_callback_exit(int argc, char ** argv, char **str_reply);
 
 static int s_parse_drs_and_check(int a_arg_index, int a_argc, char ** a_argv, char **a_str_reply);
 static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply);
+static int s_cli_proto(int a_argc, char ** a_argv, char **a_str_reply);
 static int s_cli_sinus(int a_argc, char ** a_argv, char **a_str_reply);
 
 /**
@@ -103,11 +105,17 @@ int drs_cli_init()
                             "set reg <Номер регистра> <Значение >\n"
                             "\t Установить указанный регистр в указанное значение. Можно писать как в десятичной, так и в шестнадцатиричной форме\n"
                             "\n"
-                            "set delay -drs <Номер ДРС> -- <Значение задержки в наносекундах>\n"
+                            "set splash_treshold <значение предела срабатывания алгоритма>\n"
                             "\n"
-                            "set splash_treshold <значение предела срабатывания алгоритма>"
                             ""
                             );
+
+    // Протокол
+    dap_cli_server_cmd_add ("proto", s_cli_proto, "Управление параметрами сетевых протоколов",
+                            "current_page <текущая страница>\n"
+                            "\t Выбирает текущую страницу для операций чтения\n"
+                            );
+
 
     // Set off/on sinus generator
     dap_cli_server_cmd_add ("sinus", s_cli_sinus, "Генератор синуса вкл/выкл",
@@ -937,6 +945,84 @@ static int s_cli_sinus(int a_argc, char ** a_argv, char **a_str_reply)
   return 0;
 }
 
+/**
+ * @brief s_cli_proto
+ * @param a_argc
+ * @param a_argv
+ * @param a_str_reply
+ * @return
+ */
+static int s_cli_proto(int a_argc, char ** a_argv, char **a_str_reply)
+{
+    // Описываем субкомманды
+    enum {
+        CMD_NONE =0,
+        CMD_CURRENT_PAGE,
+        CMD_Y_ADD_FLAGS,
+        CMD_DEBUG_MORE
+    };
+    const char *l_cmd_str_c[] ={
+        [CMD_CURRENT_PAGE] = "current_page",
+        [CMD_Y_ADD_FLAGS] = "y_add_flags",
+        [CMD_DEBUG_MORE] = "debug_more",
+    };
+
+    const int c_cmd_mandatory_args_count[] ={
+        [CMD_CURRENT_PAGE] = 1,
+        [CMD_Y_ADD_FLAGS] = 1,
+        [CMD_DEBUG_MORE] = 0,
+    };
+    const int c_argc_min = 2;
+
+    if(a_argc < c_argc_min ) {
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "No required arguments" );
+        return -1;
+    }
+
+    const char * l_cmd = a_argv[1]; // Строка с субкоммандой
+
+
+    // Парсим субкоманды
+    int l_cmd_num = CMD_NONE;
+    for(int idx = 0; (size_t) idx < sizeof (l_cmd_str_c) / sizeof(typeof (*l_cmd_str_c)); idx ++ ){
+        if( dap_strcmp(l_cmd, l_cmd_str_c[idx]) == 0 ) {
+            l_cmd_num = idx;
+            break;
+        }
+    }
+
+    if(a_argc <c_argc_min + c_cmd_mandatory_args_count[l_cmd_num] ) {
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "Нет обязательных аргументов для команды \"proto %s\"", l_cmd );
+        return -2;
+    }
+
+
+    // Сдвигаемся после сабкоманнды до следующего индекса после неё, чтобы распарсить её аргументы
+    int l_arg_index = 1;
+
+    // Читаем общие аргументы
+    // int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 значит для всех
+
+    switch(l_cmd_num){
+        case CMD_CURRENT_PAGE:{
+            const char * c_page_str = a_argv[c_argc_min];
+            unsigned l_page = 0;
+            if (dap_sscanf(c_page_str,"%u",&l_page) != 1 ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Не могу распознать \"%s\" как беззнаковое целое");
+                return -3;
+            }
+            g_drs_proto_current_page = l_page;
+        }break;
+        case CMD_Y_ADD_FLAGS:
+        case CMD_DEBUG_MORE:
+        default:{
+          dap_cli_server_cmd_set_reply_text(a_str_reply, "Не могу распознать команду \"%s\"");
+          return -4;
+        }
+    }
+
+    return 0;
+}
 
 /**
  * @brief s_cli_set

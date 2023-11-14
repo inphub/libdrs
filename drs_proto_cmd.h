@@ -57,6 +57,8 @@ typedef enum drs_proto_cmd{
 
 extern size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX];
 
+extern unsigned g_drs_proto_current_page;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

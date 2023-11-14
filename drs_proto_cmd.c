@@ -48,6 +48,8 @@ size_t g_drs_proto_args_size[DRS_PROTO_CMD_MAX]={
     [CMD_CALIBRATE_PROGRESS ]      = 1 * sizeof(uint32_t),
 };
 
+unsigned g_drs_proto_current_page = 0;
+
 static int s_read_y_flags_add = 0;
 static bool s_debug_more = true ;
 
@@ -315,16 +317,17 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
             }
             drs_t * l_drs = g_drs + l_drs_num;
 
+
             l_value=4*(1+((a_cmd_args[3]&24)!=0));
             log_it(L_INFO, "Read Y cmd: drs_num=%u,npages=%u,flags=0x%08X (%d )",
-                   a_cmd_args[0],a_cmd_args[1],l_flags_apply, l_flags_apply);
+                   a_cmd_args[0],l_pages_num,l_flags_apply, l_flags_apply);
 
             size_t l_buf_size = DRS_CELLS_COUNT*sizeof(unsigned short);
             unsigned short *l_buf = DAP_NEW_STACK_SIZE(unsigned short, l_buf_size);
             size_t c_out_size = DRS_CELLS_COUNT * sizeof (double);
 
             if( l_pages_num==1  || l_pages_num == 0 ){//1 page
-                drs_data_get_page_first( l_drs, l_flags_data_read , l_buf);
+                drs_data_get_page ( l_drs, l_flags_data_read ,g_drs_proto_current_page, l_buf, l_buf_size );
                 double * l_out = DAP_NEW_Z_SIZE(double,c_out_size);
                 if (drs_get_mode(l_drs->id) == DRS_MODE_CAL_TIME)
                     l_flags_apply |= DRS_CAL_APPLY_CH9_ONLY;
@@ -333,7 +336,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 drs_proto_out_add_mem(DRS_PROTO(a_es), l_out, c_out_size ,  DRS_PROTO_DATA_MEM_FREE_AFTER );
             }else{ // Multi pages
                 for (unsigned n=0; n < l_pages_num; n++){
-                    drs_read_pages(l_drs, 1, n, l_buf, l_buf_size);
+                    drs_read_pages(l_drs, 1, n + g_drs_proto_current_page, l_buf, l_buf_size);
                     double * l_out = DAP_NEW_Z_SIZE(double, c_out_size);
                     drs_cal_y_apply(l_drs, l_buf, l_out ,l_flags_apply );
                     drs_proto_out_add_mem(DRS_PROTO(a_es), l_out, c_out_size, DRS_PROTO_DATA_MEM_FREE_AFTER );
