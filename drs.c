@@ -403,6 +403,7 @@ static void s_hw_init()
 
     drs_reg_write(DRS_REG_CLK_PHASE, 40);
     drs_reg_write(DRS_REG_START_S, 1);// write frequency
+    usleep(100);
 
     //if(g_drs_flags &DRS_INIT_SET_ONCE_FREQ  ){
     drs_set_freq( g_current_freq );
