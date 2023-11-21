@@ -313,11 +313,11 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
             debug_if(s_debug_more, L_DEBUG, "average[%u]=%f", i, l_ctx.average[i]);
         }
     }
-    debug_if(s_debug_more, L_INFO, "Collected stats in %u repeats", l_repeats);
+    debug_if(s_debug_more, L_INFO, "Собрали статистику за %u повторов", l_repeats);
 
     s_get_coefficients(a_drs, a_args, &l_ctx, a_ch9_only);
 
-    log_it(L_NOTICE,"Collected coeficients in %u repeats",l_repeats);
+    log_it(L_NOTICE,"Посчитали коэфициенты за %u повторов",l_repeats);
 
     // Восстанавливаем уровни
 //    double shiftDACValues[DRS_CHANNELS_COUNT ];
@@ -372,7 +372,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     unsigned int t=0,ch;
     dh=(calibLvl[1]-calibLvl[0])/((double) (l_count-1) );
     if (l_count == 0){
-      log_it(L_ERROR, "Repeats %d is wrong, its sum with %d should be not less than 0", a_args->param.ampl.repeats,
+      log_it(L_ERROR, "Повтор %d неверен, его разница с %d не должна быть менее 0", a_args->param.ampl.repeats,
              DRS_CAL_MIN_REPEATS_DEFAULT );
       return -10;
     }
@@ -394,11 +394,11 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
         drs_set_dac_shift(a_drs->id, shiftDACValues);
         if (drs_data_get_page_first(a_drs,DRS_OP_FLAG_SOFT_START , l_cells ) != 0){
-            log_it(L_ERROR,"data not read on iteration %u", t);
+            log_it(L_ERROR,"Данные не прочитались на итерации %u", t);
             return -1;
         }
         if(a_drs->shift_bank>1023){
-            log_it(L_ERROR,"shift index went beyond on iteration %u", t);
+            log_it(L_ERROR,"Индекс сдвига ушел за пределы значений(как?!?!) на %u итерации", t);
             return -2;
         }
         drs_cal_y_apply(a_drs, l_cells,l_d_buf, DRS_CAL_APPLY_Y_CELLS | DRS_CAL_APPLY_Y_SPLASHS );
@@ -519,7 +519,7 @@ static void s_collect_stats_b(drs_t * a_drs,struct amp_context * a_ctx, unsigned
  */
 static void s_calc_coeff_b( struct amp_context * a_ctx, unsigned a_iteration, unsigned a_repeats, bool a_ch9_only)
 {
-    debug_if(s_debug_more, L_DEBUG, "Calc coef b");
+    debug_if(s_debug_more, L_DEBUG, "Считаем коэфициенты b");
 
     double l_value=0;
     double * l_average = &a_ctx->average[a_iteration *DRS_CHANNELS_COUNT];
@@ -570,13 +570,13 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
         for(unsigned ch=0;ch< DRS_CHANNELS_COUNT; ch++){
             for (unsigned i = 0; i < sizeof (l_bad_cells_shifted)/ sizeof (unsigned); i++){
                 unsigned b = c_bad_cells[i] & DRS_BANK_OUT_MASK;
-                unsigned p = (c_bad_cells[i] & DRS_BANK_MASK  - a_drs->shift_bank ) & DRS_BANK_MASK;
+                unsigned p = ( (c_bad_cells[i] & DRS_BANK_MASK)  - a_drs->shift_bank ) & DRS_BANK_MASK;
 
                 l_bad_cells_shifted[i] =  ( (b + p /*- a_drs->shift*/ ) & DRS_GLOBAL_MASK ) /*-2*/;
 
                 //l_rotate_index = a_ch9_only? (a_drs->shift_bank + l_cell_id) & 1023 :
                 //                           (a_drs->shift_bank + (l_cell_id&1023)) & 1023 ;
-                log_it(L_INFO, "плохая ячейка %u/%u", l_bad_cells_shifted[i], c_bad_cells[i] );
+                debug_if(s_debug_more, L_INFO, "плохая ячейка %u/%u", l_bad_cells_shifted[i], c_bad_cells[i] );
                 l_found_smth[ch][l_bad_cells_shifted[i]] = true;
             }
         }
@@ -623,6 +623,7 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
         }
     }
 
+    unsigned l_fixes = 0;
     for(unsigned ch=0;ch<DRS_CHANNELS_COUNT;ch++){
         for(unsigned n = 1; n < l_cells_proc_count+1; n++){
             if(l_found_smth[ch][n]){
@@ -630,6 +631,8 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
 
                  a_Y[idx] = (a_Y[DRS_IDX(ch, n - 1)] +
                          a_Y[DRS_IDX(ch, n + 1)]) / 2.0;
+
+                 l_fixes++;
                 /*if(l_cell_id_fix == 0){
                     a_Y[DRS_IDX_BANK(ch,b,0)] = (a_Y[DRS_IDX_BANK(ch,b,0)] + a_Y[DRS_IDX_BANK(ch,b,1)] ) / 2.0;
                 }
@@ -640,6 +643,9 @@ void drs_cal_amp_remove_splash(drs_t * a_drs, double*a_Y, double a_treshold, int
             }
         }
     }
+
+    log_it(L_NOTICE, "Исправили плохие ячейки и сплеши, всего %u штук",l_fixes );
+
 
 }
 

@@ -303,11 +303,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
                 break;
             }
 
-            // TODO убрать после исправлений бага в Ui
-            // тут мы просто отфильтровываем корректные флаги
-            int l_flags_apply =  a_cmd_args[2] ;//|DRS_CAL_APPLY_Y_EQUALIZE ;
-            //if (l_flags_apply & DRS_CAL_APPLY_Y_CELLS)
-            //    l_flags_apply |= DRS_CAL_APPLY_Y_EQUALIZE;
+            int l_flags_apply =  a_cmd_args[2] ; // Флаги применения
 
             int l_flags_data_read = 0  ;
 
