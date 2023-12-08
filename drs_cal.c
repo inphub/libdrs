@@ -640,10 +640,11 @@ void drs_cal_y_apply(drs_t * a_drs, unsigned short *a_in,double *a_out, int a_fl
 
 
             if((a_flags & DRS_CAL_APPLY_PHYS)!=0){
+                a_out[l_inout_id] = 16383.0  - a_out[l_inout_id]; // Инвертируем шкалу, так как так оказалось надо
+
                 a_out[l_inout_id]= (a_out[l_inout_id] + g_ini->fastadc.adc_offsets[a_drs->id* DRS_CHANNELS_COUNT+ l_ch_id])
                     * g_ini->fastadc.adc_gains[a_drs->id* DRS_CHANNELS_COUNT+ l_ch_id];
 
-                a_out[l_inout_id] *= -1.0; // Инвертируем шкалу, так как так оказалось надо
             }
 
         }
