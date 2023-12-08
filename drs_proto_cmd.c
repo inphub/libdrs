@@ -373,7 +373,7 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
               log_it(L_DEBUG, "%f",shiftDAC[t]);
             }
             for (int d = 0; d < DRS_COUNT; d++)
-              drs_set_dac_shift(d,&shiftDAC[d * DRS_DAC_COUNT]);
+              drs_set_dac_offsets_all(d,&shiftDAC[d * DRS_DAC_COUNT]);
 
             l_value=1;
             dap_events_socket_write_unsafe(a_es, &l_value, sizeof(l_value));

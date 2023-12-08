@@ -1204,9 +1204,9 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
             }
 
             if (l_is_ch9){
-                drs_set_dac_shift_ch9(l_shifts[0]);
+                drs_set_dac_offset_ch9(l_shifts[0]);
             } else {
-                drs_set_dac_shift(l_drs->id, l_shifts);
+                drs_set_dac_offsets_all(l_drs->id, l_shifts);
             }
         } break;
         default:

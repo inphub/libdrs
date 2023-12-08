@@ -278,14 +278,13 @@ extern "C" {
 int drs_init(int a_drs_flags,...);
 void drs_deinit();
 
-void drs_set_dac_shift(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT]);
-void drs_set_dac_shift_ch9(double a_shiftDAC);
+void drs_set_dac_offsets_all(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT]);
+void drs_set_dac_offset_ch9(double a_shiftDAC);
 
 
-void drs_set_dac_shift_quants_all(int a_drs_num, unsigned int value);
+void drs_set_dac_offsets_quants_all(int a_drs_num, unsigned int value);
 void drs_set_dac_sin(unsigned int a_value);
-unsigned drs_get_dac_shift_quants_all(int a_drs_num);
-unsigned drs_get_dac_shift_ch9_quants();
+unsigned drs_get_dac_offsets_quants_all(int a_drs_num);
 
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);

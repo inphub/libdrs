@@ -109,7 +109,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     double * l_levels = a_args->param.ampl.levels;
     int l_ret = 0;
 
-    unsigned l_dac_shifts_old =  drs_get_dac_shift_quants_all(a_drs->id);
+    unsigned l_dac_shifts_old =  drs_get_dac_offsets_quants_all(a_drs->id);
     unsigned short l_dac_old_gains [DRS_COUNT * DRS_CHANNELS_COUNT];
 
     drs_mode_t l_mode_old = drs_get_mode(a_drs->id);
@@ -161,10 +161,10 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     // Выключаем режим калибровки амплитуды
 
     drs_set_mode(a_drs->id, l_mode_old );
-    drs_set_dac_shift_quants_all(a_drs->id, l_dac_shifts_old);
+    drs_set_dac_offsets_quants_all(a_drs->id, l_dac_shifts_old);
     drs_set_gain_quants_all(l_dac_old_gains);
 
-    l_dac_shifts_old = drs_get_dac_shift_quants_all(a_drs->id);
+    l_dac_shifts_old = drs_get_dac_offsets_quants_all(a_drs->id);
 
     log_it(L_NOTICE, "Channels calibrate ends: count=%d, begin=%f, end=%f, dac_shifts=%08X", a_args->param.ampl.repeats
            , l_levels[0], l_levels[1], l_dac_shifts_old);
@@ -173,7 +173,7 @@ static int s_proc_drs( drs_t * a_drs, drs_cal_args_t * a_args, atomic_uint_fast3
     return l_ret;
 lb_exit:
     drs_set_mode(a_drs->id, l_mode_old ); // Выключаем режим калибровки амплитуды
-    drs_set_dac_shift_quants_all( a_drs->id, l_dac_shifts_old);
+    drs_set_dac_offsets_quants_all( a_drs->id, l_dac_shifts_old);
     return l_ret;
 
 
@@ -258,11 +258,11 @@ static int s_fin_collect( drs_t * a_drs, drs_cal_args_t * a_args, bool a_ch9_onl
         debug_if(s_debug_more, L_INFO, "Repeat #%u", i);
         lvl = calibLvl[0]+dh*((double)i);
         if(a_ch9_only){
-            drs_set_dac_shift_ch9(lvl);
+            drs_set_dac_offset_ch9(lvl);
         }else{
             double shiftDACValues[DRS_CHANNELS_COUNT ];
             fill_array(shiftDACValues, &lvl, DRS_CHANNELS_COUNT, sizeof(lvl));
-            drs_set_dac_shift(a_drs->id, shiftDACValues);
+            drs_set_dac_offsets_all(a_drs->id, shiftDACValues);
         }
 
         for(unsigned k=0;k< a_args->param.ampl.N;k++){
@@ -392,7 +392,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     for(t=0;t<l_count;t++){
         l_lvl=calibLvl[0]+dh*((double)t);
         fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
-        drs_set_dac_shift(a_drs->id, shiftDACValues);
+        drs_set_dac_offsets_all(a_drs->id, shiftDACValues);
         if (drs_data_get_page_first(a_drs,DRS_OP_FLAG_SOFT_START , l_cells ) != 0){
             log_it(L_ERROR,"Данные не прочитались на итерации %u", t);
             return -1;
@@ -421,7 +421,7 @@ static int s_interchannels_calibration(drs_t * a_drs , drs_cal_args_t * a_args)
     // Restore levels
     l_lvl = 0.0;
     fill_array(shiftDACValues,&l_lvl,DRS_DAC_COUNT,sizeof(l_lvl));
-    drs_set_dac_shift(a_drs->id, shiftDACValues);
+    drs_set_dac_offsets_all(a_drs->id, shiftDACValues);
 
     return 0;
 }

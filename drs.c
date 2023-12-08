@@ -357,7 +357,7 @@ static int s_post_init()
 
     double l_shifts[]={0.0,0.0};
     for (unsigned n = 0; n < DRS_COUNT; n++)
-        drs_set_dac_shift (n, l_shifts);
+        drs_set_dac_offsets_all (n, l_shifts);
 
     if(g_drs_flags &DRS_INIT_SET_ALWAYS_FREQ )
         drs_set_freq( g_current_freq );
@@ -817,7 +817,7 @@ void drs_set_mode(int a_drs_num, drs_mode_t a_mode)
     drs_cmd( -1, DRS_CMD_LOAD_N_RUN);
     //
     if (a_mode == DRS_MODE_CAL_TIME)
-        drs_set_dac_shift_ch9(DRS_CH9_SHIFT_DEFAULT);
+        drs_set_dac_offset_ch9(DRS_CH9_SHIFT_DEFAULT);
 }
 
 /**
@@ -835,7 +835,7 @@ drs_mode_t drs_get_mode(int a_drs_num)
  * @param addrShift
  * @param value
  */
-void drs_set_dac_shift_quants_all(int a_drs_num,unsigned int a_value)
+void drs_set_dac_offsets_quants_all(int a_drs_num,unsigned int a_value)
 {
     log_it(L_DEBUG, "Set DAC value 0x%08X", a_value);
     s_dac_shifts_values[a_drs_num] = a_value;
@@ -859,18 +859,11 @@ void drs_set_dac_sin(unsigned int a_value)
  * @brief drs_dac_shift_input_get
  * @param a_drs_num
  */
-unsigned drs_get_dac_shift_quants_all(int a_drs_num)
+unsigned drs_get_dac_offsets_quants_all(int a_drs_num)
 {
     return a_drs_num >= 0 ? s_dac_shifts_values[a_drs_num] : 0;
 }
 
-/**
- * @brief drs_dac_shift_input_get_ch9
- */
-unsigned drs_get_dac_shift_ch9_quants()
-{
-    return drs_reg_read(DRS_REG_DAC_SIN);
-}
 
 /**
  * @brief drs_start_dac
@@ -883,13 +876,6 @@ void drs_start_dac()
 }
 
 /**
- * unsigned short *shiftValue 		масиив сдивгов для ЦАП
- */
-void drs_dac_shift_write_reg(int a_drs_num, unsigned short *shiftValue)//fix
-{
-}
-
-/**
  * double *shiftDAC		;
  */
 
@@ -899,7 +885,7 @@ void drs_dac_shift_write_reg(int a_drs_num, unsigned short *shiftValue)//fix
  * @param a_drs_num                       Номер ДРС
  * @param a_values             сдвиги с фронтпанели
  */
-void drs_set_dac_shift(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT])
+void drs_set_dac_offsets_all(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT])
 {
     int i;
     assert(a_values);
@@ -914,14 +900,14 @@ void drs_set_dac_shift(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT])
         l_dac_shifts[i]=(l_dac_shifts[i]*DAC_gain[i]+DAC_offset[i]);
         log_it(L_DEBUG, "shiftDAC[%d]=%f",i,a_values[i]);
     }
-    drs_set_dac_shift_quants_all(a_drs_num,((l_dac_shifts[0]<<16)&0xFFFF0000)|l_dac_shifts[1]);
+    drs_set_dac_offsets_quants_all(a_drs_num,((l_dac_shifts[1]<<16)&0xFFFF0000)|l_dac_shifts[0]);
 }
 
 /**
  * @brief drs_dac_shift_set_ch9
  * @param shiftDAC
  */
-void drs_set_dac_shift_ch9(double a_shift)
+void drs_set_dac_offset_ch9(double a_shift)
 {
     unsigned short l_shift_DAC_value;
     float a_gain = g_ini_ch9.gain;
