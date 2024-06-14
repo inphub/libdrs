@@ -200,13 +200,15 @@ static void * s_thread_routine(void * a_arg)
  */
 int drs_calibrate_init()
 {
+    s_debug_more = dap_config_get_item_bool_default(g_config,"debug","drs_cal", false);
+
     for(size_t i = 0; i< DRS_COUNT; i++){
         pthread_rwlock_init(& s_state[i].rwlock, NULL);
         s_state[i].drs = &g_drs[i];
+        debug_if(s_debug_more, L_DEBUG,"Инициализированы семафоры состояния калибровки для ДРС №%u", i);
     }
 
 
-    s_debug_more = dap_config_get_item_bool_default(g_config,"debug","drs_cal", false);
 
     drs_cal_file_path_update();
     drs_cal_load();
@@ -244,7 +246,7 @@ void drs_calibrate_deinit()
     for(size_t i = 0; i< DRS_COUNT; i++)
         pthread_rwlock_destroy(& s_state[i].rwlock);
 
-
+  log_it(L_NOTICE,"Деинициализация калибровки");
 }
 
 /**
@@ -259,24 +261,23 @@ static inline int s_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_param
     drs_calibrate_t * l_cal = &s_state[a_drs_num];
 
     // Проверяем, запущена ли уже калибровка
-    pthread_rwlock_rdlock(&l_cal->rwlock);
+
+    pthread_rwlock_wrlock(&l_cal->rwlock);
     if ( l_cal->is_running){
         log_it(L_WARNING, "DRS #%d is already running calibration (%u%% done)", a_drs_num, l_cal->progress );
         pthread_rwlock_unlock(&l_cal->rwlock);
         return -2;
+    }else{
+        debug_if(s_debug_more, L_INFO,"Калибровка для ДРС №%u не запущенна - запускаем её", a_drs_num);
     }
-    pthread_rwlock_unlock(&l_cal->rwlock);
-
     // Запускаем поток с калибровкой
-    pthread_rwlock_wrlock(&l_cal->rwlock);
-
     struct drs_cal_args * l_args  = DAP_NEW_Z(struct drs_cal_args);
     l_args->cal = l_cal;
     l_args->keys.raw = a_cal_flags;
     memcpy(&l_args->param, a_params, sizeof(*a_params) );
 
-    l_cal->is_running = true;
     l_cal->ts_start = dap_nanotime_now();
+    l_cal->is_running = true;
     pthread_create(&l_cal->thread_id, NULL, s_thread_routine, l_args);
     pthread_rwlock_unlock(&l_cal->rwlock);
 
@@ -299,7 +300,9 @@ unsigned drs_cal_get_stage(int a_drs_num)
  */
 int drs_calibrate_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_t* a_params )
 {
+
     if (a_drs_num == -1 ){
+        debug_if(s_debug_more, L_INFO, "Запускаем калибровки для всех ДРС");
         int l_ret = 0;
         for (size_t n = 0; n < DRS_COUNT; n ++){
             if( g_drs_flags & (0x1 << n) ){
@@ -314,6 +317,7 @@ int drs_calibrate_run(int a_drs_num, uint32_t a_cal_flags, drs_calibrate_params_
             log_it(L_ERROR, "Too big DRS number %d, should be smaller than %d",a_drs_num, DRS_COUNT);
             return -1;
         }
+        debug_if(s_debug_more, L_INFO, "Запускаем калибровку для ДРС №%d", a_drs_num);
         return s_run(a_drs_num, a_cal_flags, a_params);
     }else{
         log_it(L_ERROR, "Wrong DRS number %d",a_drs_num);
@@ -391,6 +395,7 @@ drs_calibrate_state_t* drs_calibrate_get_state(int a_drs_num)
  */
 int drs_calibrate_progress(int a_drs_num)
 {
+
     if(a_drs_num < 0){
         log_it(L_ERROR, "-1 is not allowed for drs_calibrate_progress() call");
         return -1;
@@ -402,6 +407,7 @@ int drs_calibrate_progress(int a_drs_num)
     drs_calibrate_t * l_cal = &s_state[a_drs_num];
     if (l_cal == NULL)
         return -2;
+    debug_if(s_debug_more,L_DEBUG, "Reading calibrate progress");
     pthread_rwlock_rdlock(&l_cal->rwlock);
     int l_ret = (int) l_cal->progress;
     pthread_rwlock_unlock(&l_cal->rwlock);
@@ -441,6 +447,7 @@ bool drs_calibrate_is_running(int a_drs_num)
  */
 int drs_calibrate_abort(int a_drs_num)
 {
+    debug_if(s_debug_more, L_INFO, "Прерываем калибровку для ДРС №%d", a_drs_num);
     if(a_drs_num < 0){
         log_it(L_ERROR, "-1 is not allowed for drs_calibrate_abort() call");
         return -1;
@@ -456,6 +463,7 @@ int drs_calibrate_abort(int a_drs_num)
     // Калибровка вообще идёт?
     if( !s_state[a_drs_num].is_running){
         log_it(L_WARNING, "DRS #%d is not running, nothing to abort", a_drs_num);
+        pthread_rwlock_unlock(&s_state[a_drs_num].rwlock);
         return -1;
     }
 
@@ -470,6 +478,8 @@ int drs_calibrate_abort(int a_drs_num)
     s_state[a_drs_num].thread_id  = 0;
     s_state[a_drs_num].progress   = 0;
     pthread_rwlock_unlock(&s_state[a_drs_num].rwlock);
+
+    log_it(L_NOTICE, "Прервали калибровку для ДРС №%d", a_drs_num);
     return 0;
 }
 

@@ -286,7 +286,6 @@ void drs_set_dac_offsets_quants_all(int a_drs_num, unsigned int value);
 void drs_set_dac_sin(unsigned int a_value);
 unsigned drs_get_dac_offsets_quants_all(int a_drs_num);
 
-
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
 
 drs_mode_t drs_get_mode(int a_drs_num);
