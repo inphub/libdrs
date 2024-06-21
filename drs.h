@@ -348,20 +348,54 @@ static inline void drs_set_gain_quants_all(const unsigned short a_gain_quants[DR
  * @param a_gain
  * @return
  */
-static inline unsigned short drs_gain_to_quants(double a_gain)
+static inline unsigned short drs_gain_db_to_quants(double a_gain_db)
 {
-    if ( a_gain <  DRS_GAIN_BEGIN || a_gain > DRS_GAIN_END){
+    if ( a_gain_db >  DRS_GAIN_END  ){
         return DRS_GAIN_QUANTS_END;
     }
-    return ((double)DRS_GAIN_QUANTS_END) - a_gain + DRS_GAIN_BEGIN ;
+    if ( a_gain_db <  DRS_GAIN_BEGIN  ){
+        return DRS_GAIN_QUANTS_BEGIN;
+    }
+
+    return  (a_gain_db - DRS_GAIN_BEGIN) + ((double)DRS_GAIN_QUANTS_BEGIN) ;
 }
+
+/**
+ * @brief drs_quants_to_db
+ * @param a_gain
+ * @return
+ */
+static inline double drs_gain_quants_to_db(unsigned short a_gain_quants)
+{
+    if ( a_gain_quants <  DRS_GAIN_QUANTS_BEGIN ){
+        return DRS_GAIN_BEGIN;
+    }
+
+    if ( a_gain_quants <  DRS_GAIN_QUANTS_BEGIN ){
+        return DRS_GAIN_BEGIN;
+    }
+
+    return  ( (double) (a_gain_quants - DRS_GAIN_QUANTS_BEGIN) ) + DRS_GAIN_BEGIN ;
+}
+
+
 void drs_set_gain_quants (int a_drs_num, int a_drs_channel, const unsigned short a_gain_quants);
 void drs_set_gain_all(const double a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] );
 
 void drs_set_gain (int a_drs_num, int a_drs_channel, const double a_gain);
 
 void drs_get_gain_quants_all(unsigned short a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] );
-
+static inline void drs_get_gain_all(double a_gain_db[DRS_COUNT * DRS_CHANNELS_COUNT] )
+{
+    unsigned short l_gain_quants[DRS_COUNT * DRS_CHANNELS_COUNT];
+    drs_get_gain_quants_all(l_gain_quants);
+    for(unsigned d = 0; d < DRS_COUNT; d++){
+        for(unsigned c = 0; c < DRS_CHANNELS_COUNT; c++){
+            unsigned i = d*DRS_CHANNELS_COUNT + c;
+            a_gain_db[i] = drs_gain_quants_to_db(l_gain_quants[i]);
+        }
+    }
+}
 
 void drs_set_dac_speed_bias(int a_drs_num, unsigned short a_speed, unsigned short a_bias );
 void drs_set_ROFS_n_OFS(int a_drs_num, unsigned short a_ROFS, unsigned short a_OFS );

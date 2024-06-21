@@ -592,7 +592,7 @@ void drs_set_gain_all(const double a_gain[DRS_COUNT * DRS_CHANNELS_COUNT] )
     for (unsigned d = 0; d < DRS_COUNT; d++)
         for (unsigned c = 0; c < DRS_CHANNELS_COUNT; c++){
             unsigned i = d*DRS_CHANNELS_COUNT + c;
-            l_gain_quants[i] = drs_gain_to_quants(a_gain[i]);
+            l_gain_quants[i] = drs_gain_db_to_quants(a_gain[i]);
         }
 
     drs_set_gain_quants_all(l_gain_quants);
@@ -644,7 +644,7 @@ void drs_set_gain (int a_drs_num, int a_drs_channel, const double a_gain)
                 c = a_drs_channel;
 
             // Собственно тут и заполняем массив значений
-            l_values[ d*DRS_CHANNELS_COUNT + c ] = drs_gain_to_quants(a_gain);
+            l_values[ d*DRS_CHANNELS_COUNT + c ] = drs_gain_db_to_quants(a_gain);
 
             if ( a_drs_channel != -1)
                 break;
