@@ -581,6 +581,7 @@ static void s_y_calc_scale(drs_t * a_drs,double *a_coeff, double *a_offset, int 
 
         if(a_apply_y_flags & DRS_CAL_APPLY_PHYS ){
            double l_scale = 4.0*pow(10,(-c_gain_level/20.0));
+           l_scale /= 8192.0/9200.0;
            a_coeff[c] *=  ((double)DRS_ADC_TOP_LEVEL)/ l_scale;
            a_offset[c] /=  a_coeff[c];
            a_offset[c] += (DRS_ADC_VOLTAGE_BASE/2.0);
