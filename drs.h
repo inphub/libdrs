@@ -278,12 +278,16 @@ extern "C" {
 int drs_init(int a_drs_flags,...);
 void drs_deinit();
 
+unsigned short drs_dac_volts_to_quants(int a_drs_num, unsigned a_ch, double a_value);
+
 void drs_set_dac_offsets_all(int a_drs_num, const double a_values[DRS_CHANNELS_COUNT]);
 void drs_set_dac_offset_ch9(double a_shiftDAC);
-
-
 void drs_set_dac_offsets_quants_all(int a_drs_num, unsigned int value);
+void drs_set_dac_offsets_quants_group(int a_drs_num, unsigned short a_offset_ch0, unsigned short a_offset_ch1 );
+void drs_set_dac_offset_quants(int a_drs_num, unsigned a_ch,  unsigned short a_offset );
+
 void drs_set_dac_sin(unsigned int a_value);
+
 unsigned drs_get_dac_offsets_quants_all(int a_drs_num);
 
 void drs_set_mode(int a_drs_num, drs_mode_t mode);
@@ -356,8 +360,8 @@ static inline unsigned short drs_gain_db_to_quants(double a_gain_db)
     if ( a_gain_db <  DRS_GAIN_BEGIN  ){
         return DRS_GAIN_QUANTS_BEGIN;
     }
-
-    return  (a_gain_db - DRS_GAIN_BEGIN) + ((double)DRS_GAIN_QUANTS_BEGIN) ;
+    return  ((double)DRS_GAIN_QUANTS_END) - a_gain_db + DRS_GAIN_BEGIN ;
+    //return  (a_gain_db - DRS_GAIN_BEGIN) + ((double)DRS_GAIN_QUANTS_BEGIN) ;
 }
 
 /**
@@ -400,7 +404,6 @@ static inline void drs_get_gain_all(double a_gain_db[DRS_COUNT * DRS_CHANNELS_CO
 void drs_set_dac_speed_bias(int a_drs_num, unsigned short a_speed, unsigned short a_bias );
 void drs_set_ROFS_n_OFS(int a_drs_num, unsigned short a_ROFS, unsigned short a_OFS );
 
-void drs_set_dac_offset(int a_drs_num, unsigned short a_offset_ch0, unsigned short a_offset_ch1 );
 
 void drs_start_dac();
 

@@ -107,6 +107,12 @@ int drs_cli_init()
                             "\n"
                             "set splash_treshold <значение предела срабатывания алгоритма>\n"
                             "\n"
+                            "\t Установить гейн\n"
+                            "set gain -drs <номер DRS> -ch <номер канала> -value <значение гейна> [-type <quant|db>]\n"
+                            "\n"
+                            "\t Установить смещение\n"
+                            "set offset -drs <номер DRS> -ch <номер канала> -value <значение гейна> [-type <quant|volt>]\n"
+                            "\n"
                             ""
                             );
 
@@ -1042,7 +1048,9 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         CMD_FLAG_END_READ,
         CMD_DELAY,
         CMD_SPLASH_TRESHOLD,
-        CMD_FREQ
+        CMD_FREQ,
+        CMD_GAIN,
+        CMD_OFFSET
     };
     const char *l_cmd_str_c[] ={
         [CMD_MODE] = "mode",
@@ -1051,7 +1059,9 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
         [CMD_FLAG_END_READ] = "flag_end_read",
         [CMD_DELAY] = "delay",
         [CMD_SPLASH_TRESHOLD] = "splash_treshold",
-        [CMD_FREQ] = "freq"
+        [CMD_FREQ] = "freq",
+        [CMD_GAIN] = "gain",
+        [CMD_OFFSET] = "offset"
     };
 
     if(a_argc < 3) {
@@ -1089,6 +1099,73 @@ static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply)
                 drs_set_freq(DRS_FREQ_4GHz);
             else if ( dap_strncmp(l_freq_str,"5",1)==0 )
                 drs_set_freq(DRS_FREQ_5GHz);
+        } break;
+        case CMD_OFFSET:{
+            //"set offset -drs <номер DRS> -ch <номер канала> -value <значение offset>"
+            const char * c_arg_ch = NULL, *c_arg_value = NULL, *c_arg_type = NULL;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-ch", &c_arg_ch);
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-value", &c_arg_value);
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-type", &c_arg_type);
+            if( ! c_arg_value ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Команда требует указать значение через параметр -value");
+                return -2;
+            }
+            int l_ch = atoi(c_arg_ch);
+            if(l_ch < 0 || l_ch > DRS_CHANNELS_COUNT){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Команда требует указать корректный номер канала от 0 до %u, а не эту чушь \"%s\" что вы указали вместо него", DRS_CHANNELS_COUNT, c_arg_ch);
+                return -2;
+            }
+
+            int l_ret;
+            unsigned short l_quants;
+            if(c_arg_type && ( dap_strcmp(c_arg_type,"quant") == 0) ){ // Если указаны кванты
+                l_quants = atoi(c_arg_value);
+            } else { // по умолчанию считаем Вольты
+                double l_value = atof(c_arg_value);
+                l_quants = drs_dac_volts_to_quants(l_drs_num,l_ch, l_value);
+            }
+            log_it(L_NOTICE,"Получили значение %u квантов и его и выставляем", l_quants);
+            drs_set_dac_offset_quants(l_drs_num, l_ch, l_quants);
+            drs_start_dac();
+
+        } break;
+        case CMD_GAIN:{
+            //"set gain -drs <номер DRS> -ch <номер канала> -value <значение гейна>"
+            const char * c_arg_ch = NULL, *c_arg_value = NULL, *c_arg_type = NULL;
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-ch", &c_arg_ch);
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-value", &c_arg_value);
+            dap_cli_server_cmd_find_option_val(a_argv,l_arg_index, a_argc, "-type", &c_arg_type);
+            if( ! c_arg_value ){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Команда требует указать значение через параметр -value");
+                return -2;
+            }
+            int l_ch = atoi(c_arg_ch);
+            if(l_ch < 0 || l_ch > DRS_CHANNELS_COUNT){
+                dap_cli_server_cmd_set_reply_text(a_str_reply, "Команда требует указать корректный номер канала от 0 до %u, а не эту чушь \"%s\" что вы указали вместо него", DRS_CHANNELS_COUNT, c_arg_ch);
+                return -2;
+            }
+
+            int l_ret;
+            unsigned l_quants;
+            if(c_arg_type && ( dap_strcmp(c_arg_type,"quant") == 0) ){ // Если указаны кванты
+                int l_value = atoi(c_arg_value);
+                if (l_value < DRS_GAIN_QUANTS_BEGIN || l_value > DRS_GAIN_QUANTS_END ){
+                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Значение  %u(в квантах) вышло за диапазон [%u,%u]", l_value,
+                                                      DRS_GAIN_QUANTS_BEGIN,DRS_GAIN_QUANTS_END );
+                    return -2;
+                }
+            } else { // по умолчанию считаем Дб
+                double l_value = atof(c_arg_value);
+                if (l_value < DRS_GAIN_BEGIN || l_value > DRS_GAIN_END ){
+                    dap_cli_server_cmd_set_reply_text(a_str_reply, "Значение  %f(в дБ) вышло за диапазон [%f,%f]", l_value,
+                                                      DRS_GAIN_BEGIN,DRS_GAIN_END );
+                    return -2;
+                }
+                l_quants = drs_gain_db_to_quants(l_value);
+            }
+            log_it(L_NOTICE,"Получили значение %u квантов и его и выставляем", l_quants);
+            drs_set_gain_quants(l_drs_num, l_ch, l_quants);
+            drs_start_dac();
         } break;
         case CMD_MODE:{
 

@@ -58,7 +58,7 @@ struct drs_cal_apply_flags g_drs_cal_apply_to_str[]={
 drs_calibrate_t s_state[DRS_COUNT] = {};
 
 static char * s_cal_file_path = NULL;
-static bool s_debug_more = false;
+static bool s_debug_more = true;
 static unsigned s_splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT;
 
 // Поток калибровки
@@ -580,11 +580,24 @@ static void s_y_calc_scale(drs_t * a_drs,double *a_coeff, double *a_offset, int 
         a_offset[c]=g_ini->fastadc.adc_offsets[a_drs->id* DRS_CHANNELS_COUNT+ c];
 
         if(a_apply_y_flags & DRS_CAL_APPLY_PHYS ){
-           double l_scale = 4.0*pow(10,(-c_gain_level/20.0));
-           l_scale /= 8192.0/9200.0;
-           a_coeff[c] *=  ((double)DRS_ADC_TOP_LEVEL)/ l_scale;
+           double l_scale_factor = 1.0*pow(10,(-c_gain_level/20.0));
+
+           double l_scale_size_raw = (double)DRS_ADC_TOP_LEVEL;
+
+           double l_scale_1_volt = 9200.0;
+
+           double l_scale_size_volt =  l_scale_size_raw / l_scale_1_volt;
+
+           double l_scale = l_scale_size_raw / l_scale_size_volt;
+
+           a_coeff[c] /= l_scale_factor;
+
+           a_coeff[c] *=  l_scale ;
+
+
+           a_offset[c] -= (DRS_ADC_VOLTAGE_BASE/2.0);
            a_offset[c] /=  a_coeff[c];
-           a_offset[c] += (DRS_ADC_VOLTAGE_BASE/2.0);
+
            debug_if(s_debug_more, L_DEBUG,"l_coeff[%u] = %f, l_offset[%u] = %f l_scale = %f my_l_scale=%f c_pga_level=%f", c, a_coeff[c], c, a_offset[c], c_gain_level, 4.0*pow(10,(-c_gain_level/20.0)), c_gain_level);
         } else {
         }

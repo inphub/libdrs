@@ -409,14 +409,14 @@ static void s_hw_init()
     drs_set_freq( g_current_freq );
 
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){
-        drs_set_dac_offset(0, g_ini->fastadc.dac_offsets[0],g_ini->fastadc.dac_offsets[1] );
+        drs_set_dac_offsets_quants_group(0, g_ini->fastadc.dac_offsets[0],g_ini->fastadc.dac_offsets[1] );
         drs_set_ROFS_n_OFS ( 0,g_ini->fastadc.ROFS[0], g_ini->fastadc.OFS[0]);
         drs_set_dac_speed_bias (0,0, g_ini->fastadc.BIAS[0]);
     }
     log_it(L_DEBUG, "dac_offset[0] = %f",g_ini->fastadc.dac_offsets[0] );
 
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_1){
-        drs_set_dac_offset(1, g_ini->fastadc.dac_offsets[2],g_ini->fastadc.dac_offsets[3] );
+        drs_set_dac_offsets_quants_group(1, g_ini->fastadc.dac_offsets[2],g_ini->fastadc.dac_offsets[3] );
         drs_set_ROFS_n_OFS ( 0,g_ini->fastadc.ROFS[1], g_ini->fastadc.OFS[1]);
         drs_set_dac_speed_bias (0,0, g_ini->fastadc.BIAS[1]);
     }
@@ -515,12 +515,13 @@ void drs_set_ROFS_n_OFS(int a_drs_num, unsigned short a_ROFS, unsigned short a_O
 #endif
 }
 
+
 /**
  * @brief drs_set_dac_offset
  * @param a_drs_num
  * @param a_offset
  */
-void drs_set_dac_offset(int a_drs_num, unsigned short a_offset_ch0, unsigned short a_offset_ch1)
+void drs_set_dac_offsets_quants_group(int a_drs_num, unsigned short a_offset_ch0, unsigned short a_offset_ch1)
 {
 #if DRS_COUNT == 2
     static const unsigned c_regs[]={DRS_REG_DAC_0_OFFSET ,
@@ -879,6 +880,18 @@ void drs_start_dac()
  * double *shiftDAC		;
  */
 
+void drs_set_dac_offset_quants(int a_drs_num, unsigned a_ch,  unsigned short a_offset )
+{
+    unsigned l_value = drs_get_dac_offsets_quants_all(a_drs_num);
+    if(a_ch == 0){
+        drs_set_dac_offsets_quants_all(a_drs_num, (l_value& 0xFFFF0000) | a_offset );
+    }else if (a_ch == 1){
+        drs_set_dac_offsets_quants_all(a_drs_num, (l_value& 0xFFFF) |  (a_offset <<16) );
+    }else{
+        log_it(L_CRITICAL,"Канал для ф-ии установки сдвигов АЦП должен быть 0 или 1, а тут %u ", a_ch);
+    }
+}
+
 /**
  * @brief drs_set_dac_shift
  * @details Устанавливает смещение ЦАПов
@@ -889,18 +902,39 @@ void drs_set_dac_offsets_all(int a_drs_num, const double a_values[DRS_CHANNELS_C
 {
     int i;
     assert(a_values);
-    float *DAC_gain = g_ini->fastadc.dac_gains;
-    float * DAC_offset = g_ini->fastadc.dac_offsets;
+    assert(a_drs_num>=0);
+    float *DAC_gain = g_ini->fastadc.dac_gains + a_drs_num* DRS_CHANNELS_COUNT ;
+    float * DAC_offset = g_ini->fastadc.dac_offsets+ a_drs_num* DRS_CHANNELS_COUNT;
 
     assert(DAC_gain);
     assert(DAC_offset);
     unsigned short l_dac_shifts[DRS_CHANNELS_COUNT] ={0};
+
     for(i=0;i<DRS_CHANNELS_COUNT;i++) {
-        l_dac_shifts[i]= fabs((a_values[i]+ 0.5)*16384.0) ;
-        l_dac_shifts[i]=(l_dac_shifts[i]*DAC_gain[i]+DAC_offset[i]);
+        double y= (a_values[i] + 0.5)*16383.0 ;
+        y = (y*DAC_gain[i] +DAC_offset[i]);
+        l_dac_shifts[i] = y;
         log_it(L_DEBUG, "shiftDAC[%d]=%f",i,a_values[i]);
     }
     drs_set_dac_offsets_quants_all(a_drs_num,((l_dac_shifts[1]<<16)&0xFFFF0000)|l_dac_shifts[0]);
+}
+
+/**
+ * @brief drs_dac_volts_to_quants
+ * @param a_drs_num
+ * @param a_ch
+ * @param a_value
+ * @return
+ */
+unsigned short drs_dac_volts_to_quants(int a_drs_num, unsigned a_ch, double a_value)
+{
+    assert(a_drs_num>=0);
+    float *DAC_gain = g_ini->fastadc.dac_gains + a_drs_num* DRS_CHANNELS_COUNT ;
+    float * DAC_offset = g_ini->fastadc.dac_offsets+ a_drs_num* DRS_CHANNELS_COUNT;
+
+    assert(DAC_gain);
+    assert(DAC_offset);
+    return floor(fabs((a_value+ 0.5)*16384.0) *DAC_gain[a_ch] +DAC_offset[a_ch]) ;
 }
 
 /**
