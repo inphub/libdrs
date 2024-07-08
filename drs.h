@@ -137,6 +137,7 @@ typedef struct
     uint16_t BIAS[DRS_COUNT];
     uint32_t CLK_PHASE;
     uint16_t DAC_SIN;
+    double KT[DRS_COUNT];
 
     unsigned short dac_offsets_init_quants[4];
     float dac_offsets[4];

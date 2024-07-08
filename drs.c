@@ -720,6 +720,7 @@ static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
     char l_str_DAC_offset[]="DAC_offset_X";
     char l_str_DAC_offset_init_quants[]="DAC_offset_init_quants_X";
     char l_str_DAC_bias[]="BIASX";
+    char l_str_KT[]="KT_X";
 
     unsigned l_dac_init_quants[DRS_COUNT*DRS_CHANNELS_COUNT]={32768,32768};
     unsigned char t;
@@ -774,9 +775,15 @@ static int s_ini_load(const char *a_ini_path, parameter_t *a_prm)
         l_str_ADC_offset[strlen(l_str_ADC_offset)-1]=t+49;
         a_prm->fastadc.adc_offsets[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_ADC_offset, 0.0);
     }
+
     for (t=0;t<DRS_DCA_COUNT_ALL;t++){
         l_str_ADC_gain[strlen(l_str_ADC_gain)-1]=t+49;
         a_prm->fastadc.adc_gains[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_ADC_gain, 1.0);
+    }
+
+    for (t=0;t<DRS_COUNT;t++){
+        l_str_KT[strlen(l_str_KT)-1]=t+49;
+        a_prm->fastadc.KT[t] = dap_config_get_item_double_default(l_cfg, "FASTADC_SETTINGS", l_str_KT, 9200.0);
     }
 
     if(g_drs_flags & DRS_INIT_ENABLE_DRS_0){

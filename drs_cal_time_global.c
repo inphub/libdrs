@@ -295,7 +295,7 @@ static void s_collect_stats(drs_t * a_drs, atomic_uint_fast32_t * a_progress,uns
                 deltX += 1024.0;
             }
 
-            l_zero_cross_x[l_count] =  deltX * ( (average - l_last_y) / (a_y[n_9idx]-l_last_y) ) + l_last_x;
+            l_zero_cross_x[l_count] =  deltX / (a_y[n_9idx]-l_last_y) * (average - l_last_y)  + l_last_x;
             if(l_count > 0) {
                 l_period_delt[l_count-1] = l_zero_cross_x[l_count] - l_zero_cross_x[l_count - 1];
                 if (s_debug_dump_data){
