@@ -586,7 +586,7 @@ static void s_y_calc_scale(drs_t * a_drs,double *a_coeff, double *a_offset, int 
         for(unsigned c = 0; c < DRS_CHANNELS_COUNT; c++){
             unsigned i = d*DRS_CHANNELS_COUNT + c;
             l_gain[i] = drs_gain_quants_to_db(l_gain_raw[i]);
-            log_it(L_DEBUG,"l_gain[%u] = %f,  l_gain_raw[%u] = %u", i, l_gain[i], i, l_gain_raw[i] );
+            debug_if(s_debug_more, L_DEBUG,"l_gain[%u] = %f,  l_gain_raw[%u] = %u", i, l_gain[i], i, l_gain_raw[i] );
         }
     }
     //drs_get_gain_all(l_gain);
