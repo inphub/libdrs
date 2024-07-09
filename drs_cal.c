@@ -58,7 +58,7 @@ struct drs_cal_apply_flags g_drs_cal_apply_to_str[]={
 drs_calibrate_t s_state[DRS_COUNT] = {};
 
 static char * s_cal_file_path = NULL;
-static bool s_debug_more = true;
+static bool s_debug_more = false;
 static unsigned s_splash_treshold = DRS_CAL_SPLASH_TRESHOLD_DEFAULT;
 
 // Поток калибровки
