@@ -586,6 +586,7 @@ static void s_y_calc_scale(drs_t * a_drs,double *a_coeff, double *a_offset, int 
         for(unsigned c = 0; c < DRS_CHANNELS_COUNT; c++){
             unsigned i = d*DRS_CHANNELS_COUNT + c;
             l_gain[i] = drs_gain_quants_to_db(l_gain_raw[i]);
+            log_it(L_DEBUG,"l_gain[%u] = %f,  l_gain_raw[%u] = %u", i, l_gain[i], i, l_gain_raw[i] );
         }
     }
     //drs_get_gain_all(l_gain);
@@ -599,7 +600,7 @@ static void s_y_calc_scale(drs_t * a_drs,double *a_coeff, double *a_offset, int 
         a_offset[c]= 0.0; // g_ini->fastadc.adc_offsets[a_drs->id* DRS_CHANNELS_COUNT+ c];
 
         if(a_apply_y_flags & DRS_CAL_APPLY_PHYS ){
-           double l_scale = pow(10,(-l_gain_level/20.0));
+           double l_scale = pow(10,(-l_gain_level/40.0));
 
 
            a_coeff[c] *=  c_scale_length_volts * l_scale / (l_scale_size_raw - 1.0);
@@ -609,7 +610,8 @@ static void s_y_calc_scale(drs_t * a_drs,double *a_coeff, double *a_offset, int 
 
            a_offset[c] -= (DRS_ADC_VOLTAGE_BASE*2.0)* l_scale;
 
-           debug_if(s_debug_more, L_DEBUG,"l_coeff[%u] = %f, l_offset[%u] = %f l_gain_level = %f  l_gain_level_raw = %u l_scale=%f l_scale_factor=%f", c, a_coeff[c], c, a_offset[c],l_gain_level, l_gain_level_raw, l_scale,l_scale_factor);
+           debug_if(s_debug_more, L_DEBUG,"l_coeff[%u] = %f, l_offset[%u] = %f l_gain_level = %f  l_gain_level_raw = %u l_scale=%f l_scale_factor=%f",
+                    c, a_coeff[c], c, a_offset[c],l_gain_level, l_gain_level_raw, l_scale,l_scale_factor);
         } else {
             a_coeff[c] = 1.0;
             a_offset[c] = 0.0;

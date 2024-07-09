@@ -380,7 +380,7 @@ static inline double drs_gain_quants_to_db(unsigned short a_gain_quants)
         return DRS_GAIN_BEGIN;
     }
 
-    return  ( (double) (a_gain_quants - DRS_GAIN_QUANTS_BEGIN) ) + DRS_GAIN_BEGIN ;
+    return  ( ((double) DRS_GAIN_QUANTS_DEFAULT) - ((double)a_gain_quants) ) + DRS_GAIN_QUANTS_BEGIN ;
 }
 
 
