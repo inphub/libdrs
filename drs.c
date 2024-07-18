@@ -170,7 +170,7 @@ int drs_init(int a_drs_flags,...)
     g_ini = DAP_NEW_Z(parameter_t);
 
 
-    s_ini_load("/media/card/config.ini", g_ini );
+    s_ini_load("/opt/config/config.ini", g_ini );
 
 
     s_debug_more = dap_config_get_item_bool_default(g_config,"drs","debug_more", false);
