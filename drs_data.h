@@ -45,6 +45,8 @@ static inline int drs_data_get_page_from_first(drs_t * a_drs, int a_flags, unsig
     return drs_data_get_page(a_drs, a_flags,0,a_buffer, a_buffer_size);
 }
 
+void * drs_data_get_raw(int a_drs_id);
+
 // Один квант в наносекундах
 #define DRS_ZAP_DELAY_QUANT_NS       4
 // Дефолтное значение

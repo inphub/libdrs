@@ -1,7 +1,7 @@
 /*
- * dac_ops.h
+ * drs.h
  *
- *  Created on: 21 October
+ *  Created on: 21 October 2022
  *      Author: Dmitry Gerasimov
  */
 #pragma once
@@ -266,7 +266,7 @@ extern unsigned g_drs_data_cut_from_end;
 extern parameter_t * g_ini;
 extern drs_dac_ch_params_t g_ini_ch9;
 extern drs_t g_drs[DRS_COUNT];
-extern void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
+extern void *data_map_drs1, *data_map_drs2, *g_drs_map_shift_drs1, *g_drs_map_shift_drs2, *data_map;
 extern int g_drs_flags;
 
 #define DRS_DATA_CUT_LENGTH (g_drs_data_cut_from_begin + g_drs_data_cut_from_end)

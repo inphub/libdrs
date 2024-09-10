@@ -80,25 +80,25 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
 
         case CMD_DATA_READ_DRS1: //read data from drs1 size 16384
             log_it(L_DEBUG, "read data DRS1: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x",
-                   ((unsigned short *)data_map_drs1)[0], ((unsigned short *)data_map_drs1)[1], ((unsigned short *)data_map_drs1)[2], ((unsigned short *)data_map_drs1)[3], ((unsigned short *)data_map_drs1)[4], ((unsigned short *)data_map_drs1)[5], ((unsigned short *)data_map_drs1)[6], ((unsigned short *)data_map_drs1)[7]);
-            drs_proto_out_add_mem( DRS_PROTO(a_es), data_map_drs1, DRS_DATA_MAP_SIZE, 0);
+                   ((unsigned short *)drs_data_get_raw(0))[0], ((unsigned short *)drs_data_get_raw(0))[1], ((unsigned short *)drs_data_get_raw(0))[2], ((unsigned short *)drs_data_get_raw(0))[3], ((unsigned short *)drs_data_get_raw(0))[4], ((unsigned short *)drs_data_get_raw(0))[5], ((unsigned short *)drs_data_get_raw(0))[6], ((unsigned short *)drs_data_get_raw(0))[7]);
+            drs_proto_out_add_mem( DRS_PROTO(a_es), drs_data_get_raw(0), DRS_DATA_MAP_SIZE, 0);
         break;
 
         case CMD_DATA_READ_DRS2: //read data from drs2 size 16384
-            log_it(L_DEBUG, "read data DRS2: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x", ((unsigned short *)data_map_drs2)[0], ((unsigned short *)data_map_drs2)[1], ((unsigned short *)data_map_drs2)[2], ((unsigned short *)data_map_drs2)[3], ((unsigned short *)data_map_drs2)[4], ((unsigned short *)data_map_drs2)[5], ((unsigned short *)data_map_drs2)[6], ((unsigned short *)data_map_drs2)[7]);
-            drs_proto_out_add_mem( DRS_PROTO(a_es), data_map_drs2, DRS_DATA_MAP_SIZE, 0);
+            log_it(L_DEBUG, "read data DRS2: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x", ((unsigned short *)drs_data_get_raw(1))[0], ((unsigned short *)drs_data_get_raw(1))[1], ((unsigned short *)drs_data_get_raw(1))[2], ((unsigned short *)drs_data_get_raw(1))[3], ((unsigned short *)drs_data_get_raw(1))[4], ((unsigned short *)drs_data_get_raw(1))[5], ((unsigned short *)drs_data_get_raw(1))[6], ((unsigned short *)drs_data_get_raw(1))[7]);
+            drs_proto_out_add_mem( DRS_PROTO(a_es), drs_data_get_raw(1), DRS_DATA_MAP_SIZE, 0);
         break;
 
         case CMD_SHIFT_READ_DRS1:{ //read shift drs1
-            uint16_t l_tmpshift=((unsigned long *)data_map_shift_drs1)[0];
-            log_it( L_DEBUG, "read shifts: shift DRS1 = 0x%04x, shift DRS1=0x%04x", ((unsigned short *)data_map_shift_drs1)[0], ((unsigned short *)data_map_shift_drs2)[0]);
+            uint16_t l_tmpshift= drs_get_shift(0,0);
+            log_it( L_DEBUG, "read shift: shift DRS1 = 0x%04x", l_tmpshift);
             dap_events_socket_write_unsafe( a_es, &l_tmpshift, sizeof (l_tmpshift));
             break;
         }
 
         case CMD_SHIFT_READ_DRS2:{ //read shift drs2
-            uint16_t l_tmpshift=((unsigned long *)data_map_shift_drs1)[0];
-            log_it( L_DEBUG, "read shifts: shift DRS1 = 0x%04x, shift DRS2=0x%04x", ((unsigned short *)data_map_shift_drs1)[0], ((unsigned short *)data_map_shift_drs2)[0]);
+            uint16_t l_tmpshift=drs_get_shift(1,0);
+            log_it( L_DEBUG, "read shift:  shift DRS2=0x%04x",l_tmpshift);
             dap_events_socket_write_unsafe( a_es, &l_tmpshift, sizeof (l_tmpshift));
             break;
         }
@@ -146,11 +146,11 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
 
             size_t t;
             for (t=0; t<a_cmd_args[0]; t++) {
-                drs_proto_out_add_mem(DRS_PROTO(a_es),&(((unsigned short *)data_map_drs1)[t*DRS_CELLS_COUNT_ALL]), 0x4000, 0 );
+                drs_proto_out_add_mem(DRS_PROTO(a_es),  &(((unsigned short *)drs_data_get_raw(0))[t*DRS_CELLS_COUNT_ALL]), 0x4000, 0 );
             }
             if (t>0) t--;
-            log_it( L_DEBUG, "read page %d data: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x\n", t, ((unsigned short *)data_map_drs1)[t*8192+0], ((unsigned short *)data_map_drs1)[t*8192+1], ((unsigned short *)data_map_drs1)[t*8192+2], ((unsigned short *)data_map_drs1)[t*8192+3], ((unsigned short *)data_map_drs1)[t*8192+4], ((unsigned short *)data_map_drs1)[t*8192+5], ((unsigned short *)data_map_drs1)[t*8192+6], ((unsigned short *)data_map_drs1)[t*8192+7]);
-            log_it( L_DEBUG, "read shift: %4lu\n", ((unsigned long *)data_map_shift_drs1)[0]);
+            log_it( L_DEBUG, "read page %d data: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x\n", t, ((unsigned short *)drs_data_get_raw(0))[t*8192+0], ((unsigned short *)drs_data_get_raw(0))[t*8192+1], ((unsigned short *)drs_data_get_raw(0))[t*8192+2], ((unsigned short *)drs_data_get_raw(0))[t*8192+3], ((unsigned short *)drs_data_get_raw(0))[t*8192+4], ((unsigned short *)drs_data_get_raw(0))[t*8192+5], ((unsigned short *)drs_data_get_raw(0))[t*8192+6], ((unsigned short *)drs_data_get_raw(0))[t*8192+7]);
+            log_it( L_DEBUG, "read shift: %4lu\n", drs_get_shift(0,t));
         }break;
 
         case CMD_PAGE_READ_DRS2:{//read N page data from DRS2
@@ -158,11 +158,11 @@ void drs_proto_cmd(dap_events_socket_t * a_es, drs_proto_cmd_t a_cmd, uint32_t* 
 
             size_t t;
             for (t=0; t<a_cmd_args[0]; t++) {
-                drs_proto_out_add_mem(DRS_PROTO(a_es),&(((unsigned short *)data_map_drs1)[t*DRS_CELLS_COUNT_ALL]), 0x4000, 0 );
+                drs_proto_out_add_mem(DRS_PROTO(a_es),&(((unsigned short *)drs_data_get_raw(1))[t*DRS_CELLS_COUNT_ALL]), 0x4000, 0 );
             }
             if (t>0) t--;
-            log_it( L_DEBUG, "read page %d data: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x\n", t, ((unsigned short *)data_map_drs1)[t*8192+0], ((unsigned short *)data_map_drs1)[t*8192+1], ((unsigned short *)data_map_drs1)[t*8192+2], ((unsigned short *)data_map_drs1)[t*8192+3], ((unsigned short *)data_map_drs1)[t*8192+4], ((unsigned short *)data_map_drs1)[t*8192+5], ((unsigned short *)data_map_drs1)[t*8192+6], ((unsigned short *)data_map_drs1)[t*8192+7]);
-            log_it( L_DEBUG, "read shift: %4lu\n", ((unsigned long *)data_map_shift_drs1)[0]);
+            log_it( L_DEBUG, "read page %d data: [0]=0x%04x,[1]=0x%04x [2]=0x%04x,[3]=0x%04x [4]=0x%04x,[5]=0x%04x [6]=0x%04x,[7]=0x%04x\n", t, ((unsigned short *)drs_data_get_raw(0))[t*8192+0], ((unsigned short *)drs_data_get_raw(0))[t*8192+1], ((unsigned short *)drs_data_get_raw(0))[t*8192+2], ((unsigned short *)drs_data_get_raw(0))[t*8192+3], ((unsigned short *)drs_data_get_raw(0))[t*8192+4], ((unsigned short *)drs_data_get_raw(0))[t*8192+5], ((unsigned short *)drs_data_get_raw(0))[t*8192+6], ((unsigned short *)drs_data_get_raw(0))[t*8192+7]);
+            log_it( L_DEBUG, "read shift: %4lu\n", drs_get_shift(1,t));
         }break;
 
 

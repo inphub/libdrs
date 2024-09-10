@@ -6,16 +6,20 @@
  */
 
 #include <stdlib.h>
+#include <errno.h>
 
 #include <dap_common.h>
 #include <dap_string.h>
 #include <dap_strfuncs.h>
+#include <dap_file_utils.h>
 #include <dap_cli_server.h>
+#include <dap_tsd.h>
 
 #include "drs.h"
 #include "drs_ops.h"
 #include "drs_cli.h"
 #include "drs_data.h"
+#include "drs_dbg.h"
 #include "drs_cal.h"
 #include "drs_cal_pvt.h"
 #include "drs_proto_cmd.h"
@@ -32,7 +36,7 @@ static int s_parse_drs_and_check(int a_arg_index, int a_argc, char ** a_argv, ch
 static int s_cli_set(int a_argc, char ** a_argv, char **a_str_reply);
 static int s_cli_proto(int a_argc, char ** a_argv, char **a_str_reply);
 static int s_cli_sinus(int a_argc, char ** a_argv, char **a_str_reply);
-
+static int s_cli_debug(int a_argc, char ** a_argv, char **a_str_reply);
 /**
  * @brief drs_cli_init
  * @return
@@ -131,6 +135,18 @@ int drs_cli_init()
                             "\n"
                             ""
                             );
+
+    // Get raw data
+    dap_cli_server_cmd_add ("debug", s_cli_debug, "Отладочные команды ",
+                            "\n"
+                            "debug source file <имя файла>\n"
+                            "\t Вместо реальных данных начинает использовать данные из файла <имя файла>\n"
+                            "\n"
+                            "debug source native\n"
+                            "\t Возвращает к работе с данными из памяти или драйвера\n"
+                            "\n"
+                            );
+
 
     // Get raw data
     dap_cli_server_cmd_add ("read", s_callback_read, "Читает данные",
@@ -1342,4 +1358,242 @@ static int s_callback_exit(int argc, char ** argv, char **str_reply)
     UNUSED(argv);
     UNUSED(str_reply);
     exit(0);
+}
+
+
+/// Параметры для отладки
+static struct {
+    const char * name;
+    const char * description;
+    enum {PARAM_TYPE_STRING = 0x00000001, PARAM_TYPE_INT = 0x00000002, PARAM_TYPE_DOUBLE=0x00000004} type;
+    union{
+        struct {
+            unsigned id;
+            unsigned ch;
+        } drs;
+    } vars;
+    enum {DEBUG_PARAM_DRS_SHIFT} kind;
+} c_debug_params[] = {
+    {.name = "drs_0_shift_0", .description = "Сдвиг для канала 0 у ДРС 0",
+     .type =  PARAM_TYPE_INT,
+     .vars.drs.id = 0, .vars.drs.ch = 0 },
+    {.name = "drs_0_shift_1", .description = "Сдвиг для канала 1 у ДРС 0",
+     .type =  PARAM_TYPE_INT,
+     .vars.drs.id = 0, .vars.drs.ch = 1 },
+    {.name = "drs_1_shift_0", .description = "Сдвиг для канала 0 у ДРС 1",
+     .type =  PARAM_TYPE_INT,
+     .vars.drs.id = 1, .vars.drs.ch = 0 },
+    {.name = "drs_1_shift_1", .description = "Сдвиг для канала 1 у ДРС 1",
+     .type =  PARAM_TYPE_INT,
+     .vars.drs.id = 1, .vars.drs.ch = 1 }
+};
+
+/**
+ * @brief s_cli_debug_print_params
+ * @param a_reply
+ */
+static inline void s_cli_debug_print_params(dap_string_t * a_reply)
+{
+    for( size_t i = 0; i < sizeof(c_debug_params) / sizeof(*c_debug_params) ; i ++ ){
+        dap_string_append_printf( a_reply,"%s\t\t%s\n",c_debug_params[i].name, c_debug_params[i].description);
+    }
+}
+
+
+/**
+ * @brief s_cli_debug_params_check
+ * @param a_str_reply
+ * @param a_name
+ * @return
+ */
+static inline int s_cli_debug_params_check(char **a_str_reply, const char * a_name)
+{
+    int c_params_idx = -1;
+
+    for( size_t i = 0; i < sizeof(c_debug_params) / sizeof(*c_debug_params) ; i ++ ){
+        if( dap_strcmp(c_debug_params[i].name, a_name) == 0){
+            c_params_idx = i;
+            break;
+        }
+    }
+
+    if (c_params_idx == -1 ){
+        dap_string_t * l_reply = dap_string_new("");
+        dap_string_append_printf( l_reply,"Не могу распознать параметр \"%s\". Варианты: ", a_name );
+        s_cli_debug_print_params(l_reply);
+        *a_str_reply = dap_string_free(l_reply, false);
+
+    }
+
+    return c_params_idx;
+}
+
+
+/**
+ * @brief s_cli_debug
+ * @param a_argc
+ * @param a_argv
+ * @param a_str_reply
+ * @return
+ */
+static int s_cli_debug(int a_argc, char ** a_argv, char **a_str_reply)
+{
+  // Описываем субкомманды
+  enum {
+      CMD_NONE =0,
+      CMD_SOURCE,
+      CMD_GET,
+      CMD_SET
+  };
+  const char *l_cmd_str_c[] ={
+      [CMD_SOURCE] = "source",
+      [CMD_SET] = "set",
+      [CMD_GET] = "get",
+  };
+
+  const int c_cmd_mandatory_args_count[] ={
+      [CMD_SOURCE] = 1,
+      [CMD_SET] = 2,
+      [CMD_GET] = 1
+  };
+  const int c_argc_min = 2;
+
+  if(a_argc < c_argc_min ) {
+      dap_cli_server_cmd_set_reply_text(a_str_reply, "Нет обязательных аргументов\n" );
+      return -1;
+  }
+
+  const char * l_cmd = a_argv[1]; // Строка с субкоммандой
+
+
+  // Парсим субкоманды
+  int l_cmd_num = CMD_NONE;
+  for(int idx = 0; (size_t) idx < sizeof (l_cmd_str_c) / sizeof(typeof (*l_cmd_str_c)); idx ++ ){
+      if( dap_strcmp(l_cmd, l_cmd_str_c[idx]) == 0 ) {
+          l_cmd_num = idx;
+          break;
+      }
+  }
+
+  if(a_argc <c_argc_min + c_cmd_mandatory_args_count[l_cmd_num] ) {
+      dap_cli_server_cmd_set_reply_text(a_str_reply, "Нет обязательных аргументов для команды \"dbg %s\"\n", l_cmd );
+      return -2;
+  }
+
+
+  // Сдвигаемся после сабкоманнды до следующего индекса после неё, чтобы распарсить её аргументы
+  int l_arg_index = 1;
+
+  // Читаем общие аргументы
+  // int l_drs_num = s_parse_drs_and_check(l_arg_index,a_argc,a_argv,a_str_reply) ; // -1 значит для всех
+
+
+
+
+  switch(l_cmd_num){
+        case CMD_GET:{
+
+            // Читаем имя параметра
+            const char * c_name_str = a_argv[c_argc_min];
+            int l_idx = s_cli_debug_params_check(a_str_reply, c_name_str);
+            if (l_idx < 0 )
+                return -3;
+
+            unsigned l_drs_id = c_debug_params[l_idx].vars.drs.id;
+            unsigned l_npage = 0;
+
+
+            switch(c_debug_params[l_idx].kind){
+                case DEBUG_PARAM_DRS_SHIFT:{
+                    if (g_drs_dbg_source.drs[l_drs_id].shift[l_npage] < 0 )
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "%s[%u] =\n", c_name_str, l_npage );
+                    else
+                        dap_cli_server_cmd_set_reply_text(a_str_reply, "%s[%u] = %d\n", c_name_str, l_npage,
+                                                          g_drs_dbg_source.drs[l_drs_id].shift[l_npage] );
+                } break;
+            }
+      }break;
+      case CMD_SET:{
+
+          // Читаем имя параметра
+          const char * c_name_str = a_argv[c_argc_min];
+          int l_idx = s_cli_debug_params_check(a_str_reply, c_name_str);
+          if (l_idx < 0 )
+              return -3;
+
+          unsigned l_drs_id = c_debug_params[l_idx].vars.drs.id;
+          unsigned l_npage = 0;
+
+          // Читаем значение
+          const char * c_value_str = a_argv[c_argc_min+1];
+          union {
+              double _double;
+              int _int;
+              const char * _str;
+          } l_value;
+          int l_value_type = PARAM_TYPE_STRING;
+
+          char * l_endptr = NULL;
+          if (c_debug_params[l_idx].type ==  PARAM_TYPE_DOUBLE){
+              l_value._double = strtod(c_value_str, &l_endptr);
+          }else if (c_debug_params[l_idx].type == PARAM_TYPE_INT){
+              if (dap_strncmp(c_value_str,"0x",2) == 0)
+                  l_value._int = strtol(c_value_str + 2, &l_endptr,16);
+              else
+                  l_value._int = strtol(c_value_str, &l_endptr,10);
+          }
+          int l_errno = errno;
+          if (l_endptr <= c_value_str){
+              char l_err[32];
+              strerror_r(l_errno,l_err,sizeof(l_err));
+              dap_cli_server_cmd_set_reply_text(a_str_reply, "Ошибка распознавания у параметра %s значения \"%s\": %s (код %d)",
+                                                c_name_str,c_value_str,   l_err, l_errno);
+              return -2;
+          }
+
+          switch(c_debug_params[l_idx].kind){
+              case DEBUG_PARAM_DRS_SHIFT:{
+                  g_drs_dbg_source.drs[l_drs_id].shift[0] = l_value._int;
+                  dap_cli_server_cmd_set_reply_text(a_str_reply, "%s[l_npage] = %d\n",  c_name_str, l_npage, g_drs_dbg_source.drs[l_drs_id].shift[l_npage] );
+              } break;
+          }
+
+
+      } break;
+      case CMD_SOURCE:{
+          const char * c_subcmd = a_argv[c_argc_min];
+          if ( dap_strcmp(c_subcmd, "file") == 0 ){
+              if(a_argc <c_argc_min + c_cmd_mandatory_args_count[l_cmd_num] + 1) {
+                  dap_cli_server_cmd_set_reply_text(a_str_reply, "Нет обязательного аргумента <имя файла> для команды \"dbg data source <имя файла>\"\n");
+                  return -2;
+              }
+
+              const char * c_file_path = a_argv[c_argc_min + 1];
+              int l_ret;
+
+              if( (l_ret = drs_dbg_source_set_file(c_file_path)) == 0  )
+                  dap_cli_server_cmd_set_reply_text(a_str_reply, "Успешно загружено %zd байт отладочных данных в качестве сырых данных по Y\n", g_drs_dbg_source.data.raw_size);
+              else
+                  dap_cli_server_cmd_set_reply_text(a_str_reply, "Не удалось загрузить файл %u, код ошибки %d \n",c_file_path, l_ret );
+
+              return l_ret;
+          }else if (dap_strcmp(c_subcmd, "native") == 0 ){
+              int l_ret;
+
+              if( (l_ret = drs_dbg_source_set_native()) == 0)
+                  dap_cli_server_cmd_set_reply_text(a_str_reply, "Источник данных переключен на нативный (память или драйвер)\n");
+              else
+                  dap_cli_server_cmd_set_reply_text(a_str_reply, "Не удалось переключить источник данных на нативный. Код ошибки %d\n", l_ret);
+
+              return l_ret;
+          }
+
+      }break;
+      default:{
+        dap_cli_server_cmd_set_reply_text(a_str_reply, "Не могу распознать команду \"%s\"\n");
+        return -4;
+      }
+  }
+
+  return 0;
 }

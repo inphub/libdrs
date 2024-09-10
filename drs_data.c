@@ -19,10 +19,10 @@
 #include <dap_string.h>
 #include <dap_config.h>
 
-#include "commands.h"
 #include "drs.h"
 #include "drs_data.h"
 #include "drs_ops.h"
+#include "drs_dbg.h"
 
 #define LOG_TAG "drs_data"
 
@@ -124,6 +124,20 @@ int drs_data_get_page(drs_t * a_drs, int a_flags ,unsigned a_page, unsigned shor
 
 }
 
+/**
+ * @brief drs_data_get_raw
+ * @param a_drs_id
+ * @return
+ */
+void * drs_data_get_raw(int a_drs_id)
+{
+  if (g_drs_dbg_source.enabled){
+      return g_drs_dbg_source.data.raw;
+  }else if ( a_drs_id == 0 )
+      return data_map_drs1;
+  else
+      return drs_data_get_raw(1);
+}
 
 /**
  * @brief drs_read_page
@@ -136,10 +150,17 @@ void drs_read_page(drs_t * a_drs,unsigned int a_page_num,  unsigned short *a_buf
 {
     assert(a_drs);
     assert(a_buffer);
-    if ( a_drs->id ==0 )
-        memcpy(a_buffer,  ((byte_t*)data_map_drs1 )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
+    void * l_data_src = NULL;
+
+    if (g_drs_dbg_source.enabled){
+        l_data_src = g_drs_dbg_source.data.raw;
+    }else if ( a_drs->id ==0 )
+        l_data_src = data_map_drs1;
     else
-       memcpy(a_buffer, ((byte_t*)data_map_drs2 )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
+        l_data_src = drs_data_get_raw(1);
+
+    memcpy(a_buffer, ((byte_t*)l_data_src )+ a_page_num*DRS_PAGE_READ_SIZE, a_buffer_size ) ;
+
     a_drs->shift =drs_get_shift( a_drs->id, a_page_num);
     a_drs->shift_bank =a_drs->shift & 1023;
 
@@ -266,7 +287,7 @@ void drs_read_page_rotated(drs_t * a_drs,unsigned int a_page_num,  unsigned shor
 {
     assert(a_drs);
     assert(a_buffer);
-    byte_t * a_drs_mem = a_drs->id == 0 ? (byte_t*)data_map_drs1 : (byte_t*)data_map_drs2;
+    byte_t * a_drs_mem = a_drs->id == 0 ? (byte_t*)data_map_drs1 : (byte_t*)drs_data_get_raw(1);
     unsigned short * a_drs_page =(unsigned short *) (a_drs_mem + a_page_num*DRS_PAGE_READ_SIZE);
 
     drs_data_rotate_bank(a_drs, a_drs_page, a_buffer, a_buffer_size, sizeof(unsigned short));
@@ -326,14 +347,26 @@ unsigned int drs_get_shift_bank(unsigned int a_drs_num, unsigned int a_page_num)
  */
 unsigned int drs_get_shift(unsigned int a_drs_num, unsigned int a_page_num)
 {
-    unsigned short tmpshift;
-    if (a_drs_num==0)
-     tmpshift=((uint32_t *)data_map_shift_drs1)[a_page_num];
-    else
-     tmpshift=((uint32_t *)data_map_shift_drs2)[a_page_num];
-    return tmpshift & 4095;
+    unsigned short l_shift;
+    if ( g_drs_dbg_source.drs[a_drs_num].shift[a_page_num] < 0){
+        if (a_drs_num==0){
+            l_shift=((uint32_t *)g_drs_map_shift_drs1)[a_page_num];
+        }else{
+            l_shift=((uint32_t *)g_drs_map_shift_drs2)[a_page_num];
+        }
+    }else
+        l_shift = (unsigned short ) g_drs_dbg_source.drs[a_drs_num].shift[a_page_num];
+    return l_shift & 4095;
 }
 
+/**
+ * @brief drs_data_dump_in_files_double
+ * @param a_filename
+ * @param a_data
+ * @param a_data_count
+ * @param a_flags
+ * @return
+ */
 int drs_data_dump_in_files_double(const char * a_filename, const double * a_data, size_t a_data_count, int a_flags)
 {
 

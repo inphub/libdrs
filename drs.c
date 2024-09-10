@@ -1,7 +1,7 @@
 /*
- * dac_ops.h
+ * drs.h
  *
- *  Created on: 21 October
+ *  Created on: 21 October 2022
  *      Author: Dmitry Gerasimov
  */
 #include <assert.h>
@@ -73,7 +73,7 @@ drs_t g_drs[DRS_COUNT]={
     }
 };
 enum drs_freq g_current_freq=DRS_FREQ_5GHz;
-void *data_map_drs1, *data_map_drs2, *data_map_shift_drs1, *data_map_shift_drs2, *data_map;
+void *data_map_drs1, *data_map_drs2, *g_drs_map_shift_drs1, *g_drs_map_shift_drs2, *data_map;
 
 int g_drs_flags = 0;
 va_list s_drs_flags_vars;
@@ -256,14 +256,14 @@ static int s_init_mem(void)
         goto cleanup;
     }
 
-    data_map_shift_drs1 = mmap(NULL, DRS_PAGE_COUNT_MAX * sizeof(unsigned) , PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs1);
-    if (data_map_shift_drs1 == MAP_FAILED) {
+    g_drs_map_shift_drs1 = mmap(NULL, DRS_PAGE_COUNT_MAX * sizeof(unsigned) , PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs1);
+    if (g_drs_map_shift_drs1 == MAP_FAILED) {
         perror("mmap");
         goto cleanup;
     }
 
-    data_map_shift_drs2 = mmap(NULL, DRS_PAGE_COUNT_MAX * sizeof(unsigned), PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs2);
-    if (data_map_shift_drs2 == MAP_FAILED) {
+    g_drs_map_shift_drs2 = mmap(NULL, DRS_PAGE_COUNT_MAX * sizeof(unsigned), PROT_READ | PROT_WRITE, MAP_SHARED, fd, data_shift_drs2);
+    if (g_drs_map_shift_drs2 == MAP_FAILED) {
         perror("mmap");
         goto cleanup;
     }
@@ -299,12 +299,12 @@ static void s_deinit_mem(void)
         perror("munmap");
         goto cleanup;
     }
-    if (munmap(data_map_shift_drs1, 0x1000) < 0)
+    if (munmap(g_drs_map_shift_drs1, 0x1000) < 0)
     {
         perror("munmap");
         goto cleanup;
     }
-    if (munmap(data_map_shift_drs2, 0x1000) < 0)
+    if (munmap(g_drs_map_shift_drs2, 0x1000) < 0)
     {
         perror("munmap");
         goto cleanup;
